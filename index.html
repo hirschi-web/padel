@@ -9,7 +9,8 @@
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
         .input-score { width: 45px; text-align: center; border: 2px solid #e2e8f0; border-radius: 6px; padding: 4px; font-weight: bold; font-size: 1.1em; }
-        .winner { color: #16a34a !important; font-weight: 900 !important; }
+        /* WICHTIG: Gewinner-Stil */
+        .winner { color: #16a34a !important; font-weight: 900 !important; text-shadow: 0 0 1px #bbf7d0; }
         .leader-row { background: rgba(59, 130, 246, 0.1); }
     </style>
 </head>
@@ -91,7 +92,6 @@
     <script>
         const API_KEY = "$2b$10$fV2tM2W6S7IuC8wQ8P6S7.0E1V4N9.B5I6R7B8C9D0E1F2G3H4I5J"; 
         const BIN_ID = "65b79650dc746540189d6e4a";
-        // FESTE ID, IMMER KLEIN
         const tId = "rw0702"; 
         
         const defaultPlayers = ["Marion", "David", "Martin", "Frank", "Bernhard", "Dieter", "Lucy", "Silvia", "Nik", "Gast"];
@@ -108,7 +108,6 @@
         let scoringMode = 'total';
         let timeSettings = { start: "14:00", warmup: 5, match: 35 };
 
-        // LÄDT DATEN ODER ERSTELLT NEUE
         async function syncData() {
             setSyncStatus('sync');
             try {
@@ -119,10 +118,7 @@
                     scoringMode = db[tId].m || 'total'; 
                     timeSettings = db[tId].t || timeSettings;
                     renderAll();
-                } else { 
-                    // Wenn ID nicht existiert, sofort anlegen!
-                    await pushData(); 
-                }
+                } else { await pushData(); }
                 setSyncStatus('ok');
             } catch (e) { setSyncStatus('error'); }
         }
@@ -132,9 +128,7 @@
             try {
                 const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } });
                 let db = await res.json();
-                // Hier wird ALLES gespeichert
                 db[tId] = { p: players, s: schedule, m: scoringMode, t: timeSettings, lastUpdate: Date.now() };
-                
                 await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
                     body: JSON.stringify(db)
@@ -157,7 +151,12 @@
         }
 
         function changeScoringMode(v) { scoringMode = v; updateRanking(); pushData(); }
-        function updateScore(rI, k, tI, v) { schedule[rI][k][tI] = v === "" ? "" : parseInt(v); renderAll(); pushData(); }
+        
+        function updateScore(rI, k, tI, v) { 
+            schedule[rI][k][tI] = v === "" ? "" : parseInt(v); 
+            renderAll(); 
+            pushData(); 
+        }
         
         function setSyncStatus(s) {
             const i = document.getElementById('syncIndicator'), t = document.getElementById('lastUpdate');
@@ -187,14 +186,19 @@
         }
 
         function renderCourt(rI, sK, cK, lbl, r) {
-            const s1 = r[sK][0], s2 = r[sK][1], isD = s1 !== "" && s2 !== "";
+            const s1Val = r[sK][0], s2Val = r[sK][1];
+            // KORRIGIERTE LOGIK: Zahlen parsen für Vergleich
+            const s1 = s1Val === "" ? -1 : parseInt(s1Val);
+            const s2 = s2Val === "" ? -1 : parseInt(s2Val);
+            const isDone = s1 !== -1 && s2 !== -1;
+            
             return `<div class="flex items-center gap-2">
                 <div class="w-5 text-slate-300 font-bold">${lbl}</div>
-                <div class="flex-1 text-right ${isD && s1 > s2 ? 'winner' : ''}">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
-                <input type="number" value="${s1}" onchange="updateScore(${rI},'${sK}',0,this.value)" class="input-score">
+                <div class="flex-1 text-right ${isDone && s1 > s2 ? 'winner' : ''}">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
+                <input type="number" value="${s1Val}" onchange="updateScore(${rI},'${sK}',0,this.value)" class="input-score">
                 <span>:</span>
-                <input type="number" value="${s2}" onchange="updateScore(${rI},'${sK}',1,this.value)" class="input-score">
-                <div class="flex-1 text-left ${isD && s2 > s1 ? 'winner' : ''}">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
+                <input type="number" value="${s2Val}" onchange="updateScore(${rI},'${sK}',1,this.value)" class="input-score">
+                <div class="flex-1 text-left ${isDone && s2 > s1 ? 'winner' : ''}">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
             </div>`;
         }
 
@@ -211,7 +215,6 @@
 
         function resetTournament() { if(confirm("ALLES ZURÜCKSETZEN?")) { schedule = JSON.parse(JSON.stringify(defaultSchedule)); renderAll(); pushData(); } }
 
-        // Starten
         syncData();
     </script>
 </body>
