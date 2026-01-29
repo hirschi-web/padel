@@ -6,8 +6,7 @@
     <title>Live rw0702</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* WICHTIG: Gewinner-Stil */
-        .winner { color: #16a34a !important; font-weight: 900 !important; }
+        .winner { color: #16a34a !important; font-weight: 900 !important; text-shadow: 0 0 1px #bbf7d0; }
         .leader-row { background: rgba(59, 130, 246, 0.1); }
         .score-box { width: 35px; text-align: center; font-weight: bold; background: #f1f5f9; border-radius: 4px; padding: 2px 0; color: #2563eb; }
     </style>
@@ -22,8 +21,9 @@
         <div id="lastUpdate" class="text-[9px] font-mono opacity-80 italic">Verbinde...</div>
     </div>
 
-    <div id="waitingMsg" class="hidden p-4 bg-orange-100 text-orange-800 rounded-xl mb-4 text-center text-sm border border-orange-200">
-        <b>Warte auf Daten...</b><br>Bitte in der Admin-Seite auf "Save Cloud" klicken.
+    <div id="waitingMsg" class="hidden p-4 bg-orange-100 text-orange-800 rounded-xl mb-4 text-center text-sm border border-orange-200 shadow-sm">
+        <p class="font-bold">⚠️ Daten werden geladen...</p>
+        <p class="text-xs mt-1">Sollte dies länger dauern: Bitte auf der Admin-Seite einmal auf <b class="text-blue-600">"Save Cloud"</b> klicken!</p>
     </div>
 
     <div id="mainContent" class="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-50 transition-opacity duration-500">
@@ -61,13 +61,24 @@
 
         async function syncData() {
             try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest?nocache=${Date.now()}`, { headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } });
+                // Abruf mit NoCache
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest?nocache=${Date.now()}`, { 
+                    headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } 
+                });
+                
+                if(!res.ok) throw new Error("API Error: " + res.status);
+                
                 const db = await res.json();
                 
-                if (db && db[tId]) {
-                    players = db[tId].p; schedule = db[tId].s; 
-                    scoringMode = db[tId].m || 'total'; 
-                    timeSettings = db[tId].t || timeSettings;
+                // ROBUSTHEITS-CHECK: Sind Daten direkt da oder im 'record' Wrapper?
+                let data = db.record || db;
+
+                if (data && data[tId]) {
+                    // Erfolg!
+                    players = data[tId].p; 
+                    schedule = data[tId].s; 
+                    scoringMode = data[tId].m || 'total'; 
+                    timeSettings = data[tId].t || timeSettings;
                     
                     document.getElementById('waitingMsg').classList.add('hidden');
                     document.getElementById('mainContent').classList.remove('opacity-50');
@@ -76,10 +87,16 @@
                     
                     renderAll();
                 } else {
+                    // Keine Daten für rw0702 gefunden
+                    console.warn("Turnier ID rw0702 nicht im JSON gefunden:", data);
                     document.getElementById('waitingMsg').classList.remove('hidden');
                     document.getElementById('statusDot').className = "w-2 h-2 bg-red-500 rounded-full animate-pulse";
+                    document.getElementById('lastUpdate').innerText = 'ID fehlt!';
                 }
-            } catch (e) { document.getElementById('lastUpdate').innerText = 'Verbindung verloren'; }
+            } catch (e) { 
+                console.error(e);
+                document.getElementById('lastUpdate').innerText = 'Netzwerkfehler';
+            }
         }
 
         function getMatchTime(roundIdx) {
@@ -89,6 +106,7 @@
         }
 
         function renderAll() {
+            // Dropdown Player
             const sel = document.getElementById('playerSelect');
             if(sel.options.length <= 1) {
                 const savedVal = sel.value;
@@ -109,7 +127,13 @@
 
             let stats = players.map((name) => ({ name, points: 0, m: 0 }));
             schedule.forEach(r => {
-                const add = (pI, s, o) => { if(s!=="" && o!=="") { let v = (scoringMode === 'diff') ? (s-o) : s; pI.forEach(x => { stats[x].points += v; stats[x].m++; }); } };
+                const add = (pI, sV, oV) => { 
+                    if(sV!=="" && oV!=="") { 
+                        let s = parseInt(sV), o = parseInt(oV);
+                        let v = (scoringMode === 'diff') ? (s-o) : s; 
+                        pI.forEach(x => { stats[x].points += v; stats[x].m++; }); 
+                    } 
+                };
                 add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
                 add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
             });
@@ -120,18 +144,16 @@
         }
 
         function renderCourt(r, sK, cK, label) {
-            const s1Val = r[sK][0], s2Val = r[sK][1];
-            // KORRIGIERTE LOGIK: Zahlen parsen für Vergleich
-            const s1 = s1Val === "" ? -1 : parseInt(s1Val);
-            const s2 = s2Val === "" ? -1 : parseInt(s2Val);
+            const s1 = r[sK][0] === "" ? -1 : parseInt(r[sK][0]);
+            const s2 = r[sK][1] === "" ? -1 : parseInt(r[sK][1]);
             const isDone = s1 !== -1 && s2 !== -1;
 
             return `<div class="flex items-center gap-2">
                 <div class="w-5 font-bold text-slate-300 text-[9px]">${label}</div>
                 <div class="flex-1 text-right ${isDone && s1 > s2 ? 'winner' : ''}">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
-                <div class="score-box">${s1Val===""?"-":s1Val}</div>
+                <div class="score-box">${r[sK][0]===""?"-":r[sK][0]}</div>
                 <span>:</span>
-                <div class="score-box">${s2Val===""?"-":s2Val}</div>
+                <div class="score-box">${r[sK][1]===""?"-":r[sK][1]}</div>
                 <div class="flex-1 text-left ${isDone && s2 > s1 ? 'winner' : ''}">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
             </div>`;
         }
