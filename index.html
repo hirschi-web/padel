@@ -3,46 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Admin</title>
+    <title>Padel Admin rw0702 🎾</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .input-score { width: 45px; text-align: center; border: 2px solid #e2e8f0; border-radius: 6px; font-weight: bold; }
-        [v-cloak] { display: none; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .input-score { width: 45px; text-align: center; border: 2px solid #e2e8f0; border-radius: 6px; padding: 4px; font-weight: bold; }
+        .winner { color: #16a34a !important; font-weight: 800 !important; }
+        .leader-row { background: rgba(59, 130, 246, 0.1); }
     </style>
 </head>
-<body class="bg-slate-50 p-3 max-w-4xl mx-auto text-slate-900">
+<body class="bg-slate-50 p-3 max-w-4xl mx-auto text-slate-900 font-sans">
 
-    <div class="mb-4 p-4 bg-slate-900 text-white rounded-2xl shadow-xl border-b-4 border-blue-600">
-        <div class="flex justify-between items-center mb-4">
-            <div>
-                <h1 class="text-xl font-black italic text-blue-400">PADEL ADMIN</h1>
-                <p id="statusText" class="text-[10px] text-slate-400 font-mono">Bereit zum Speichern...</p>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="pushData()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all">CLOUD SAVE</button>
-                <button onclick="resetTournament()" class="bg-red-900/30 text-red-400 px-3 py-2 rounded-lg text-xs border border-red-900/50">RESET</button>
-            </div>
+    <div class="mb-4 p-3 bg-slate-900 text-white rounded-xl shadow-lg flex justify-between items-center border-b-4 border-blue-500">
+        <div class="flex items-center gap-2">
+            <div id="syncIndicator" class="w-3 h-3 bg-green-400 rounded-full"></div>
+            <span class="text-[10px] font-black uppercase tracking-widest">Admin Mode: rw0702</span>
         </div>
-        
-        <div class="grid grid-cols-2 gap-3 bg-slate-800 p-3 rounded-xl border border-slate-700">
-            <div>
-                <label class="block text-[9px] uppercase font-bold text-slate-500 mb-1">Turnier Name (ID):</label>
-                <input type="text" id="tIdInput" value="rw0702" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm font-mono text-blue-300 outline-none focus:border-blue-500">
-            </div>
-            <div>
-                <label class="block text-[9px] uppercase font-bold text-slate-500 mb-1">Live Ansicht:</label>
-                <a href="live.html" target="_blank" class="block w-full bg-slate-700 text-center rounded p-2 text-xs font-bold hover:bg-slate-600">ÖFFNEN ↗</a>
-            </div>
+        <div id="lastUpdate" class="text-[9px] font-mono opacity-60 italic text-blue-300">Warte auf Cloud...</div>
+    </div>
+
+    <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-3">
+            <h1 class="text-xl font-black text-blue-600 italic">PADEL ADMIN</h1>
+            <a href="live.html" target="_blank" class="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded animate-pulse">LIVE ANSICHT ↗</a>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="pushData()" class="bg-blue-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg uppercase shadow-md">Cloud Save</button>
+            <button onclick="resetTournament()" class="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-2 rounded-lg border border-red-200 uppercase">Reset</button>
         </div>
     </div>
 
-    <div id="playerInputs" class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200"></div>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div id="schedule" class="space-y-4"></div>
-        <div class="bg-slate-900 rounded-2xl p-5 text-white shadow-2xl border-t-4 border-blue-500 h-fit sticky top-4">
-            <h2 class="text-blue-400 font-black mb-4 uppercase text-xs tracking-widest italic">🏆 Live Ranking</h2>
+    <details open class="bg-white rounded-xl shadow-sm border border-slate-200 mb-4 overflow-hidden">
+        <summary class="p-4 font-bold text-slate-700 cursor-pointer hover:bg-slate-50 list-none flex justify-between">
+            <span>⚙️ Turnier-Setup & Zeitplan</span>
+            <span class="text-blue-500 text-[10px] uppercase font-bold italic">Einstellungen</span>
+        </summary>
+        <div class="p-4 bg-slate-50 border-t space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div class="bg-white p-2 rounded border shadow-inner">
+                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Turnier-ID:</label>
+                    <input type="text" id="tIdInput" value="rw0702" class="w-full font-bold text-blue-600 outline-none">
+                </div>
+                <div class="bg-white p-2 rounded border shadow-inner">
+                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Beginn:</label>
+                    <input type="time" id="startTime" onchange="updateTimeSettings()" class="w-full font-bold outline-none">
+                </div>
+                <div class="bg-white p-2 rounded border shadow-inner">
+                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Warmup (Min):</label>
+                    <input type="number" id="warmupTime" onchange="updateTimeSettings()" class="w-full font-bold outline-none">
+                </div>
+                <div class="bg-white p-2 rounded border shadow-inner">
+                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Spielzeit (Min):</label>
+                    <input type="number" id="matchTime" onchange="updateTimeSettings()" class="w-full font-bold outline-none">
+                </div>
+            </div>
+            <div class="bg-white p-2 rounded border shadow-inner">
+                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Wertungs-System:</label>
+                <select id="scoringMode" onchange="changeScoringMode(this.value)" class="w-full font-bold outline-none">
+                    <option value="total">Punkte sammeln (Jedes Spiel addiert)</option>
+                    <option value="diff">Differenz zählen (Tor-Differenz)</option>
+                </select>
+            </div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase -mb-2 ml-1">Spieler-Namen bearbeiten:</label>
+            <div id="playerInputs" class="grid grid-cols-2 sm:grid-cols-5 gap-2"></div>
+        </div>
+    </details>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="space-y-4">
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+                <h2 class="font-bold text-slate-700 uppercase text-xs tracking-widest mb-4 italic">📅 Spielplan (10 Spieler)</h2>
+                <div id="schedule" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 rounded-xl shadow-xl p-4 text-white h-fit md:sticky md:top-4 border-t-4 border-blue-500">
+            <h2 class="font-bold mb-4 text-blue-400 uppercase text-xs tracking-widest italic">🏆 Live Ranking</h2>
             <table class="w-full text-sm">
+                <thead class="text-slate-500 text-[10px] uppercase border-b border-slate-800">
+                    <tr><th class="text-left pb-2">Pos / Name</th><th class="text-center pb-2">M</th><th class="text-right pb-2">Pkt</th></tr>
+                </thead>
                 <tbody id="rankingBody" class="divide-y divide-slate-800"></tbody>
             </table>
         </div>
@@ -62,91 +103,92 @@
 
         let players = [...defaultPlayers];
         let schedule = JSON.parse(JSON.stringify(defaultSchedule));
+        let scoringMode = 'total';
+        let timeSettings = { start: "14:00", warmup: 5, match: 35 };
 
         async function pushData() {
-            const status = document.getElementById('statusText');
             const tid = document.getElementById('tIdInput').value.toLowerCase().trim();
-            status.innerText = "☁️ Speichere in Cloud...";
-            
+            setSyncStatus('push');
             try {
                 const getRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } });
                 let db = await getRes.json();
-                
-                db[tid] = { p: players, s: schedule, lastUpdate: Date.now() };
-                
+                db[tid] = { p: players, s: schedule, m: scoringMode, t: timeSettings, lastUpdate: Date.now() };
                 await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
                     body: JSON.stringify(db)
                 });
-                
-                status.innerText = `✅ Gespeichert unter '${tid}' (${new Date().toLocaleTimeString()})`;
-            } catch (e) {
-                status.innerText = "❌ Fehler beim Speichern!";
-                console.error(e);
-            }
+                setSyncStatus('ok');
+            } catch (e) { setSyncStatus('error'); }
         }
 
-        function updateScore(rI, k, tI, v) {
-            schedule[rI][k][tI] = v === "" ? "" : parseInt(v);
-            render();
-            pushData();
+        function updateTimeSettings() {
+            timeSettings.start = document.getElementById('startTime').value;
+            timeSettings.warmup = parseInt(document.getElementById('warmupTime').value) || 0;
+            timeSettings.match = parseInt(document.getElementById('matchTime').value) || 0;
+            renderAll(); pushData();
         }
 
-        function render() {
-            document.getElementById('playerInputs').innerHTML = players.map((p, i) => `
-                <div class="flex flex-col">
-                    <span class="text-[8px] font-bold text-slate-400 uppercase">Spieler ${i+1}</span>
-                    <input type="text" value="${p}" onblur="players[${i}]=this.value; render(); pushData();" class="p-2 border rounded text-xs outline-none focus:border-blue-500">
-                </div>`).join('');
+        function getMatchTime(idx) {
+            let [h, m] = timeSettings.start.split(':').map(Number);
+            let total = h * 60 + m + timeSettings.warmup + (idx * timeSettings.match);
+            return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+        }
+
+        function changeScoringMode(v) { scoringMode = v; updateRanking(); pushData(); }
+        function updateScore(rI, k, tI, v) { schedule[rI][k][tI] = v === "" ? "" : parseInt(v); renderAll(); pushData(); }
+        function setSyncStatus(s) {
+            const i = document.getElementById('syncIndicator'), t = document.getElementById('lastUpdate');
+            i.className = s==='push' ? 'w-3 h-3 bg-blue-400 animate-bounce' : 'w-3 h-3 bg-green-400';
+            t.innerText = s==='ok' ? 'Cloud: Gespeichert' : 'Warte...';
+        }
+
+        function renderAll() {
+            document.getElementById('startTime').value = timeSettings.start;
+            document.getElementById('warmupTime').value = timeSettings.warmup;
+            document.getElementById('matchTime').value = timeSettings.match;
+            document.getElementById('scoringMode').value = scoringMode;
+            document.getElementById('playerInputs').innerHTML = players.map((p, i) => `<input type="text" value="${p}" onblur="players[${i}]=this.value; pushData(); renderAll();" class="p-1 border rounded text-[10px] outline-none focus:border-blue-500">`).join('');
             
             document.getElementById('schedule').innerHTML = schedule.map((r, rI) => `
-                <div class="p-4 bg-white rounded-xl shadow-sm border border-slate-200 text-[11px]">
-                    <div class="flex justify-between mb-3 font-bold text-slate-400 border-b pb-2 uppercase tracking-tighter">
-                        <span>Runde ${r.id}</span>
-                        <span class="text-orange-500">☕ Pause: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
+                <div class="p-3 bg-slate-50 rounded border text-[11px]">
+                    <div class="flex justify-between mb-2 font-bold text-slate-400">
+                        <span>R${r.id} | ${getMatchTime(rI)} Uhr</span>
+                        <span class="text-orange-400 italic">Pause: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
                     </div>
-                    <div class="space-y-4">
-                        ${renderCourt(rI, 's2', 'c2', 'Court 2', r)}
-                        ${renderCourt(rI, 's3', 'c3', 'Court 3', r)}
-                    </div>
+                    ${renderCourt(rI, 's2', 'c2', 'C2', r)}
+                    <div class="h-[1px] bg-slate-200 my-2"></div>
+                    ${renderCourt(rI, 's3', 'c3', 'C3', r)}
                 </div>`).join('');
             updateRanking();
         }
 
         function renderCourt(rI, sK, cK, lbl, r) {
-            return `<div class="flex items-center gap-3">
-                <div class="w-12 text-slate-300 font-black text-[9px] uppercase">${lbl}</div>
+            return `<div class="flex items-center gap-2">
+                <div class="w-5 text-slate-300 font-bold">${lbl}</div>
                 <div class="flex-1 text-right font-medium">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
-                <div class="flex items-center gap-1">
-                    <input type="number" value="${r[sK][0]}" onchange="updateScore(${rI},'${sK}',0,this.value)" class="input-score">
-                    <span class="font-bold text-slate-300">:</span>
-                    <input type="number" value="${r[sK][1]}" onchange="updateScore(${rI},'${sK}',1,this.value)" class="input-score">
-                </div>
+                <input type="number" value="${r[sK][0]}" onchange="updateScore(${rI},'${sK}',0,this.value)" class="input-score">
+                <span>:</span>
+                <input type="number" value="${r[sK][1]}" onchange="updateScore(${rI},'${sK}',1,this.value)" class="input-score">
                 <div class="flex-1 text-left font-medium">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
             </div>`;
         }
 
         function updateRanking() {
-            let st = players.map(name => ({ name, points: 0 }));
+            let st = players.map(name => ({ name, points: 0, m: 0 }));
             schedule.forEach(r => {
-                const add = (pI, s, o) => { if(s!=="" && o!=="") { pI.forEach(x => st[x].points += parseInt(s)); } };
+                const add = (pI, s, o) => { if(s!=="" && o!=="") { let v = scoringMode==='diff'?s-o:s; pI.forEach(x => { st[x].points += v; st[x].m++; }); } };
                 add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
                 add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
             });
             st.sort((a,b) => b.points - a.points);
-            document.getElementById('rankingBody').innerHTML = st.map((s, i) => `
-                <tr class="border-b border-slate-800/50">
-                    <td class="py-3 font-bold text-slate-300">${i+1}. ${s.name}</td>
-                    <td class="text-right font-black text-blue-400 text-lg">${s.points}</td>
-                </tr>`).join('');
+            document.getElementById('rankingBody').innerHTML = st.map((s, i) => `<tr class="${s.points>0&&s.points===st[0].points?'leader-row':''}"><td class="py-2">${i+1}. ${s.name}</td><td class="text-center text-slate-500">${s.m}/4</td><td class="text-right font-bold text-blue-400">${s.points}</td></tr>`).join('');
         }
 
-        function resetTournament() { if(confirm("Wirklich alles löschen?")) { schedule = JSON.parse(JSON.stringify(defaultSchedule)); render(); pushData(); } }
+        function resetTournament() { if(confirm("TURNIER ZURÜCKSETZEN?")) { schedule = JSON.parse(JSON.stringify(defaultSchedule)); renderAll(); pushData(); } }
 
-        render();
-        // Erstmaliges Laden erzwingen
-        setTimeout(pushData, 1000);
+        renderAll();
+        // Initialer Push
+        setTimeout(pushData, 1500);
     </script>
 </body>
 </html>
