@@ -3,43 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Live View</title>
+    <title>Live rw0702</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .score-view { width: 38px; text-align: center; font-weight: 800; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 0; color: #1d4ed8; }
-        .winner { color: #16a34a; font-weight: 800; }
+        .winner { color: #16a34a !important; font-weight: 900 !important; }
+        .leader-row { background: rgba(59, 130, 246, 0.1); }
+        .score-box { width: 35px; text-align: center; font-weight: bold; background: #f1f5f9; border-radius: 4px; padding: 2px 0; color: #2563eb; }
     </style>
 </head>
-<body class="bg-slate-100 p-3 max-w-4xl mx-auto text-slate-900">
+<body class="bg-slate-50 p-3 max-w-4xl mx-auto text-slate-900 font-sans">
 
-    <div class="mb-4 p-4 bg-blue-700 text-white rounded-2xl shadow-lg flex justify-between items-center border-b-4 border-blue-900">
-        <div>
-            <h1 id="tournamentTitle" class="text-lg font-black italic">LADE TURNIER...</h1>
-            <p id="statusMsg" class="text-[9px] font-mono opacity-70 italic">Suche Verbindung...</p>
+    <div class="mb-4 p-3 bg-blue-600 text-white rounded-xl shadow-lg flex justify-between items-center border-b-4 border-blue-800">
+        <div class="flex items-center gap-2">
+            <div id="statusDot" class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+            <span class="text-[10px] font-black uppercase tracking-widest">LIVE: rw0702</span>
         </div>
-        <div id="dot" class="w-3 h-3 bg-white/20 rounded-full animate-pulse"></div>
+        <div id="lastUpdate" class="text-[9px] font-mono opacity-80 italic">Verbinde...</div>
     </div>
 
-    <div id="setupNeeded" class="hidden bg-white p-6 rounded-2xl border-2 border-dashed border-slate-300 text-center space-y-3 mb-4">
-        <p class="text-slate-500 text-sm">Kein aktives Turnier unter dieser ID gefunden.</p>
-        <p class="text-xs font-bold text-blue-600">Bitte in der Admin-Seite auf "CLOUD SAVE" klicken!</p>
+    <div id="waitingMsg" class="hidden p-4 bg-orange-100 text-orange-800 rounded-xl mb-4 text-center text-sm border border-orange-200">
+        <b>Warte auf Admin...</b><br>Bitte auf der Admin-Seite einmal auf "Save Cloud" klicken!
     </div>
 
-    <div id="mainUI" class="grid grid-cols-1 md:grid-cols-2 gap-4 transition-opacity duration-500 opacity-0">
+    <div id="mainContent" class="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-50 transition-opacity duration-500">
         <div class="space-y-4">
-            <div class="bg-blue-800 rounded-2xl p-5 text-white shadow-xl">
-                <h2 class="text-[10px] uppercase font-black mb-3 tracking-widest text-blue-300">🔍 Wer spielt wo?</h2>
-                <select id="pSelect" onchange="renderLive()" class="w-full p-3 rounded-xl bg-blue-900 text-white font-bold border-none outline-none shadow-inner mb-4"></select>
-                <div id="personalNext" class="bg-blue-700 p-4 rounded-xl text-center font-bold text-lg border border-blue-600 shadow-sm italic">Wähle deinen Namen...</div>
+            <div class="bg-blue-600 rounded-xl shadow-md p-4 text-white">
+                <h2 class="font-bold mb-3 text-[10px] uppercase opacity-80 tracking-widest">🔍 Mein nächster Einsatz</h2>
+                <select id="playerSelect" onchange="showNextMatch()" class="w-full p-2 rounded bg-blue-500 border-none text-white font-bold outline-none mb-3 shadow-inner">
+                    <option value="">Lade...</option>
+                </select>
+                <div id="nextMatchInfo" class="bg-blue-700 rounded-lg p-3 text-sm min-h-[60px] flex flex-col justify-center italic text-blue-100 text-center leading-snug">Wähle deinen Namen...</div>
             </div>
-            
-            <div id="liveSchedule" class="space-y-4"></div>
+
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+                <h2 class="font-bold text-slate-700 mb-4 uppercase text-xs tracking-widest">📅 Spielplan</h2>
+                <div id="schedule" class="space-y-4"></div>
+            </div>
         </div>
 
-        <div class="bg-slate-900 rounded-2xl p-5 text-white shadow-2xl border-t-4 border-blue-500 h-fit sticky top-4">
-            <h2 class="text-blue-400 font-black mb-4 uppercase text-xs tracking-widest italic">🏆 Live Ranking</h2>
+        <div class="bg-slate-900 rounded-xl shadow-xl p-4 text-white h-fit md:sticky md:top-4 border-t-4 border-blue-500">
+            <h2 class="font-bold mb-4 text-blue-400 uppercase text-xs tracking-widest">🏆 Live Ranking</h2>
             <table class="w-full text-sm">
-                <tbody id="liveRanking" class="divide-y divide-slate-800"></tbody>
+                <thead class="text-slate-500 text-[10px] uppercase border-b border-slate-800">
+                    <tr><th class="text-left pb-2">Pos / Name</th><th class="text-center pb-2">M</th><th class="text-right pb-2">Pkt</th></tr>
+                </thead>
+                <tbody id="rankingBody" class="divide-y divide-slate-800"></tbody>
             </table>
         </div>
     </div>
@@ -47,94 +55,98 @@
     <script>
         const API_KEY = "$2b$10$fV2tM2W6S7IuC8wQ8P6S7.0E1V4N9.B5I6R7B8C9D0E1F2G3H4I5J"; 
         const BIN_ID = "65b79650dc746540189d6e4a";
-        const tId = "rw0702"; // Standard-Suche (immer klein!)
-        let players = [], schedule = [];
+        const tId = "rw0702";
+        let players = [], schedule = [], scoringMode = 'total', timeSettings = { start: "14:00", warmup: 5, match: 35 };
 
-        async function update() {
+        async function syncData() {
             try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest?nocache=${Date.now()}`, { 
-                    headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } 
-                });
+                // NOCACHE ist wichtig für LIVE updates
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest?nocache=${Date.now()}`, { headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } });
                 const db = await res.json();
                 
                 if (db && db[tId]) {
-                    players = db[tId].p;
-                    schedule = db[tId].s;
-                    document.getElementById('setupNeeded').classList.add('hidden');
-                    document.getElementById('mainUI').classList.replace('opacity-0', 'opacity-100');
-                    document.getElementById('tournamentTitle').innerText = tId.toUpperCase() + " LIVE 🎾";
-                    document.getElementById('statusMsg').innerText = "Live: " + new Date().toLocaleTimeString();
-                    document.getElementById('dot').classList.replace('bg-white/20', 'bg-green-400');
-                    renderLive();
+                    // Daten gefunden!
+                    players = db[tId].p; schedule = db[tId].s; 
+                    scoringMode = db[tId].m || 'total'; 
+                    timeSettings = db[tId].t || timeSettings;
+                    
+                    document.getElementById('waitingMsg').classList.add('hidden');
+                    document.getElementById('mainContent').classList.remove('opacity-50');
+                    document.getElementById('statusDot').className = "w-2 h-2 bg-green-400 rounded-full";
+                    document.getElementById('lastUpdate').innerText = 'Live: ' + new Date().toLocaleTimeString();
+                    
+                    renderAll();
                 } else {
-                    document.getElementById('setupNeeded').classList.remove('hidden');
+                    // Daten noch nicht da
+                    document.getElementById('waitingMsg').classList.remove('hidden');
+                    document.getElementById('statusDot').className = "w-2 h-2 bg-red-500 rounded-full animate-pulse";
                 }
-            } catch (e) {
-                document.getElementById('statusMsg').innerText = "Verbindungsfehler...";
-            }
+            } catch (e) { document.getElementById('lastUpdate').innerText = 'Verbindung verloren'; }
         }
 
-        function renderLive() {
-            const sel = document.getElementById('pSelect');
-            if (sel.options.length === 0) {
-                sel.innerHTML = '<option value="">Dein Name...</option>' + players.map((p, i) => `<option value="${i}">${p}</option>`).join('');
+        function getMatchTime(roundIdx) {
+            let [h, m] = timeSettings.start.split(':').map(Number);
+            let total = h * 60 + m + timeSettings.warmup + (roundIdx * timeSettings.match);
+            return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+        }
+
+        function renderAll() {
+            // Dropdown füllen (nur wenn leer)
+            const sel = document.getElementById('playerSelect');
+            if(sel.options.length <= 1) {
+                const savedVal = sel.value;
+                sel.innerHTML = '<option value="">Wer bist du?</option>' + players.map((p, i) => `<option value="${i}">${p}</option>`).join('');
+                sel.value = savedVal;
             }
 
-            document.getElementById('liveSchedule').innerHTML = schedule.map(r => `
-                <div class="p-4 bg-white rounded-2xl shadow-sm border border-slate-200 text-[11px]">
-                    <div class="flex justify-between mb-3 font-bold text-slate-400 border-b pb-2 uppercase tracking-tighter">
-                        <span>Runde ${r.id}</span>
-                        <span class="text-orange-500 font-black italic">☕ Pause: ${players[r.pause[0]]}</span>
+            // Spielplan rendern
+            document.getElementById('schedule').innerHTML = schedule.map((r, rIdx) => `
+                <div class="p-3 bg-slate-50 rounded border text-[11px]">
+                    <div class="flex justify-between mb-2 font-bold text-slate-400">
+                        <span>R${r.id} | ${getMatchTime(rIdx)}</span>
+                        <span class="text-orange-400 italic text-[10px]">Pause: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
                     </div>
-                    <div class="space-y-4">
-                        ${renderCourtLive(r, 's2', 'c2', 'C2')}
-                        ${renderCourtLive(r, 's3', 'c3', 'C3')}
-                    </div>
+                    ${renderCourt(r, 's2', 'c2', 'C2')}
+                    <div class="h-[1px] bg-slate-200 my-2"></div>
+                    ${renderCourt(r, 's3', 'c3', 'C3')}
                 </div>`).join('');
 
-            let st = players.map(name => ({ name, points: 0 }));
+            // Ranking berechnen
+            let stats = players.map((name) => ({ name, points: 0, m: 0 }));
             schedule.forEach(r => {
-                const add = (pI, s, o) => { if(s!=="" && o!=="") { pI.forEach(x => st[x].points += parseInt(s)); } };
+                const add = (pI, s, o) => { if(s!=="" && o!=="") { let v = (scoringMode === 'diff') ? (s-o) : s; pI.forEach(x => { stats[x].points += v; stats[x].m++; }); } };
                 add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
                 add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
             });
-            st.sort((a,b) => b.points - a.points);
-            document.getElementById('liveRanking').innerHTML = st.map((s, i) => `
-                <tr class="border-b border-slate-800/50">
-                    <td class="py-3 font-bold text-slate-300">${i+1}. ${s.name}</td>
-                    <td class="text-right font-black text-blue-400 text-lg">${s.points}</td>
-                </tr>`).join('');
-
-            const pIdx = parseInt(sel.value);
-            if (!isNaN(pIdx)) {
-                let next = schedule.filter(r => !((r.c2.includes(pIdx) && r.s2[0] !== "" && r.s2[1] !== "") || (r.c3.includes(pIdx) && r.s3[0] !== "" && r.s3[1] !== ""))).slice(0, 1);
-                if (next.length) {
-                    let r = next[0];
-                    if (r.pause.includes(pIdx)) {
-                        document.getElementById('personalNext').innerText = "Kaffeepause! ☕";
-                    } else {
-                        let c = r.c2.includes(pIdx) ? 2 : 3;
-                        let team = r.c2.includes(pIdx) ? r.c2 : r.c3;
-                        let partner = team[0] == pIdx ? players[team[1]] : players[team[0]];
-                        document.getElementById('personalNext').innerText = `Court ${c} mit ${partner}`;
-                    }
-                } else { document.getElementById('personalNext').innerText = "Turnier fertig! 🏁"; }
-            }
+            stats.sort((a, b) => b.points - a.points);
+            document.getElementById('rankingBody').innerHTML = stats.map((s, i) => `<tr class="${s.points>0&&s.points===stats[0].points?'leader-row':''}"><td class="py-2.5 font-medium">${i+1}. ${s.name}</td><td class="text-center text-slate-500">${s.m}/4</td><td class="text-right font-bold text-blue-400">${s.points}</td></tr>`).join('');
+            
+            showNextMatch();
         }
 
-        function renderCourtLive(r, sK, cK, lbl) {
-            const s1 = r[sK][0], s2 = r[sK][1], isD = s1 !== "" && s2 !== "";
+        function renderCourt(r, sK, cK, label) {
+            const s1 = r[sK][0], s2 = r[sK][1], isDone = s1 !== "" && s2 !== "";
             return `<div class="flex items-center gap-2">
-                <div class="w-6 text-slate-300 font-black text-[9px]">${lbl}</div>
-                <div class="flex-1 text-right font-bold leading-tight ${isD && s1>s2?'winner':''}">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
-                <div class="score-view">${s1===""?"-":s1}</div>
-                <div class="score-view">${s2===""?"-":s2}</div>
-                <div class="flex-1 text-left font-bold leading-tight ${isD && s2>s1?'winner':''}">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
+                <div class="w-5 font-bold text-slate-300 text-[9px]">${label}</div>
+                <div class="flex-1 text-right ${isDone && s1 > s2 ? 'winner' : ''}">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
+                <div class="score-box">${s1===""?"-":s1}</div>
+                <span>:</span>
+                <div class="score-box">${s2===""?"-":s2}</div>
+                <div class="flex-1 text-left ${isDone && s2 > s1 ? 'winner' : ''}">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
             </div>`;
         }
 
-        update();
-        setInterval(update, 5000);
+        function showNextMatch() {
+            const pIdx = parseInt(document.getElementById('playerSelect').value), info = document.getElementById('nextMatchInfo');
+            if (isNaN(pIdx)) return;
+            let upcoming = schedule.filter(r => !((r.c2.includes(pIdx) && r.s2[0] !== "" && r.s2[1] !== "") || (r.c3.includes(pIdx) && r.s3[0] !== "" && r.s3[1] !== ""))).slice(0, 1);
+            if (!upcoming.length) { info.innerHTML = "Turnier beendet! 🏁"; return; }
+            let r = upcoming[0], time = getMatchTime(schedule.indexOf(r));
+            let detail = r.pause.includes(pIdx) ? "☕ PAUSE" : `Court ${r.c2.includes(pIdx)?2:3} mit ${players[r.c2.includes(pIdx)?(r.c2[0]==pIdx?r.c2[1]:r.c2[0]):(r.c3[0]==pIdx?r.c3[1]:r.c3[0])]}`;
+            info.innerHTML = `<div class="text-blue-200 text-[10px] uppercase font-bold mb-1">Start um ${time} Uhr:</div><div class="text-lg">${detail}</div>`;
+        }
+
+        syncData(); setInterval(syncData, 5000);
     </script>
 </body>
 </html>
