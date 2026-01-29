@@ -6,6 +6,7 @@
     <title>Live rw0702</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* WICHTIG: Gewinner-Stil */
         .winner { color: #16a34a !important; font-weight: 900 !important; }
         .leader-row { background: rgba(59, 130, 246, 0.1); }
         .score-box { width: 35px; text-align: center; font-weight: bold; background: #f1f5f9; border-radius: 4px; padding: 2px 0; color: #2563eb; }
@@ -22,7 +23,7 @@
     </div>
 
     <div id="waitingMsg" class="hidden p-4 bg-orange-100 text-orange-800 rounded-xl mb-4 text-center text-sm border border-orange-200">
-        <b>Warte auf Admin...</b><br>Bitte auf der Admin-Seite einmal auf "Save Cloud" klicken!
+        <b>Warte auf Daten...</b><br>Bitte in der Admin-Seite auf "Save Cloud" klicken.
     </div>
 
     <div id="mainContent" class="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-50 transition-opacity duration-500">
@@ -60,12 +61,10 @@
 
         async function syncData() {
             try {
-                // NOCACHE ist wichtig für LIVE updates
                 const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest?nocache=${Date.now()}`, { headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } });
                 const db = await res.json();
                 
                 if (db && db[tId]) {
-                    // Daten gefunden!
                     players = db[tId].p; schedule = db[tId].s; 
                     scoringMode = db[tId].m || 'total'; 
                     timeSettings = db[tId].t || timeSettings;
@@ -77,7 +76,6 @@
                     
                     renderAll();
                 } else {
-                    // Daten noch nicht da
                     document.getElementById('waitingMsg').classList.remove('hidden');
                     document.getElementById('statusDot').className = "w-2 h-2 bg-red-500 rounded-full animate-pulse";
                 }
@@ -91,7 +89,6 @@
         }
 
         function renderAll() {
-            // Dropdown füllen (nur wenn leer)
             const sel = document.getElementById('playerSelect');
             if(sel.options.length <= 1) {
                 const savedVal = sel.value;
@@ -99,7 +96,6 @@
                 sel.value = savedVal;
             }
 
-            // Spielplan rendern
             document.getElementById('schedule').innerHTML = schedule.map((r, rIdx) => `
                 <div class="p-3 bg-slate-50 rounded border text-[11px]">
                     <div class="flex justify-between mb-2 font-bold text-slate-400">
@@ -111,7 +107,6 @@
                     ${renderCourt(r, 's3', 'c3', 'C3')}
                 </div>`).join('');
 
-            // Ranking berechnen
             let stats = players.map((name) => ({ name, points: 0, m: 0 }));
             schedule.forEach(r => {
                 const add = (pI, s, o) => { if(s!=="" && o!=="") { let v = (scoringMode === 'diff') ? (s-o) : s; pI.forEach(x => { stats[x].points += v; stats[x].m++; }); } };
@@ -125,13 +120,18 @@
         }
 
         function renderCourt(r, sK, cK, label) {
-            const s1 = r[sK][0], s2 = r[sK][1], isDone = s1 !== "" && s2 !== "";
+            const s1Val = r[sK][0], s2Val = r[sK][1];
+            // KORRIGIERTE LOGIK: Zahlen parsen für Vergleich
+            const s1 = s1Val === "" ? -1 : parseInt(s1Val);
+            const s2 = s2Val === "" ? -1 : parseInt(s2Val);
+            const isDone = s1 !== -1 && s2 !== -1;
+
             return `<div class="flex items-center gap-2">
                 <div class="w-5 font-bold text-slate-300 text-[9px]">${label}</div>
                 <div class="flex-1 text-right ${isDone && s1 > s2 ? 'winner' : ''}">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
-                <div class="score-box">${s1===""?"-":s1}</div>
+                <div class="score-box">${s1Val===""?"-":s1Val}</div>
                 <span>:</span>
-                <div class="score-box">${s2===""?"-":s2}</div>
+                <div class="score-box">${s2Val===""?"-":s2Val}</div>
                 <div class="flex-1 text-left ${isDone && s2 > s1 ? 'winner' : ''}">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
             </div>`;
         }
