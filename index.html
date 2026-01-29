@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Pro Cloud Live 🎾</title>
+    <title>Padel Admin 🎾</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -18,13 +18,16 @@
     <div class="mb-4 p-3 bg-slate-900 text-white rounded-xl shadow-lg flex justify-between items-center border-b-4 border-blue-500">
         <div class="flex items-center gap-2">
             <div id="syncIndicator" class="w-3 h-3 bg-green-400 rounded-full"></div>
-            <span class="text-[10px] font-black uppercase tracking-widest">Live Cloud Mode</span>
+            <span class="text-[10px] font-black uppercase tracking-widest">Admin Mode</span>
         </div>
         <div id="lastUpdate" class="text-[9px] font-mono opacity-60 italic">Verbunden</div>
     </div>
 
     <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <h1 class="text-xl font-black text-blue-600 italic leading-none">PADEL LIVE 🎾</h1>
+        <div class="flex items-center gap-3">
+            <h1 class="text-xl font-black text-blue-600 italic leading-none">PADEL LIVE 🎾</h1>
+            <a href="live.html" class="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-md animate-pulse">LIVEMODE</a>
+        </div>
         <div class="flex gap-2">
             <button onclick="syncData()" class="bg-blue-50 text-blue-600 text-[10px] font-bold px-3 py-2 rounded-lg border border-blue-200 uppercase tracking-tighter">Refresh</button>
             <button onclick="resetTournament()" class="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-2 rounded-lg border border-red-200 uppercase tracking-tighter">Reset</button>
@@ -38,7 +41,7 @@
         </summary>
         <div class="p-4 bg-slate-50 border-t border-slate-100 space-y-4">
             <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-inner">
-                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">Gemeinsame Turnier-ID:</label>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">Turnier-ID (für alle Geräte gleich!):</label>
                 <input type="text" id="tournamentId" onchange="initCloud()" class="w-full p-2 border border-slate-300 rounded font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             
@@ -61,7 +64,10 @@
                 <div id="nextMatchInfo" class="bg-blue-700 rounded-lg p-3 text-sm min-h-[80px] flex flex-col justify-center italic text-blue-100 text-center leading-snug">Wähle einen Namen...</div>
             </div>
             <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
-                <h2 class="font-bold text-slate-700 mb-4 uppercase text-xs tracking-widest">📅 Spielplan</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-slate-700 uppercase text-xs tracking-widest">📅 Spielplan</h2>
+                    <span id="warmupBadge" class="text-[9px] bg-orange-100 text-orange-600 px-2 py-1 rounded font-bold"></span>
+                </div>
                 <div id="schedule" class="space-y-4"></div>
             </div>
         </div>
@@ -78,7 +84,7 @@
 
     <details class="bg-white rounded-xl shadow-sm border border-slate-200 mb-8 overflow-hidden">
         <summary class="p-4 font-bold text-slate-700 cursor-pointer hover:bg-slate-50 list-none flex justify-between items-center">
-            <span>🕒 Zeitplan anpassen</span>
+            <span>🕒 Zeitplan & Modus (10 Spieler)</span>
             <span class="text-[10px] text-blue-500 uppercase font-bold tracking-tighter">Uhrzeiten</span>
         </summary>
         <div class="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -113,9 +119,7 @@
         let schedule = JSON.parse(JSON.stringify(defaultSchedule));
         let scoringMode = 'total';
         let tId = localStorage.getItem('p_tid') || "padel-abend-1";
-        
-        // Zeit-Einstellungen
-        let timeSettings = { start: "14:00", warmup: 5, match: 30 };
+        let timeSettings = { start: "14:00", warmup: 5, match: 35 };
 
         async function syncData() {
             setSyncStatus('sync');
@@ -126,7 +130,7 @@
                     players = db[tId].p;
                     schedule = db[tId].s;
                     scoringMode = db[tId].m || 'total';
-                    timeSettings = db[tId].t || { start: "14:00", warmup: 5, match: 30 };
+                    timeSettings = db[tId].t || { start: "14:00", warmup: 5, match: 35 };
                     renderAll();
                 } else { await pushData(); }
                 setSyncStatus('ok');
@@ -152,13 +156,12 @@
             timeSettings.start = document.getElementById('startTime').value;
             timeSettings.warmup = parseInt(document.getElementById('warmupTime').value) || 0;
             timeSettings.match = parseInt(document.getElementById('matchTime').value) || 0;
-            renderAll();
-            pushData();
+            renderAll(); pushData();
         }
 
         function getMatchTime(roundIndex) {
             let [h, m] = timeSettings.start.split(':').map(Number);
-            let totalMinutes = h * 60 + m + (roundIndex * (timeSettings.warmup + timeSettings.match));
+            let totalMinutes = h * 60 + m + timeSettings.warmup + (roundIndex * timeSettings.match);
             let newH = Math.floor(totalMinutes / 60) % 24;
             let newM = totalMinutes % 60;
             return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
@@ -190,6 +193,7 @@
             document.getElementById('startTime').value = timeSettings.start;
             document.getElementById('warmupTime').value = timeSettings.warmup;
             document.getElementById('matchTime').value = timeSettings.match;
+            document.getElementById('warmupBadge').innerText = `Warmup: ${timeSettings.warmup}m`;
         }
 
         function renderPlayers() {
@@ -197,7 +201,7 @@
             document.getElementById('scoringMode').value = scoringMode;
             document.getElementById('playerInputs').innerHTML = players.map((p, i) => `
                 <div class="flex flex-col"><label class="text-[9px] text-slate-400 font-bold ml-1 uppercase">S${i+1}</label>
-                <input type="text" value="${p}" onblur="updatePlayerName(${i}, this.value)" class="p-2 border rounded text-xs outline-none focus:ring-1"></div>`).join('');
+                <input type="text" value="${p}" onblur="updatePlayerName(${i}, this.value)" class="p-2 border rounded text-xs outline-none"></div>`).join('');
             fillPlayerSelect();
         }
 
@@ -214,7 +218,7 @@
                 const isFinished = (r.c2.includes(pIdx) && r.s2[0] !== "" && r.s2[1] !== "") || (r.c3.includes(pIdx) && r.s3[0] !== "" && r.s3[1] !== "") || (r.pause.includes(pIdx) && (r.s2[0] !== "" || r.s3[0] !== "")); 
                 return !isFinished && (r.c2.includes(pIdx) || r.c3.includes(pIdx) || r.pause.includes(pIdx));
             }).slice(0, 2);
-            if (!upcoming.length) { info.innerHTML = "Alle deine Spiele beendet! 🏁"; return; }
+            if (!upcoming.length) { info.innerHTML = "Fertig! 🏁"; return; }
             info.innerHTML = upcoming.map((round, index) => {
                 let time = getMatchTime(schedule.indexOf(round));
                 let detail = round.pause.includes(pIdx) ? `<span class="text-orange-300 font-bold uppercase">☕ Pause</span>` : 
@@ -227,7 +231,7 @@
             document.getElementById('schedule').innerHTML = schedule.map((r, rIdx) => `
                 <div class="p-3 bg-slate-50 rounded border text-[11px] shadow-sm">
                     <div class="flex justify-between mb-2 font-bold text-slate-400 uppercase tracking-tighter">
-                        <span>R${r.id} | ${getMatchTime(rIdx)}</span><span class="text-orange-400 font-black">Pause: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
+                        <span>R${r.id} | ${getMatchTime(rIdx)}</span><span class="text-orange-400">P: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
                     </div>
                     ${renderCourt(rIdx, 'c2', 's2', 'C2', r)}<div class="h-[1px] bg-slate-200 my-2"></div>${renderCourt(rIdx, 'c3', 's3', 'C3', r)}
                 </div>`).join('');
@@ -248,21 +252,12 @@
         function updateRanking() {
             let stats = players.map((name, id) => ({ name, points: 0, m: 0 }));
             schedule.forEach(r => {
-                const add = (pI, s, oppS) => { 
-                    if(s !== "" && oppS !== "") { 
-                        let val = (scoringMode === 'diff') ? (s - oppS) : s;
-                        pI.forEach(idx => { stats[idx].points += val; stats[idx].m++; }); 
-                    } 
-                };
+                const add = (pI, s, oppS) => { if(s !== "" && oppS !== "") { let val = (scoringMode === 'diff') ? (s - oppS) : s; pI.forEach(idx => { stats[idx].points += val; stats[idx].m++; }); } };
                 add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
                 add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
             });
             stats.sort((a, b) => b.points - a.points);
-            let rank = 1;
-            document.getElementById('rankingBody').innerHTML = stats.map((s, i) => {
-                if (i > 0 && s.points < stats[i-1].points) rank = i+1;
-                return `<tr class="${s.points > 0 && s.points === stats[0].points ? 'leader-row' : ''}"><td class="py-2.5 font-medium">${rank}. ${s.name}</td><td class="text-center text-slate-500 text-[10px]">${s.m}/4</td><td class="text-right font-bold text-blue-400">${s.points}</td></tr>`;
-            }).join('');
+            document.getElementById('rankingBody').innerHTML = stats.map((s, i) => `<tr class="${s.points > 0 && s.points === stats[0].points ? 'leader-row' : ''}"><td class="py-2 font-medium">${i+1}. ${s.name}</td><td class="text-center text-slate-500">${s.m}/4</td><td class="text-right font-bold text-blue-400">${s.points}</td></tr>`).join('');
         }
 
         function resetTournament() { if(confirm("Cloud-Daten löschen?")) { schedule = JSON.parse(JSON.stringify(defaultSchedule)); pushData(); } }
