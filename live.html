@@ -2,50 +2,57 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Scoreboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Padel Live Score</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        .winner { color: #16a34a !important; font-weight: 900 !important; }
-        .score-box { width: 35px; text-align: center; font-weight: bold; background: #f1f5f9; border-radius: 4px; color: #2563eb; padding: 4px 0; }
-        .leader-row { background: rgba(59, 130, 246, 0.1); }
+        body { -webkit-tap-highlight-color: transparent; }
+        .winner { color: #16a34a !important; font-weight: 800 !important; }
+        .score-box { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #f8fafc; border-radius: 6px; color: #2563eb; border: 1px solid #e2e8f0; }
+        .my-match { background-color: #eff6ff; border: 1px solid #bfdbfe !important; }
+        .sticky-header { position: sticky; top: 0; z-index: 50; }
     </style>
 </head>
-<body class="bg-slate-50 p-3 max-w-5xl mx-auto text-slate-900">
-    <div id="loader" class="text-center p-20 text-slate-400 font-bold italic animate-pulse">📡 Verbinde mit Live-Daten...</div>
+<body class="bg-slate-50 text-slate-900 font-sans leading-tight">
+
+    <div id="loader" class="flex flex-col items-center justify-center h-screen text-slate-400">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+        <p class="font-bold italic">Live-Daten werden geladen...</p>
+    </div>
     
-    <div id="content" class="hidden">
-        <div class="mb-4 p-4 bg-blue-600 text-white rounded-xl shadow-lg flex justify-between items-center">
-            <h1 class="font-black italic uppercase tracking-tighter">Live Padel Ranking</h1>
-            <div id="lastUpdate" class="text-[9px] opacity-70 font-mono text-right"></div>
+    <div id="content" class="hidden pb-10">
+        <div class="sticky-header bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
+            <h1 class="font-black italic uppercase tracking-tighter text-lg">Padel Live</h1>
+            <div id="lastUpdate" class="text-[10px] bg-blue-700 px-2 py-1 rounded font-mono"></div>
         </div>
         
-        <div class="mb-6 bg-slate-900 text-white p-4 rounded-xl shadow-lg border-b-4 border-blue-500 transition-all">
-            <label class="block text-[10px] uppercase font-bold mb-2 text-slate-400 italic">Meine nächsten Termine:</label>
-            <select id="userSelect" onchange="renderLive()" class="w-full bg-slate-800 border-none p-2 rounded font-bold outline-none text-blue-400 mb-2"></select>
-            <div id="userNext" class="grid grid-cols-1 gap-1 text-sm"></div>
+        <div class="m-3 bg-slate-900 text-white p-4 rounded-2xl shadow-lg border-b-4 border-blue-500">
+            <label class="block text-[10px] uppercase font-black mb-2 text-blue-400 tracking-widest">Mein Turnier-Check</label>
+            <select id="userSelect" onchange="renderLive()" class="w-full bg-slate-800 border-none p-3 rounded-xl font-bold outline-none text-white text-base mb-3 appearance-none">
+                <option value="">Wähle deinen Namen...</option>
+            </select>
+            <div id="userNext" class="space-y-2"></div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 space-y-4">
-                <h2 class="font-black text-slate-400 uppercase text-[10px] tracking-widest px-1">Spielplan</h2>
-                <div id="schedule" class="grid grid-cols-1 gap-3"></div>
-            </div>
-
-            <div class="space-y-4">
-                <h2 class="font-black text-slate-400 uppercase text-[10px] tracking-widest px-1">Tabelle</h2>
+        <div class="px-3 space-y-6">
+            <section>
+                <h2 class="font-black text-slate-400 uppercase text-[11px] tracking-widest mb-2 px-1 text-center">Aktuelle Tabelle</h2>
                 <div class="bg-slate-900 rounded-2xl shadow-xl overflow-hidden border-b-4 border-blue-600">
                     <table class="w-full text-sm">
                         <tbody id="rankingBody" class="text-white divide-y divide-slate-800"></tbody>
                     </table>
                 </div>
-            </div>
+            </section>
+
+            <section>
+                <h2 class="font-black text-slate-400 uppercase text-[11px] tracking-widest mb-2 px-1 text-center">Spielplan & Ergebnisse</h2>
+                <div id="schedule" class="space-y-3"></div>
+            </section>
         </div>
     </div>
 
     <script>
-        // --- DEINE SUPABASE KONFIGURATION (Identisch mit Admin) ---
         const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const T_ID = "tournaments";
@@ -60,84 +67,98 @@
                     currentData = data.data;
                     document.getElementById('loader').classList.add('hidden');
                     document.getElementById('content').classList.remove('hidden');
-                    document.getElementById('lastUpdate').innerText = "Update: " + new Date().toLocaleTimeString();
+                    document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     renderLive();
                 }
-            } catch (e) { console.error("Verbindungsfehler", e); }
+            } catch (e) { console.error("Sync Error", e); }
         }
 
         function renderLive() {
             const { p, s, m, t } = currentData;
             const sel = document.getElementById('userSelect').value;
 
-            // Namen in Dropdown füllen (nur einmal beim ersten Laden)
             if(document.getElementById('userSelect').options.length <= 1) {
-                document.getElementById('userSelect').innerHTML = '<option value="">Wähle deinen Namen für die Vorschau...</option>' + p.map(x => `<option value="${x}">${x}</option>`).join('');
+                document.getElementById('userSelect').innerHTML = '<option value="">Wer bist du?</option>' + p.map(x => `<option value="${x}">${x}</option>`).join('');
                 if(sel) document.getElementById('userSelect').value = sel;
             }
 
-            // Zeitberechnung
             const getT = (i) => {
                 let [h, min] = t.start.split(':').map(Number);
                 let tot = h * 60 + min + t.warmup + (i * t.match);
                 return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
             };
 
-            // Spielplan rendern
+            // Spielplan
             document.getElementById('schedule').innerHTML = s.map((r, i) => `
-                <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div class="flex justify-between text-[9px] font-bold text-slate-400 mb-2 uppercase">
-                        <span>Runde ${r.id} | ${getT(i)} Uhr</span>
-                        <span class="${sel && r.pause.some(idx => p[idx] === sel) ? 'bg-orange-500 text-white' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded">Pause: ${p[r.pause[0]]}, ${p[r.pause[1]]}</span>
+                <div class="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-tight">
+                        <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-black">RUNDE ${r.id} • ${getT(i)}</span>
+                        <span class="${sel && r.pause.some(idx => p[idx] === sel) ? 'bg-orange-500 text-white' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded italic">Pause: ${p[r.pause[0]]}, ${p[r.pause[1]]}</span>
                     </div>
-                    ${renderC(r, 's2', 'c2', 'C2', p, sel)}
-                    <div class="h-[1px] bg-slate-50 my-2"></div>
-                    ${renderC(r, 's3', 'c3', 'C3', p, sel)}
+                    ${renderMatchRow(r, 's2', 'c2', 'C2', p, sel)}
+                    <div class="h-[1px] bg-slate-100 my-2"></div>
+                    ${renderMatchRow(r, 's3', 'c3', 'C3', p, sel)}
                 </div>`).join('');
 
-            // Vorschau-Logik für den ausgewählten Spieler
+            // Spezifische Vorschau (Nächste 2 Runden)
             if (sel) {
                 let upcoming = [];
                 s.forEach((r, i) => {
                     const time = getT(i);
-                    if (r.pause.some(idx => p[idx] === sel)) upcoming.push(`Runde ${r.id} (${time}): ⏸️ Pause`);
-                    else if (r.c2.some(idx => p[idx] === sel)) upcoming.push(`Runde ${r.id} (${time}): 🎾 Court 2`);
-                    else if (r.c3.some(idx => p[idx] === sel)) upcoming.push(`Runde ${r.id} (${time}): 🎾 Court 3`);
+                    const onC2 = r.c2.indexOf(p.indexOf(sel));
+                    const onC3 = r.c3.indexOf(p.indexOf(sel));
+                    
+                    if (r.pause.some(idx => p[idx] === sel)) {
+                        upcoming.push({round: r.id, time, text: `⏸️ Du hast Pause`});
+                    } else if (onC2 !== -1 || onC3 !== -1) {
+                        const court = onC2 !== -1 ? 'Court 2' : 'Court 3';
+                        const team = onC2 !== -1 ? r.c2 : r.c3;
+                        const myIdx = team.indexOf(p.indexOf(sel));
+                        const partnerIdx = myIdx < 2 ? (myIdx === 0 ? 1 : 0) : (myIdx === 2 ? 3 : 2);
+                        const opponents = myIdx < 2 ? [team[2], team[3]] : [team[0], team[1]];
+                        
+                        upcoming.push({
+                            round: r.id, time, 
+                            text: `🎾 ${court} | Partner: <b>${p[partnerIdx]}</b><br><span class="opacity-60 text-[11px]">Gegen: ${p[opponents[0]]} & ${p[opponents[1]]}</span>`
+                        });
+                    }
                 });
-                document.getElementById('userNext').innerHTML = upcoming.slice(0, 3).map(txt => `<div class="bg-blue-600/20 p-2 rounded border border-blue-500/30 text-xs font-bold text-blue-300 underline-offset-2">${txt}</div>`).join('');
-            } else {
-                document.getElementById('userNext').innerHTML = "";
+                // Nur die nächsten 2 relevanten Runden (die noch nicht vorbei sind - hier vereinfacht die nächsten 2)
+                document.getElementById('userNext').innerHTML = upcoming.slice(0, 2).map(obj => `
+                    <div class="bg-blue-600/10 p-3 rounded-xl border border-blue-500/20">
+                        <div class="text-[10px] font-black text-blue-400 uppercase mb-1">Runde ${obj.round} (${obj.time} Uhr)</div>
+                        <div class="text-sm">${obj.text}</div>
+                    </div>`).join('');
             }
 
-            // Ranking Logik
-            let st = p.map(name => ({ name, points: 0, m: 0 }));
+            // Ranking
+            let st = p.map(name => ({ name, points: 0 }));
             s.forEach(r => {
-                const add = (pI, sV, oV) => { if(sV!=="" && oV!=="") { let sv=parseInt(sV), ov=parseInt(oV); pI.forEach(x => { st[x].points += (m==='diff'?sv-ov:sv); st[x].m++; }); } };
+                const add = (pI, sV, oV) => { if(sV!=="" && oV!=="") { let sv=parseInt(sV), ov=parseInt(oV); pI.forEach(x => { st[x].points += (m==='diff'?sv-ov:sv); }); } };
                 add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
                 add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
             });
             st.sort((a,b) => b.points - a.points);
             document.getElementById('rankingBody').innerHTML = st.map((s, i) => `
-                <tr class="${s.points>0 && s.points===st[0].points ? 'leader-row' : ''}">
-                    <td class="p-3 text-slate-500 font-mono text-[10px]">${i+1}</td>
+                <tr class="${s.points>0 && s.points===st[0].points ? 'bg-blue-500/10' : ''}">
+                    <td class="p-3 text-slate-500 font-mono text-xs w-8">${i+1}</td>
                     <td class="p-3 font-bold text-sm">${s.name}</td>
-                    <td class="p-3 text-right font-black text-blue-400 text-base">${s.points}</td>
+                    <td class="p-3 text-right font-black text-blue-400 text-lg">${s.points}</td>
                 </tr>`).join('');
         }
 
-        function renderC(r, sK, cK, lbl, p, sel) {
+        function renderMatchRow(r, sK, cK, lbl, p, sel) {
             const s1 = r[sK][0]===""?-1:parseInt(r[sK][0]), s2 = r[sK][1]===""?-1:parseInt(r[sK][1]), isD = s1!==-1 && s2!==-1;
             const isMy = sel && r[cK].some(i => p[i] === sel);
-            return `<div class="flex items-center gap-2 ${isMy ? 'bg-blue-50 ring-1 ring-blue-100 rounded-lg p-1' : ''}">
-                <div class="w-5 text-[9px] font-black text-slate-200">${lbl}</div>
-                <div class="flex-1 text-right text-[11px] leading-tight ${isD && s1>s2?'winner':''} font-medium">${p[r[cK][0]]}<br>${p[r[cK][1]]}</div>
-                <div class="score-box">${r[sK][0] !== "" ? r[sK][0] : '-'}</div>
-                <div class="score-box">${r[sK][1] !== "" ? r[sK][1] : '-'}</div>
-                <div class="flex-1 text-left text-[11px] leading-tight ${isD && s2>s1?'winner':''} font-medium">${p[r[cK][2]]}<br>${p[r[cK][3]]}</div>
+            return `<div class="flex items-center gap-2 p-1.5 rounded-xl ${isMy ? 'my-match' : ''}">
+                <div class="w-5 text-[8px] font-black text-slate-300">${lbl}</div>
+                <div class="flex-1 text-right text-[11px] leading-tight ${isD && s1>s2?'winner':''} font-semibold">${p[r[cK][0]]}<br>${p[r[cK][1]]}</div>
+                <div class="score-box">${r[sK][0] !== "" ? r[sK][0] : '·'}</div>
+                <div class="score-box">${r[sK][1] !== "" ? r[sK][1] : '·'}</div>
+                <div class="flex-1 text-left text-[11px] leading-tight ${isD && s2>s1?'winner':''} font-semibold">${p[r[cK][2]]}<br>${p[r[cK][3]]}</div>
             </div>`;
         }
 
-        // Alle 15 Sekunden automatisch aktualisieren
         setInterval(fetchLive, 15000); 
         fetchLive();
     </script>
