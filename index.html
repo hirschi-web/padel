@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin rw0702</title>
+    <title>Admin rw0702 (Lokal)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -15,49 +15,34 @@
 </head>
 <body class="bg-slate-50 p-3 max-w-4xl mx-auto text-slate-900 font-sans">
 
-    <div class="mb-4 p-3 bg-slate-900 text-white rounded-xl shadow-lg flex justify-between items-center border-b-4 border-blue-500">
-        <div class="flex items-center gap-2">
-            <div id="syncIndicator" class="w-3 h-3 bg-green-400 rounded-full"></div>
-            <span class="text-[10px] font-black uppercase tracking-widest">Admin Mode: rw0702</span>
-        </div>
-        <div id="lastUpdate" class="text-[9px] font-mono opacity-60 italic">Bereit</div>
-    </div>
-
     <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <h1 class="text-xl font-black text-blue-600 italic">PADEL MANAGER</h1>
-        <div class="flex gap-2">
-            <button onclick="pushData()" class="bg-blue-600 text-white text-[10px] font-bold px-3 py-2 rounded shadow hover:bg-blue-700 uppercase">Save Cloud</button>
-            <button onclick="resetTournament()" class="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-2 rounded border border-red-200 uppercase hover:bg-red-100">Reset</button>
-        </div>
+        <h1 class="text-xl font-black text-blue-600 italic">PADEL MANAGER (LOKAL)</h1>
+        <button onclick="resetTournament()" class="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-2 rounded border border-red-200 uppercase hover:bg-red-100">Reset</button>
     </div>
 
-    <details class="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-hidden">
+    <details open class="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-hidden">
         <summary class="p-4 font-bold text-slate-700 cursor-pointer hover:bg-slate-50 list-none flex justify-between items-center">
             <span>⚙️ Einstellungen & Spieler</span>
             <span class="text-[10px] text-blue-500 uppercase font-bold tracking-tighter">Auf/Zu</span>
         </summary>
         <div class="p-4 bg-slate-50 border-t border-slate-100 space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div class="bg-white p-2 rounded border shadow-sm">
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Turnier-ID</label>
-                    <input type="text" id="tIdInput" value="rw0702" class="w-full font-bold text-blue-600 outline-none" readonly>
-                </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div class="bg-white p-2 rounded border shadow-sm">
                     <label class="block text-[9px] font-bold text-slate-400 uppercase">Startzeit</label>
-                    <input type="time" id="startTime" onchange="updateTimeSettings()" class="w-full font-bold outline-none">
+                    <input type="time" id="startTime" onchange="updateSettings()" class="w-full font-bold outline-none">
                 </div>
                 <div class="bg-white p-2 rounded border shadow-sm">
                     <label class="block text-[9px] font-bold text-slate-400 uppercase">Warmup (Min)</label>
-                    <input type="number" id="warmupTime" onchange="updateTimeSettings()" class="w-full font-bold outline-none">
+                    <input type="number" id="warmupTime" onchange="updateSettings()" class="w-full font-bold outline-none">
                 </div>
                 <div class="bg-white p-2 rounded border shadow-sm">
                     <label class="block text-[9px] font-bold text-slate-400 uppercase">Spielzeit (Min)</label>
-                    <input type="number" id="matchTime" onchange="updateTimeSettings()" class="w-full font-bold outline-none">
+                    <input type="number" id="matchTime" onchange="updateSettings()" class="w-full font-bold outline-none">
                 </div>
             </div>
             <div class="bg-white p-2 rounded border shadow-sm">
                 <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Wertung</label>
-                <select id="scoringMode" onchange="changeScoringMode(this.value)" class="w-full font-bold outline-none bg-transparent">
+                <select id="scoringMode" onchange="scoringMode=this.value; renderAll();" class="w-full font-bold outline-none bg-transparent">
                     <option value="total">Punkte addieren</option>
                     <option value="diff">Differenz (Tore)</option>
                 </select>
@@ -76,19 +61,12 @@
         <div class="bg-slate-900 rounded-xl shadow-xl p-4 text-white h-fit md:sticky md:top-4 border-t-4 border-blue-500">
             <h2 class="font-bold mb-4 text-blue-400 uppercase text-xs tracking-widest">🏆 Leaderboard</h2>
             <table class="w-full text-sm">
-                <thead class="text-slate-500 text-[10px] uppercase border-b border-slate-800">
-                    <tr><th class="text-left pb-2">Pos / Name</th><th class="text-center pb-2">M</th><th class="text-right pb-2">Pkt</th></tr>
-                </thead>
                 <tbody id="rankingBody" class="divide-y divide-slate-800"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        const API_KEY = "$2b$10$fV2tM2W6S7IuC8wQ8P6S7.0E1V4N9.B5I6R7B8C9D0E1F2G3H4I5J"; 
-        const BIN_ID = "65b79650dc746540189d6e4a";
-        const tId = "rw0702"; 
-        
         const defaultPlayers = ["Marion", "David", "Martin", "Frank", "Bernhard", "Dieter", "Lucy", "Silvia", "Nik", "Gast"];
         const defaultSchedule = [
             { id: 1, c2: [0, 1, 2, 3], c3: [4, 5, 6, 7], pause: [8, 9], s2: ["", ""], s3: ["", ""] },
@@ -98,51 +76,13 @@
             { id: 5, c2: [0, 3, 2, 5], c3: [1, 4, 8, 9], pause: [6, 7], s2: ["", ""], s3: ["", ""] }
         ];
 
-        let players = [...defaultPlayers];
-        let schedule = JSON.parse(JSON.stringify(defaultSchedule));
-        let scoringMode = 'total';
-        let timeSettings = { start: "14:00", warmup: 5, match: 35 };
+        let players = [...defaultPlayers], schedule = JSON.parse(JSON.stringify(defaultSchedule)), scoringMode = 'total', timeSettings = { start: "14:00", warmup: 5, match: 35 };
 
-        async function syncData() {
-            setSyncStatus('sync');
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } });
-                const db = await res.json();
-                let data = db.record || db; // Handle "record" wrapper
-                
-                if (data && data[tId]) {
-                    players = data[tId].p; schedule = data[tId].s; 
-                    scoringMode = data[tId].m || 'total'; timeSettings = data[tId].t || timeSettings;
-                    renderAll();
-                } else { await pushData(); }
-                setSyncStatus('ok');
-            } catch (e) { console.error(e); setSyncStatus('error'); }
-        }
-
-        async function pushData() {
-            setSyncStatus('push');
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' } });
-                let db = await res.json();
-                let data = db.record || db; // Lese bestehende Daten
-                
-                // Neue Daten in die Struktur
-                data[tId] = { p: players, s: schedule, m: scoringMode, t: timeSettings, lastUpdate: Date.now() };
-                
-                // Wichtig: JSONBin erwartet bei PUT oft reines JSON ohne "record" Wrapper im Body, oder wir überschreiben alles.
-                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-                    body: JSON.stringify(data)
-                });
-                setSyncStatus('ok');
-            } catch (e) { console.error(e); setSyncStatus('error'); }
-        }
-
-        function updateTimeSettings() {
+        function updateSettings() {
             timeSettings.start = document.getElementById('startTime').value;
             timeSettings.warmup = parseInt(document.getElementById('warmupTime').value) || 0;
             timeSettings.match = parseInt(document.getElementById('matchTime').value) || 0;
-            renderAll(); pushData();
+            renderAll();
         }
 
         function getMatchTime(idx) {
@@ -151,46 +91,27 @@
             return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
         }
 
-        function changeScoringMode(v) { scoringMode = v; updateRanking(); pushData(); }
-        function updateScore(rI, k, tI, v) { schedule[rI][k][tI] = v === "" ? "" : parseInt(v); renderAll(); pushData(); }
-        
-        function setSyncStatus(s) {
-            const i = document.getElementById('syncIndicator'), t = document.getElementById('lastUpdate');
-            if(s==='push') { i.className='w-3 h-3 bg-blue-400 animate-bounce'; t.innerText='Speichere...'; }
-            else if(s==='ok') { i.className='w-3 h-3 bg-green-400'; t.innerText='Gespeichert: ' + new Date().toLocaleTimeString(); }
-            else { i.className='w-3 h-3 bg-red-500'; t.innerText='Fehler!'; }
-        }
-
         function renderAll() {
             document.getElementById('startTime').value = timeSettings.start;
             document.getElementById('warmupTime').value = timeSettings.warmup;
             document.getElementById('matchTime').value = timeSettings.match;
-            document.getElementById('scoringMode').value = scoringMode;
-            document.getElementById('playerInputs').innerHTML = players.map((p, i) => `<input type="text" value="${p}" onblur="players[${i}]=this.value; pushData(); renderAll();" class="p-2 border rounded text-xs outline-none focus:border-blue-500 shadow-sm">`).join('');
-            
+            document.getElementById('playerInputs').innerHTML = players.map((p, i) => `<input type="text" value="${p}" onblur="players[${i}]=this.value; renderAll();" class="p-2 border rounded text-xs outline-none">`).join('');
             document.getElementById('schedule').innerHTML = schedule.map((r, rI) => `
                 <div class="p-3 bg-slate-50 rounded border text-[11px]">
-                    <div class="flex justify-between mb-2 font-bold text-slate-400">
-                        <span>R${r.id} | ${getMatchTime(rI)}</span>
-                        <span class="text-orange-400 italic">Pause: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
-                    </div>
-                    ${renderCourt(rI, 's2', 'c2', 'C2', r)}
-                    <div class="h-[1px] bg-slate-200 my-2"></div>
-                    ${renderCourt(rI, 's3', 'c3', 'C3', r)}
+                    <div class="flex justify-between mb-2 font-bold text-slate-400"><span>R${r.id} | ${getMatchTime(rI)}</span><span class="text-orange-400 italic text-[10px]">Pause: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span></div>
+                    ${renderCourt(rI, 's2', 'c2', 'C2', r)}<div class="h-[1px] bg-slate-200 my-2"></div>${renderCourt(rI, 's3', 'c3', 'C3', r)}
                 </div>`).join('');
             updateRanking();
         }
 
         function renderCourt(rI, sK, cK, lbl, r) {
-            const s1 = r[sK][0] === "" ? -1 : parseInt(r[sK][0]);
-            const s2 = r[sK][1] === "" ? -1 : parseInt(r[sK][1]);
-            const isDone = s1 !== -1 && s2 !== -1;
+            const s1 = r[sK][0] === "" ? -1 : parseInt(r[sK][0]), s2 = r[sK][1] === "" ? -1 : parseInt(r[sK][1]), isDone = s1 !== -1 && s2 !== -1;
             return `<div class="flex items-center gap-2">
                 <div class="w-5 text-slate-300 font-bold">${lbl}</div>
                 <div class="flex-1 text-right ${isDone && s1 > s2 ? 'winner' : ''}">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
-                <input type="number" value="${r[sK][0]}" onchange="updateScore(${rI},'${sK}',0,this.value)" class="input-score">
+                <input type="number" value="${r[sK][0]}" onchange="schedule[${rI}].${sK}[0]=this.value; renderAll();" class="input-score">
                 <span>:</span>
-                <input type="number" value="${r[sK][1]}" onchange="updateScore(${rI},'${sK}',1,this.value)" class="input-score">
+                <input type="number" value="${r[sK][1]}" onchange="schedule[${rI}].${sK}[1]=this.value; renderAll();" class="input-score">
                 <div class="flex-1 text-left ${isDone && s2 > s1 ? 'winner' : ''}">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
             </div>`;
         }
@@ -198,13 +119,7 @@
         function updateRanking() {
             let st = players.map(name => ({ name, points: 0, m: 0 }));
             schedule.forEach(r => {
-                const add = (pI, sV, oV) => { 
-                    if(sV!=="" && oV!=="") { 
-                        let s = parseInt(sV), o = parseInt(oV);
-                        let v = scoringMode==='diff'?s-o:s; 
-                        pI.forEach(x => { st[x].points += v; st[x].m++; }); 
-                    } 
-                };
+                const add = (pI, sV, oV) => { if(sV!=="" && oV!=="") { let s=parseInt(sV), o=parseInt(oV); pI.forEach(x => { st[x].points += (scoringMode==='diff'?s-o:s); st[x].m++; }); } };
                 add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
                 add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
             });
@@ -212,8 +127,8 @@
             document.getElementById('rankingBody').innerHTML = st.map((s, i) => `<tr class="${s.points>0&&s.points===st[0].points?'leader-row':''}"><td class="py-2">${i+1}. ${s.name}</td><td class="text-center text-slate-500">${s.m}/4</td><td class="text-right font-bold text-blue-400">${s.points}</td></tr>`).join('');
         }
 
-        function resetTournament() { if(confirm("ALLES ZURÜCKSETZEN?")) { schedule = JSON.parse(JSON.stringify(defaultSchedule)); renderAll(); pushData(); } }
-        syncData();
+        function resetTournament() { if(confirm("Reset?")) { schedule = JSON.parse(JSON.stringify(defaultSchedule)); renderAll(); } }
+        renderAll();
     </script>
 </body>
 </html>
