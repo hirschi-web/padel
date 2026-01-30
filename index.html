@@ -19,15 +19,15 @@
 
     <div class="sticky top-0 z-50 bg-slate-50 pb-4">
         <div class="flex flex-wrap gap-2 justify-between items-center bg-white p-4 rounded-xl shadow-md border border-slate-200">
-            <h1 class="text-xl font-black text-blue-600 italic uppercase">Padel Admin</h1>
+            <h1 class="text-xl font-black text-blue-600 italic uppercase tracking-tighter">Padel Admin</h1>
             <div class="flex flex-wrap gap-2">
-                <button onclick="saveToSupabase()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg shadow text-[10px] uppercase">
-                    ☁️ In Cloud Speichern
+                <button onclick="saveToSupabase()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg shadow text-[10px] uppercase transition-colors">
+                    ☁️ Cloud Save
                 </button>
-                <button onclick="downloadScreenshot()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-lg shadow text-[10px] uppercase">
-                    📸 Bild Download
+                <button onclick="downloadScreenshot()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg shadow text-[10px] uppercase transition-colors">
+                    📸 PNG Export
                 </button>
-                <button onclick="resetTournament()" class="bg-red-50 text-red-600 font-bold px-3 py-2 rounded-lg border border-red-200 text-[10px] uppercase">
+                <button onclick="resetTournament()" class="bg-red-50 text-red-600 font-bold px-4 py-2 rounded-lg border border-red-200 text-[10px] uppercase">
                     Reset
                 </button>
             </div>
@@ -68,21 +68,17 @@
     <div id="capture-area" class="rounded-xl">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-4">
-                <h2 class="font-black text-slate-800 uppercase text-xs flex items-center gap-2">
-                    <span class="bg-blue-600 text-white p-1 rounded">📅</span> Spielplan
-                </h2>
+                <h2 class="font-black text-slate-400 uppercase text-[10px] tracking-widest px-1">Spielplan</h2>
                 <div id="schedule" class="grid grid-cols-1 gap-4"></div>
             </div>
             <div class="space-y-4">
-                <h2 class="font-black text-slate-800 uppercase text-xs flex items-center gap-2">
-                    <span class="bg-yellow-500 text-white p-1 rounded">🏆</span> Ranking
-                </h2>
+                <h2 class="font-black text-slate-400 uppercase text-[10px] tracking-widest px-1">Live Ranking</h2>
                 <div class="bg-slate-900 rounded-2xl shadow-xl overflow-hidden border-b-4 border-blue-600">
-                    <table class="w-full text-sm text-left border-collapse">
-                        <thead class="bg-slate-800 text-slate-400 text-[10px] uppercase">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-800 text-slate-500 text-[10px] uppercase font-bold">
                             <tr>
-                                <th class="p-3">Pos</th>
-                                <th class="p-3">Name</th>
+                                <th class="p-3">#</th>
+                                <th class="p-3">Spieler</th>
                                 <th class="p-3 text-right">Pkt</th>
                             </tr>
                         </thead>
@@ -95,9 +91,10 @@
 
     <script>
         // --- DEINE SUPABASE KONFIGURATION ---
-        const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.com";
-        const SB_KEY = "sb_publishable_23hd0DzvVtl1tUS9lqIlNg_if0C1qzG";
+        const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const T_ID = "tournaments";
+        
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
         const defaultPlayers = ["Marion", "David", "Martin", "Frank", "Bernhard", "Dieter", "Lucy", "Silvia", "Nik", "Gast"];
@@ -126,20 +123,18 @@
                     timeSettings = d.t || timeSettings;
                     renderAll();
                 }
-            } catch (e) {
-                console.log("Initialisierung: Lade Standardwerte...");
-            }
+            } catch (e) { console.log("Lade Standard-Interface..."); }
         }
 
         async function saveToSupabase() {
             const payload = { p: players, s: schedule, m: scoringMode, t: timeSettings };
             const { error } = await supabaseClient.from('tournaments').upsert({ id: T_ID, data: payload, updated_at: new Date() });
-            if (!error) alert("Erfolgreich in Cloud gespeichert!");
-            else alert("Fehler beim Speichern: " + error.message);
+            if (!error) alert("Gespeichert!");
+            else alert("Fehler: " + error.message);
         }
 
         function updateSettings() {
-            timeSettings.start = document.getElementById('startTime').value;
+            timeSettings.start = document.getElementById('startTime').value || "14:00";
             timeSettings.warmup = parseInt(document.getElementById('warmupTime').value) || 0;
             timeSettings.match = parseInt(document.getElementById('matchTime').value) || 0;
             renderAll();
@@ -152,8 +147,7 @@
         }
 
         function renderAll() {
-            document.getElementById('playerInputs').innerHTML = players.map((p, i) => `<input type="text" value="${p}" onblur="players[${i}]=this.value; renderAll();" class="p-1 border rounded text-[10px] outline-none shadow-sm">`).join('');
-            
+            document.getElementById('playerInputs').innerHTML = players.map((p, i) => `<input type="text" value="${p}" onblur="players[${i}]=this.value; renderAll();" class="p-1 border rounded text-[10px] outline-none shadow-sm focus:border-blue-400">`).join('');
             document.getElementById('startTime').value = timeSettings.start;
             document.getElementById('warmupTime').value = timeSettings.warmup;
             document.getElementById('matchTime').value = timeSettings.match;
@@ -163,14 +157,13 @@
                 <div class="p-4 bg-white rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
                     <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
                     <div class="flex justify-between items-center mb-3 font-bold text-slate-400 text-[10px] uppercase">
-                        <span>R${r.id} | ${getMatchTime(rI)}</span>
-                        <span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded">PAUSE: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
+                        <span>Runde ${r.id} | ${getMatchTime(rI)} Uhr</span>
+                        <span class="text-orange-600 bg-orange-50 px-2 py-0.5 rounded italic">Pause: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
                     </div>
                     ${renderCourt(rI, 's2', 'c2', 'C2', r)}
                     <div class="h-[1px] bg-slate-100 my-2"></div>
                     ${renderCourt(rI, 's3', 'c3', 'C3', r)}
                 </div>`).join('');
-            
             updateRanking();
         }
 
@@ -178,11 +171,11 @@
             const s1 = r[sK][0]===""?-1:parseInt(r[sK][0]), s2 = r[sK][1]===""?-1:parseInt(r[sK][1]), isD = s1!==-1 && s2!==-1;
             return `<div class="flex items-center gap-2">
                 <div class="text-[9px] font-black text-slate-300 w-5">${lbl}</div>
-                <div class="flex-1 text-right text-xs ${isD && s1>s2?'winner':''} font-medium">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
+                <div class="flex-1 text-right text-xs ${isD && s1>s2?'winner font-bold':''} leading-tight">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
                 <input type="number" value="${r[sK][0]}" onchange="schedule[${rI}].${sK}[0]=this.value; renderAll();" class="input-score">
                 <span class="text-slate-300 font-bold">:</span>
                 <input type="number" value="${r[sK][1]}" onchange="schedule[${rI}].${sK}[1]=this.value; renderAll();" class="input-score">
-                <div class="flex-1 text-left text-xs ${isD && s2>s1?'winner':''} font-medium">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
+                <div class="flex-1 text-left text-xs ${isD && s2>s1?'winner font-bold':''} leading-tight">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
             </div>`;
         }
 
@@ -196,9 +189,9 @@
             st.sort((a,b) => b.points - a.points);
             document.getElementById('rankingBody').innerHTML = st.map((s, i) => `
                 <tr class="${s.points>0 && s.points===st[0].points ? 'leader-row' : ''}">
-                    <td class="p-3 text-slate-500 font-mono text-[10px]">${i+1}</td>
-                    <td class="p-3 font-bold">${s.name}</td>
-                    <td class="p-3 text-right font-black text-blue-400 text-base">${s.points}</td>
+                    <td class="p-3 font-mono text-slate-500 text-xs">${i+1}</td>
+                    <td class="p-3 font-bold text-sm">${s.name}</td>
+                    <td class="p-3 text-right font-black text-blue-500 text-base">${s.points}</td>
                 </tr>`).join('');
         }
 
@@ -207,8 +200,7 @@
             const link = document.createElement('a'); link.download = 'padel_ergebnis.png'; link.href = canvas.toDataURL(); link.click();
         }
 
-        function resetTournament() { if(confirm("Wirklich alles zurücksetzen?")) { players = [...defaultPlayers]; schedule = JSON.parse(JSON.stringify(defaultSchedule)); renderAll(); } }
-        
+        function resetTournament() { if(confirm("Alle Ergebnisse löschen?")) { schedule=JSON.parse(JSON.stringify(defaultSchedule)); renderAll(); } }
         init();
     </script>
 </body>
