@@ -3,91 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Scoreboard</title>
+    <title>Padel Manager Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .input-score { width: 42px; text-align: center; border: 2px solid #e2e8f0; border-radius: 6px; padding: 2px; font-weight: bold; }
+        .winner { color: #16a34a !important; font-weight: 900 !important; }
+        .leader-row { background: rgba(59, 130, 246, 0.1); }
+    </style>
 </head>
-<body class="bg-slate-50 p-3 max-w-5xl mx-auto">
-    <div id="loader" class="text-center p-20 text-slate-400">📡 Verbinde mit Supabase...</div>
-    <div id="content" class="hidden">
-        <div class="mb-4 p-4 bg-blue-600 text-white rounded-xl shadow-lg flex justify-between items-center">
-            <h1 class="font-black italic uppercase">Live Padel</h1>
-            <div id="lastUpdate" class="text-[9px] opacity-60"></div>
-        </div>
-        
-        <div class="mb-6 bg-slate-900 text-white p-4 rounded-xl">
-            <select id="userSelect" onchange="renderLive()" class="w-full bg-slate-800 border-none p-2 rounded font-bold outline-none"></select>
-            <div id="userNext" class="mt-2 text-sm text-blue-400 font-bold"></div>
-        </div>
+<body class="bg-slate-50 p-3 max-w-5xl mx-auto text-slate-900 font-sans">
 
+    <div class="sticky top-0 z-50 bg-slate-50 pb-4">
+        <div class="flex flex-wrap gap-2 justify-between items-center bg-white p-4 rounded-xl shadow-md border border-slate-200">
+            <h1 class="text-xl font-black text-blue-600 italic uppercase">Padel Admin</h1>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="saveToSupabase()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg shadow text-[10px] uppercase">
+                    ☁️ In Cloud Speichern
+                </button>
+                <button onclick="downloadScreenshot()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-lg shadow text-[10px] uppercase">
+                    📸 Bild Download
+                </button>
+                <button onclick="resetTournament()" class="bg-red-50 text-red-600 font-bold px-3 py-2 rounded-lg border border-red-200 text-[10px] uppercase">
+                    Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-6 bg-blue-900 text-white p-4 rounded-xl shadow-lg border-b-4 border-blue-400">
+        <label class="block text-[10px] uppercase font-bold mb-2 text-blue-200 italic">Spieler-Vorschau:</label>
+        <select id="userSelect" onchange="renderAll()" class="w-full bg-blue-800 border border-blue-700 p-2 rounded font-bold outline-none text-white">
+            <option value="">Wähle einen Namen...</option>
+        </select>
+        <div id="userNextMatches" class="mt-3 space-y-1 text-sm font-medium"></div>
+    </div>
+
+    <details class="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-hidden">
+        <summary class="p-4 font-bold text-slate-700 cursor-pointer hover:bg-slate-50 list-none flex justify-between items-center text-sm">
+            <span>⚙️ Turnier-Setup & Spieler</span>
+            <span class="text-blue-500 font-bold uppercase text-[10px]">Anpassen</span>
+        </summary>
+        <div class="p-4 bg-slate-50 border-t space-y-4">
+            <div id="playerInputs" class="grid grid-cols-2 sm:grid-cols-5 gap-2"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 border-t pt-4">
+                <div class="bg-white p-2 rounded border shadow-sm">
+                    <label class="block text-[8px] font-bold text-slate-400 uppercase">Startzeit</label>
+                    <input type="time" id="startTime" onchange="updateSettings()" class="w-full font-bold outline-none">
+                </div>
+                <div class="bg-white p-2 rounded border shadow-sm">
+                    <label class="block text-[8px] font-bold text-slate-400 uppercase">Warmup (Min)</label>
+                    <input type="number" id="warmupTime" onchange="updateSettings()" class="w-full font-bold outline-none">
+                </div>
+                <div class="bg-white p-2 rounded border shadow-sm">
+                    <label class="block text-[8px] font-bold text-slate-400 uppercase">Spielzeit (Min)</label>
+                    <input type="number" id="matchTime" onchange="updateSettings()" class="w-full font-bold outline-none">
+                </div>
+                <div class="bg-white p-2 rounded border shadow-sm">
+                    <label class="block text-[8px] font-bold text-slate-400 uppercase">Wertung</label>
+                    <select id="scoringMode" onchange="scoringMode=this.value; renderAll();" class="w-full font-bold outline-none bg-transparent">
+                        <option value="total">Punkte</option>
+                        <option value="diff">Differenz</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <div id="capture-area" class="rounded-xl">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div id="schedule" class="lg:col-span-2 space-y-4"></div>
-            <div class="bg-slate-900 rounded-2xl p-4 text-white h-fit border-t-4 border-blue-500">
-                <table class="w-full text-sm"><tbody id="rankingBody" class="divide-y divide-slate-800"></tbody></table>
+            <div class="lg:col-span-2 space-y-4">
+                <h2 class="font-black text-slate-800 uppercase text-xs flex items-center gap-2">
+                    <span class="bg-blue-600 text-white p-1 rounded">📅</span> Spielplan
+                </h2>
+                <div id="schedule" class="grid grid-cols-1 gap-4"></div>
+            </div>
+            <div class="space-y-4">
+                <h2 class="font-black text-slate-800 uppercase text-xs flex items-center gap-2">
+                    <span class="bg-yellow-500 text-white p-1 rounded">🏆</span> Ranking
+                </h2>
+                <div class="bg-slate-900 rounded-2xl shadow-xl overflow-hidden border-b-4 border-blue-600">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-800 text-slate-400 text-[10px] uppercase">
+                            <tr>
+                                <th class="p-3">Pos</th>
+                                <th class="p-3">Name</th>
+                                <th class="p-3 text-right">Pkt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rankingBody" class="text-white divide-y divide-slate-800"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        // --- DEINE SUPABASE DATEN HIER ---
         const SB_URL = "DEINE_SUPABASE_URL";
         const SB_KEY = "DEIN_ANON_KEY";
         const T_ID = "padel_01";
-        const supabase = supabase.createClient(SB_URL, SB_KEY);
-        let currentData = null;
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-        async function fetchLive() {
-            const { data } = await supabase.from('tournaments').select('data').eq('id', T_ID).single();
-            if (data) {
-                currentData = data.data;
-                document.getElementById('loader').classList.add('hidden');
-                document.getElementById('content').classList.remove('hidden');
-                document.getElementById('lastUpdate').innerText = "Update: " + new Date().toLocaleTimeString();
-                renderLive();
-            }
+        const defaultPlayers = ["Marion", "David", "Martin", "Frank", "Bernhard", "Dieter", "Lucy", "Silvia", "Nik", "Gast"];
+        const defaultSchedule = [
+            { id: 1, c2: [0, 1, 2, 3], c3: [4, 5, 6, 7], pause: [8, 9], s2: ["", ""], s3: ["", ""] },
+            { id: 2, c2: [2, 4, 3, 5], c3: [6, 8, 7, 9], pause: [0, 1], s2: ["", ""], s3: ["", ""] },
+            { id: 3, c2: [0, 8, 1, 9], c3: [4, 6, 5, 7], pause: [2, 3], s2: ["", ""], s3: ["", ""] },
+            { id: 4, c2: [0, 2, 7, 8], c3: [1, 3, 6, 9], pause: [4, 5], s2: ["", ""], s3: ["", ""] },
+            { id: 5, c2: [0, 3, 2, 5], c3: [1, 4, 8, 9], pause: [6, 7], s2: ["", ""], s3: ["", ""] }
+        ];
+
+        let players = [...defaultPlayers];
+        let schedule = JSON.parse(JSON.stringify(defaultSchedule));
+        let scoringMode = 'total';
+        let timeSettings = { start: "14:00", warmup: 5, match: 35 };
+
+        async function init() {
+            // 1. Zuerst sofort lokal rendern
+            renderAll();
+            
+            // 2. Dann versuchen, Cloud-Daten zu laden
+            try {
+                const { data, error } = await supabaseClient.from('tournaments').select('data').eq('id', T_ID).single();
+                if (data && data.data) {
+                    const d = data.data;
+                    players = d.p; schedule = d.s; scoringMode = d.m; timeSettings = d.t;
+                    renderAll();
+                }
+            } catch (e) { console.log("Lade Standardwerte (Cloud noch leer)"); }
         }
 
-        function renderLive() {
-            const { p, s, m, t } = currentData;
+        async function saveToSupabase() {
+            const payload = { p: players, s: schedule, m: scoringMode, t: timeSettings };
+            const { error } = await supabaseClient.from('tournaments').upsert({ id: T_ID, data: payload, updated_at: new Date() });
+            if (!error) alert("Cloud-Update erfolgreich!");
+            else alert("Fehler: " + error.message);
+        }
+
+        function updateSettings() {
+            timeSettings.start = document.getElementById('startTime').value;
+            timeSettings.warmup = parseInt(document.getElementById('warmupTime').value) || 0;
+            timeSettings.match = parseInt(document.getElementById('matchTime').value) || 0;
+            renderAll();
+        }
+
+        function getMatchTime(idx) {
+            let [h, m] = timeSettings.start.split(':').map(Number);
+            let total = h * 60 + m + timeSettings.warmup + (idx * timeSettings.match);
+            return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+        }
+
+        function renderAll() {
             const sel = document.getElementById('userSelect').value;
-            if(!document.getElementById('userSelect').innerHTML) {
-                document.getElementById('userSelect').innerHTML = '<option value="">Dein Name für Vorschau...</option>' + p.map(x => `<option value="${x}">${x}</option>`).join('');
+            
+            // Update Select & Inputs
+            if(!document.getElementById('userSelect').innerHTML || document.getElementById('userSelect').options.length <= 1) {
+                document.getElementById('userSelect').innerHTML = '<option value="">Wähle deinen Namen...</option>' + players.map(p => `<option value="${p}">${p}</option>`).join('');
             }
+            document.getElementById('playerInputs').innerHTML = players.map((p, i) => `<input type="text" value="${p}" onblur="players[${i}]=this.value; renderAll();" class="p-1 border rounded text-[10px] outline-none shadow-sm">`).join('');
+            
+            document.getElementById('startTime').value = timeSettings.start;
+            document.getElementById('warmupTime').value = timeSettings.warmup;
+            document.getElementById('matchTime').value = timeSettings.match;
+            document.getElementById('scoringMode').value = scoringMode;
 
-            // Zeit-Logik & Plan
-            const getT = (i) => {
-                let [h, min] = t.start.split(':').map(Number);
-                let tot = h * 60 + min + t.warmup + (i * t.match);
-                return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
-            };
-
-            document.getElementById('schedule').innerHTML = s.map((r, i) => `
-                <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
-                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase">
-                        <span>R${r.id} | ${getT(i)}</span>
-                        <span class="${sel && r.pause.some(idx => p[idx] === sel) ? 'bg-orange-500 text-white' : 'text-orange-500'} px-2 rounded">Pause: ${p[r.pause[0]]}, ${p[r.pause[1]]}</span>
+            // Plan
+            document.getElementById('schedule').innerHTML = schedule.map((r, rI) => `
+                <div class="p-4 bg-white rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                    <div class="flex justify-between items-center mb-3 font-bold text-slate-400 text-[10px] uppercase">
+                        <span>R${r.id} | ${getMatchTime(rI)}</span>
+                        <span class="${sel && r.pause.some(idx => players[idx] === sel) ? 'bg-orange-500 text-white' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded">PAUSE: ${players[r.pause[0]]}, ${players[r.pause[1]]}</span>
                     </div>
-                    ${renderC(r, 's2', 'c2', 'C2', p, sel)}
-                    <div class="h-[1px] bg-slate-50 my-2"></div>
-                    ${renderC(r, 's3', 'c3', 'C3', p, sel)}
+                    ${renderCourt(rI, 's2', 'c2', 'C2', r, sel)}
+                    <div class="h-[1px] bg-slate-100 my-2"></div>
+                    ${renderCourt(rI, 's3', 'c3', 'C3', r, sel)}
                 </div>`).join('');
-
-            // Ranking & Vorschau (Logik wie in Admin)
-            // ... (analog zur Admin-Seite, nur read-only)
+            
+            updateRanking();
+            renderPreview(sel);
         }
 
-        function renderC(r, sK, cK, lbl, p, sel) {
+        function renderCourt(rI, sK, cK, lbl, r, sel) {
             const s1 = r[sK][0]===""?-1:parseInt(r[sK][0]), s2 = r[sK][1]===""?-1:parseInt(r[sK][1]), isD = s1!==-1 && s2!==-1;
-            const isMy = sel && r[cK].some(i => p[i] === sel);
-            return `<div class="flex items-center gap-2 ${isMy?'bg-blue-50 rounded':''}">
-                <div class="w-5 text-[9px] font-black text-slate-200">${lbl}</div>
-                <div class="flex-1 text-right text-xs ${isD && s1>s2?'winner':''}">${p[r[cK][0]]}<br>${p[r[cK][1]]}</div>
-                <div class="bg-slate-100 px-2 py-1 rounded font-bold w-8 text-center">${r[sK][0]||'-'}</div>
-                <div class="bg-slate-100 px-2 py-1 rounded font-bold w-8 text-center">${r[sK][1]||'-'}</div>
-                <div class="flex-1 text-left text-xs ${isD && s2>s1?'winner':''}">${p[r[cK][2]]}<br>${p[r[cK][3]]}</div>
+            const isMy = sel && r[cK].some(idx => players[idx] === sel);
+            return `<div class="flex items-center gap-2 ${isMy ? 'bg-blue-50 p-1 rounded border border-blue-100' : ''}">
+                <div class="text-[9px] font-black text-slate-300 w-5">${lbl}</div>
+                <div class="flex-1 text-right text-xs ${isD && s1>s2?'winner':''}">${players[r[cK][0]]}<br>${players[r[cK][1]]}</div>
+                <input type="number" value="${r[sK][0]}" onchange="schedule[${rI}].${sK}[0]=this.value; renderAll();" class="input-score">
+                <span class="text-slate-300">:</span>
+                <input type="number" value="${r[sK][1]}" onchange="schedule[${rI}].${sK}[1]=this.value; renderAll();" class="input-score">
+                <div class="flex-1 text-left text-xs ${isD && s2>s1?'winner':''}">${players[r[cK][2]]}<br>${players[r[cK][3]]}</div>
             </div>`;
         }
 
-        setInterval(fetchLive, 30000); fetchLive();
+        function renderPreview(sel) {
+            const container = document.getElementById('userNextMatches');
+            if (!sel) { container.innerHTML = ""; return; }
+            let upcoming = [];
+            schedule.forEach((r, rI) => {
+                if (r.pause.some(i => players[i] === sel)) upcoming.push(`R${r.id} (${getMatchTime(rI)}): ⏸️ Pause`);
+                else if (r.c2.some(i => players[i] === sel)) upcoming.push(`R${r.id} (${getMatchTime(rI)}): 🎾 Court 2`);
+                else if (r.c3.some(i => players[i] === sel)) upcoming.push(`R${r.id} (${getMatchTime(rI)}): 🎾 Court 3`);
+            });
+            container.innerHTML = upcoming.slice(0, 3).map(m => `<div>${m}</div>`).join('');
+        }
+
+        function updateRanking() {
+            let st = players.map(name => ({ name, points: 0, m: 0 }));
+            schedule.forEach(r => {
+                const add = (pI, sV, oV) => { if(sV!=="" && oV!=="") { let s=parseInt(sV), o=parseInt(oV); pI.forEach(x => { st[x].points += (scoringMode==='diff'?s-o:s); st[x].m++; }); } };
+                add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
+                add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
+            });
+            st.sort((a,b) => b.points - a.points);
+            document.getElementById('rankingBody').innerHTML = st.map((s, i) => `
+                <tr class="${s.points>0 && s.points===st[0].points ? 'leader-row' : ''}">
+                    <td class="p-3 text-slate-500 font-mono text-[10px]">${i+1}</td>
+                    <td class="p-3 font-bold">${s.name}</td>
+                    <td class="p-3 text-right font-black text-blue-400 text-base">${s.points}</td>
+                </tr>`).join('');
+        }
+
+        async function downloadScreenshot() {
+            const canvas = await html2canvas(document.getElementById('capture-area'), { backgroundColor: "#f8fafc", scale: 2 });
+            const link = document.createElement('a'); link.download = 'padel_ergebnis.png'; link.href = canvas.toDataURL(); link.click();
+        }
+
+        function resetTournament() { if(confirm("Wirklich alles zurücksetzen?")) { players = [...defaultPlayers]; schedule = JSON.parse(JSON.stringify(defaultSchedule)); renderAll(); } }
+        
+        // Start
+        init();
     </script>
 </body>
 </html>
