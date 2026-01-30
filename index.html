@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Manager</title>
+    <title>Padel Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -15,20 +15,26 @@
 </head>
 <body class="bg-slate-50 p-3 max-w-4xl mx-auto text-slate-900 font-sans">
 
-    <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <h1 class="text-xl font-black text-blue-600 italic">PADEL MANAGER</h1>
-        <div class="flex gap-2">
-            <button onclick="saveToServer()" class="bg-blue-600 text-white text-[10px] font-bold px-3 py-2 rounded shadow uppercase">Server Update</button>
-            <button onclick="resetTournament()" class="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-2 rounded border border-red-200 uppercase hover:bg-red-100">Reset</button>
+    <div class="sticky top-0 z-50 bg-slate-50 pb-4">
+        <div class="flex flex-wrap gap-2 justify-between items-center bg-white p-4 rounded-xl shadow-md border border-slate-200">
+            <h1 class="text-xl font-black text-blue-600 italic uppercase">Padel Admin</h1>
+            <div class="flex gap-2">
+                <button onclick="saveToServer()" class="bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-lg shadow-lg uppercase text-sm flex items-center gap-2">
+                    <span>💾</span> JETZT SPEICHERN
+                </button>
+                <button onclick="resetTournament()" class="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-3 rounded-lg border border-red-200 uppercase hover:bg-red-100">
+                    Reset
+                </button>
+            </div>
         </div>
     </div>
 
     <details class="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-hidden">
-        <summary class="p-4 font-bold text-slate-700 cursor-pointer hover:bg-slate-50 list-none flex justify-between">
+        <summary class="p-4 font-bold text-slate-700 cursor-pointer hover:bg-slate-50 list-none flex justify-between items-center">
             <span>⚙️ Einstellungen & Spieler</span>
             <span class="text-[10px] text-blue-500 uppercase font-bold">Auf/Zu</span>
         </summary>
-        <div class="p-4 bg-slate-50 border-t space-y-4">
+        <div class="p-4 bg-slate-50 border-t border-slate-100 space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div class="bg-white p-2 rounded border shadow-sm">
                     <label class="block text-[9px] font-bold text-slate-400 uppercase">Startzeit</label>
@@ -61,7 +67,7 @@
                 <div id="schedule" class="space-y-4"></div>
             </div>
         </div>
-        <div class="bg-slate-900 rounded-xl shadow-xl p-4 text-white h-fit md:sticky md:top-4 border-t-4 border-blue-500">
+        <div class="bg-slate-900 rounded-xl shadow-xl p-4 text-white h-fit md:sticky md:top-24 border-t-4 border-blue-500">
             <h2 class="font-bold mb-4 text-blue-400 uppercase text-xs tracking-widest italic">🏆 Leaderboard</h2>
             <table class="w-full text-sm">
                 <tbody id="rankingBody" class="divide-y divide-slate-800"></tbody>
@@ -82,7 +88,7 @@
         let players = [...defaultPlayers], schedule = JSON.parse(JSON.stringify(defaultSchedule)), scoringMode = 'total', timeSettings = { start: "14:00", warmup: 5, match: 35 };
 
         function updateSettings() {
-            timeSettings.start = document.getElementById('startTime').value;
+            timeSettings.start = document.getElementById('startTime').value || "14:00";
             timeSettings.warmup = parseInt(document.getElementById('warmupTime').value) || 0;
             timeSettings.match = parseInt(document.getElementById('matchTime').value) || 0;
             renderAll();
@@ -91,13 +97,14 @@
         async function saveToServer() {
             const data = { p: players, s: schedule, m: scoringMode, t: timeSettings };
             try {
-                await fetch('save.php', {
+                const response = await fetch('save.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                alert("Daten auf Server gespeichert!");
-            } catch (e) { alert("Serverfehler beim Speichern."); }
+                if(response.ok) alert("Erfolgreich auf Server gesichert!");
+                else alert("Fehler beim Speichern auf dem Server.");
+            } catch (e) { alert("Server-Verbindung fehlgeschlagen (save.php vorhanden?)"); }
         }
 
         function getMatchTime(idx) {
@@ -143,7 +150,9 @@
         }
 
         function resetTournament() { schedule = JSON.parse(JSON.stringify(defaultSchedule)); renderAll(); }
-        renderAll();
+        
+        // WICHTIG: Sofort rendern beim Laden
+        window.onload = renderAll;
     </script>
 </body>
 </html>
