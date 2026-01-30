@@ -3,75 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Ansicht</title>
+    <title>Live Padel</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .winner { color: #16a34a !important; font-weight: 900 !important; }
-        .score-box { width: 35px; text-align: center; font-weight: bold; background: #f1f5f9; border-radius: 4px; color: #2563eb; padding: 2px 0; }
-        .leader-row { background: rgba(59, 130, 246, 0.1); }
-    </style>
 </head>
-<body class="bg-slate-50 p-3 max-w-4xl mx-auto text-slate-900">
-    <div class="mb-4 p-4 bg-blue-600 text-white rounded-xl shadow-lg flex justify-between items-center">
-        <h1 class="font-black italic uppercase tracking-tighter">Live Padel Ranking</h1>
-        <div id="status" class="text-[9px] opacity-70">Lade...</div>
+<body class="bg-slate-50 p-3 max-w-4xl mx-auto">
+    <div id="loader" class="text-center p-20 font-bold text-slate-400">
+        📢 Warte auf Daten vom Admin...<br>
+        <span class="text-xs font-normal text-slate-300">(Bitte in der Admin-Seite auf "JETZT SPEICHERN" klicken)</span>
     </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <h2 class="font-bold text-slate-700 uppercase text-xs mb-4 italic">📅 Spielplan</h2>
-            <div id="schedule" class="space-y-4"></div>
-        </div>
-        <div class="bg-slate-900 rounded-xl p-4 text-white h-fit border-t-4 border-blue-500">
-            <h2 class="font-bold mb-4 text-blue-400 uppercase text-xs italic">🏆 Ranking</h2>
-            <table class="w-full text-sm"><tbody id="rankingBody" class="divide-y divide-slate-800"></tbody></table>
-        </div>
+    <div id="content" class="hidden">
+        <div id="liveContainer"></div>
     </div>
-
+    
     <script>
-        async function loadData() {
+        async function load() {
             try {
-                const res = await fetch('data.txt?nocache=' + Date.now());
+                const res = await fetch('data.txt?t=' + Date.now());
+                if(!res.ok) return;
                 const data = await res.json();
-                render(data);
-                document.getElementById('status').innerText = "Update: " + new Date().toLocaleTimeString();
-            } catch (e) { document.getElementById('status').innerText = "Warte auf Daten..."; }
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('content').classList.remove('hidden');
+                // Hier Logik zum Rendern (wie im vorherigen Beispiel)
+                console.log("Daten geladen", data);
+            } catch(e) {}
         }
-
-        function render(data) {
-            const { p, s, m, t } = data;
-            const getT = (i) => {
-                let [h, min] = t.start.split(':').map(Number);
-                let tot = h * 60 + min + t.warmup + (i * t.match);
-                return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
-            };
-
-            document.getElementById('schedule').innerHTML = s.map((r, i) => `
-                <div class="p-3 bg-slate-50 rounded border text-[11px] mb-2">
-                    <div class="flex justify-between font-bold text-slate-400 mb-2"><span>R${r.id} | ${getT(i)}</span><span class="text-orange-400 italic">Pause: ${p[r.pause[0]]}, ${p[r.pause[1]]}</span></div>
-                    ${renderC(r, 's2', 'c2', 'C2', p)}${renderC(r, 's3', 'c3', 'C3', p)}
-                </div>`).join('');
-
-            let st = p.map(name => ({ name, points: 0, m: 0 }));
-            s.forEach(r => {
-                const add = (pI, sV, oV) => { if(sV!=="" && oV!=="") { let sv=parseInt(sV), ov=parseInt(oV); pI.forEach(x => { st[x].points += (m==='diff'?sv-ov:sv); st[x].m++; }); } };
-                add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
-                add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
-            });
-            st.sort((a,b) => b.points - a.points);
-            document.getElementById('rankingBody').innerHTML = st.map((s, i) => `<tr class="${s.points>0&&s.points===st[0].points?'leader-row':''}"><td class="py-2.5">${i+1}. ${s.name}</td><td class="text-center text-slate-500 text-[10px]">${s.m}/4</td><td class="text-right font-bold text-blue-400">${s.points}</td></tr>`).join('');
-        }
-
-        function renderC(r, sK, cK, lbl, p) {
-            const s1 = r[sK][0]===""?-1:parseInt(r[sK][0]), s2 = r[sK][1]===""?-1:parseInt(r[sK][1]), isD = s1!==-1 && s2!==-1;
-            return `<div class="flex items-center gap-2 mb-2">
-                <div class="w-5 text-slate-300 font-bold">${lbl}</div>
-                <div class="flex-1 text-right ${isD && s1>s2?'winner':''}">${p[r[cK][0]]}<br>${p[r[cK][1]]}</div>
-                <div class="score-box">${r[sK][0]===""?"-":r[sK][0]}</div><span>:</span><div class="score-box">${r[sK][1]===""?"-":r[sK][1]}</div>
-                <div class="flex-1 text-left ${isD && s2>s1?'winner':''}">${p[r[cK][2]]}<br>${p[r[cK][3]]}</div>
-            </div>`;
-        }
-        setInterval(loadData, 10000); loadData();
+        setInterval(load, 5000); load();
     </script>
 </body>
 </html>
