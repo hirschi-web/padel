@@ -12,25 +12,38 @@
         .score-box { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #f8fafc; border-radius: 6px; color: #2563eb; border: 1px solid #e2e8f0; }
         .my-match { background-color: #eff6ff; border: 1px solid #bfdbfe !important; }
         .sticky-header { position: sticky; top: 0; z-index: 50; }
+        /* Kleiner Puls-Effekt beim Laden */
+        .refresh-spin { animation: spin 0.5s linear; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans leading-tight">
 
     <div id="loader" class="flex flex-col items-center justify-center h-screen text-slate-400">
         <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-        <p class="font-bold italic">Live-Daten werden geladen...</p>
+        <p class="font-bold italic text-sm">Synchronisiere...</p>
     </div>
     
     <div id="content" class="hidden pb-10">
         <div class="sticky-header bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
-            <h1 class="font-black italic uppercase tracking-tighter text-lg">Padel Live</h1>
-            <div id="lastUpdate" class="text-[10px] bg-blue-700 px-2 py-1 rounded font-mono"></div>
+            <div>
+                <h1 class="font-black italic uppercase tracking-tighter text-lg leading-none">Padel Live</h1>
+                <div id="lastUpdate" class="text-[9px] opacity-80 mt-1 font-medium"></div>
+            </div>
+            <button onclick="fetchLive()" id="refreshBtn" class="bg-blue-500 hover:bg-blue-400 p-2 rounded-full transition-all active:scale-90 shadow-inner">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
         </div>
         
         <div class="m-3 bg-slate-900 text-white p-4 rounded-2xl shadow-lg border-b-4 border-blue-500">
-            <label class="block text-[10px] uppercase font-black mb-2 text-blue-400 tracking-widest">Mein Turnier-Check</label>
-            <select id="userSelect" onchange="renderLive()" class="w-full bg-slate-800 border-none p-3 rounded-xl font-bold outline-none text-white text-base mb-3 appearance-none">
-                <option value="">Wähle deinen Namen...</option>
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-[10px] uppercase font-black text-blue-400 tracking-widest">Mein Turnier-Check</label>
+                <button onclick="clearUser()" class="text-[9px] text-slate-500 underline uppercase font-bold">Ändern</button>
+            </div>
+            <select id="userSelect" onchange="saveUser(this.value)" class="w-full bg-slate-800 border-none p-3 rounded-xl font-bold outline-none text-white text-base mb-3 appearance-none shadow-inner">
+                <option value="">Wer bist du?</option>
             </select>
             <div id="userNext" class="space-y-2"></div>
         </div>
@@ -46,7 +59,7 @@
             </section>
 
             <section>
-                <h2 class="font-black text-slate-400 uppercase text-[11px] tracking-widest mb-2 px-1 text-center">Spielplan & Ergebnisse</h2>
+                <h2 class="font-black text-slate-400 uppercase text-[11px] tracking-widest mb-2 px-1 text-center">Spielplan</h2>
                 <div id="schedule" class="space-y-3"></div>
             </section>
         </div>
@@ -61,26 +74,46 @@
         let currentData = null;
 
         async function fetchLive() {
+            const btn = document.getElementById('refreshBtn');
+            if(btn) btn.classList.add('refresh-spin');
+            
             try {
                 const { data, error } = await supabaseClient.from('tournaments').select('data').eq('id', T_ID).single();
                 if (data && data.data) {
                     currentData = data.data;
                     document.getElementById('loader').classList.add('hidden');
                     document.getElementById('content').classList.remove('hidden');
-                    document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    document.getElementById('lastUpdate').innerText = "Stand: " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}) + " Uhr";
                     renderLive();
                 }
             } catch (e) { console.error("Sync Error", e); }
+            
+            if(btn) setTimeout(() => btn.classList.remove('refresh-spin'), 500);
+        }
+
+        // Benutzer speichern
+        function saveUser(val) {
+            localStorage.setItem('padel_username', val);
+            renderLive();
+        }
+
+        // Benutzer löschen
+        function clearUser() {
+            localStorage.removeItem('padel_username');
+            document.getElementById('userSelect').value = "";
+            renderLive();
         }
 
         function renderLive() {
             const { p, s, m, t } = currentData;
-            const sel = document.getElementById('userSelect').value;
+            
+            // Name aus LocalStorage laden
+            let sel = localStorage.getItem('padel_username') || "";
 
             if(document.getElementById('userSelect').options.length <= 1) {
                 document.getElementById('userSelect').innerHTML = '<option value="">Wer bist du?</option>' + p.map(x => `<option value="${x}">${x}</option>`).join('');
-                if(sel) document.getElementById('userSelect').value = sel;
             }
+            document.getElementById('userSelect').value = sel;
 
             const getT = (i) => {
                 let [h, min] = t.start.split(':').map(Number);
@@ -92,7 +125,7 @@
             document.getElementById('schedule').innerHTML = s.map((r, i) => `
                 <div class="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
                     <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-tight">
-                        <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-black">RUNDE ${r.id} • ${getT(i)}</span>
+                        <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-black">R${r.id} • ${getT(i)}</span>
                         <span class="${sel && r.pause.some(idx => p[idx] === sel) ? 'bg-orange-500 text-white' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded italic">Pause: ${p[r.pause[0]]}, ${p[r.pause[1]]}</span>
                     </div>
                     ${renderMatchRow(r, 's2', 'c2', 'C2', p, sel)}
@@ -100,20 +133,21 @@
                     ${renderMatchRow(r, 's3', 'c3', 'C3', p, sel)}
                 </div>`).join('');
 
-            // Spezifische Vorschau (Nächste 2 Runden)
+            // Vorschau (Nächste 2 Runden)
             if (sel) {
                 let upcoming = [];
                 s.forEach((r, i) => {
                     const time = getT(i);
-                    const onC2 = r.c2.indexOf(p.indexOf(sel));
-                    const onC3 = r.c3.indexOf(p.indexOf(sel));
+                    const pIdx = p.indexOf(sel);
+                    const onC2 = r.c2.indexOf(pIdx);
+                    const onC3 = r.c3.indexOf(pIdx);
                     
                     if (r.pause.some(idx => p[idx] === sel)) {
                         upcoming.push({round: r.id, time, text: `⏸️ Du hast Pause`});
                     } else if (onC2 !== -1 || onC3 !== -1) {
                         const court = onC2 !== -1 ? 'Court 2' : 'Court 3';
                         const team = onC2 !== -1 ? r.c2 : r.c3;
-                        const myIdx = team.indexOf(p.indexOf(sel));
+                        const myIdx = team.indexOf(pIdx);
                         const partnerIdx = myIdx < 2 ? (myIdx === 0 ? 1 : 0) : (myIdx === 2 ? 3 : 2);
                         const opponents = myIdx < 2 ? [team[2], team[3]] : [team[0], team[1]];
                         
@@ -123,12 +157,22 @@
                         });
                     }
                 });
-                // Nur die nächsten 2 relevanten Runden (die noch nicht vorbei sind - hier vereinfacht die nächsten 2)
-                document.getElementById('userNext').innerHTML = upcoming.slice(0, 2).map(obj => `
+                
+                // Nur zukünftige Runden oder die aktuell laufende anzeigen? 
+                // Hier filtern wir einfach die ersten 2 aus dem Plan, die noch keine Ergebnisse haben:
+                const nextRelevant = upcoming.filter(u => {
+                    const match = s.find(round => round.id === u.round);
+                    // Zeige nur Runden an, die noch nicht beide Ergebnisse eingetragen haben
+                    return match.s2[0] === "" || match.s3[0] === "";
+                }).slice(0, 2);
+
+                document.getElementById('userNext').innerHTML = (nextRelevant.length > 0 ? nextRelevant : upcoming.slice(0,2)).map(obj => `
                     <div class="bg-blue-600/10 p-3 rounded-xl border border-blue-500/20">
                         <div class="text-[10px] font-black text-blue-400 uppercase mb-1">Runde ${obj.round} (${obj.time} Uhr)</div>
                         <div class="text-sm">${obj.text}</div>
                     </div>`).join('');
+            } else {
+                document.getElementById('userNext').innerHTML = `<div class="text-center py-2 text-slate-500 text-xs italic">Wähle deinen Namen für persönliche Infos</div>`;
             }
 
             // Ranking
@@ -140,9 +184,9 @@
             });
             st.sort((a,b) => b.points - a.points);
             document.getElementById('rankingBody').innerHTML = st.map((s, i) => `
-                <tr class="${s.points>0 && s.points===st[0].points ? 'bg-blue-500/10' : ''}">
+                <tr class="${s.points > 0 && s.points === st[0].points ? 'bg-blue-500/10' : ''}">
                     <td class="p-3 text-slate-500 font-mono text-xs w-8">${i+1}</td>
-                    <td class="p-3 font-bold text-sm">${s.name}</td>
+                    <td class="p-3 font-bold text-sm ${s.name === sel ? 'text-blue-400 underline decoration-2' : ''}">${s.name}</td>
                     <td class="p-3 text-right font-black text-blue-400 text-lg">${s.points}</td>
                 </tr>`).join('');
         }
