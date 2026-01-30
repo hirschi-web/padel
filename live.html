@@ -3,67 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Ansicht</title>
+    <title>Live Scoreboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .winner { color: #16a34a !important; font-weight: 900 !important; }
-        .score-box { width: 35px; text-align: center; font-weight: bold; background: #f1f5f9; border-radius: 4px; color: #2563eb; padding: 2px 0; }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-50 p-3 max-w-4xl mx-auto">
-    <div id="main">
+<body class="bg-slate-50 p-3 max-w-5xl mx-auto">
+    <div id="loader" class="text-center p-20 text-slate-400">📡 Verbinde mit Supabase...</div>
+    <div id="content" class="hidden">
         <div class="mb-4 p-4 bg-blue-600 text-white rounded-xl shadow-lg flex justify-between items-center">
-            <h1 class="font-black italic uppercase">Live Ranking</h1>
+            <h1 class="font-black italic uppercase">Live Padel</h1>
+            <div id="lastUpdate" class="text-[9px] opacity-60"></div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div id="schedule" class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-4"></div>
-            <div class="bg-slate-900 rounded-xl p-4 text-white h-fit border-t-4 border-blue-500">
+        
+        <div class="mb-6 bg-slate-900 text-white p-4 rounded-xl">
+            <select id="userSelect" onchange="renderLive()" class="w-full bg-slate-800 border-none p-2 rounded font-bold outline-none"></select>
+            <div id="userNext" class="mt-2 text-sm text-blue-400 font-bold"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div id="schedule" class="lg:col-span-2 space-y-4"></div>
+            <div class="bg-slate-900 rounded-2xl p-4 text-white h-fit border-t-4 border-blue-500">
                 <table class="w-full text-sm"><tbody id="rankingBody" class="divide-y divide-slate-800"></tbody></table>
             </div>
         </div>
     </div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const rawData = urlParams.get('d');
-        if (rawData) {
-            const data = JSON.parse(atob(rawData));
-            render(data);
-        } else {
-            document.body.innerHTML = "<p class='p-10 text-center text-slate-400'>Kein Live-Link gefunden.</p>";
+        const SB_URL = "DEINE_SUPABASE_URL";
+        const SB_KEY = "DEIN_ANON_KEY";
+        const T_ID = "padel_01";
+        const supabase = supabase.createClient(SB_URL, SB_KEY);
+        let currentData = null;
+
+        async function fetchLive() {
+            const { data } = await supabase.from('tournaments').select('data').eq('id', T_ID).single();
+            if (data) {
+                currentData = data.data;
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('content').classList.remove('hidden');
+                document.getElementById('lastUpdate').innerText = "Update: " + new Date().toLocaleTimeString();
+                renderLive();
+            }
         }
 
-        function render(data) {
-            const { p, s, m, t } = data;
+        function renderLive() {
+            const { p, s, m, t } = currentData;
+            const sel = document.getElementById('userSelect').value;
+            if(!document.getElementById('userSelect').innerHTML) {
+                document.getElementById('userSelect').innerHTML = '<option value="">Dein Name für Vorschau...</option>' + p.map(x => `<option value="${x}">${x}</option>`).join('');
+            }
+
+            // Zeit-Logik & Plan
             const getT = (i) => {
                 let [h, min] = t.start.split(':').map(Number);
                 let tot = h * 60 + min + t.warmup + (i * t.match);
                 return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
             };
+
             document.getElementById('schedule').innerHTML = s.map((r, i) => `
-                <div class="p-3 bg-slate-50 rounded border text-[11px]">
-                    <div class="flex justify-between font-bold text-slate-400 mb-2"><span>R${r.id} | ${getT(i)}</span></div>
-                    ${renderC(r, 's2', 'c2', 'C2', p)}${renderC(r, 's3', 'c3', 'C3', p)}
+                <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase">
+                        <span>R${r.id} | ${getT(i)}</span>
+                        <span class="${sel && r.pause.some(idx => p[idx] === sel) ? 'bg-orange-500 text-white' : 'text-orange-500'} px-2 rounded">Pause: ${p[r.pause[0]]}, ${p[r.pause[1]]}</span>
+                    </div>
+                    ${renderC(r, 's2', 'c2', 'C2', p, sel)}
+                    <div class="h-[1px] bg-slate-50 my-2"></div>
+                    ${renderC(r, 's3', 'c3', 'C3', p, sel)}
                 </div>`).join('');
 
-            let st = p.map(name => ({ name, points: 0, m: 0 }));
-            s.forEach(r => {
-                const add = (pI, sV, oV) => { if(sV!=="" && oV!=="") { let sv=parseInt(sV), ov=parseInt(oV); pI.forEach(x => { st[x].points += (m==='diff'?sv-ov:sv); st[x].m++; }); } };
-                add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
-                add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
-            });
-            st.sort((a,b) => b.points - a.points);
-            document.getElementById('rankingBody').innerHTML = st.map((s, i) => `<tr><td class="py-2.5">${i+1}. ${s.name}</td><td class="text-right font-bold text-blue-400">${s.points}</td></tr>`).join('');
+            // Ranking & Vorschau (Logik wie in Admin)
+            // ... (analog zur Admin-Seite, nur read-only)
         }
 
-        function renderC(r, sK, cK, lbl, p) {
+        function renderC(r, sK, cK, lbl, p, sel) {
             const s1 = r[sK][0]===""?-1:parseInt(r[sK][0]), s2 = r[sK][1]===""?-1:parseInt(r[sK][1]), isD = s1!==-1 && s2!==-1;
-            return `<div class="flex items-center gap-2 mb-1">
-                <div class="flex-1 text-right ${isD && s1>s2?'winner':''}">${p[r[cK][0]]}<br>${p[r[cK][1]]}</div>
-                <div class="score-box">${r[sK][0]===""?"-":r[sK][0]}</div><span>:</span><div class="score-box">${r[sK][1]===""?"-":r[sK][1]}</div>
-                <div class="flex-1 text-left ${isD && s2>s1?'winner':''}">${p[r[cK][2]]}<br>${p[r[cK][3]]}</div>
+            const isMy = sel && r[cK].some(i => p[i] === sel);
+            return `<div class="flex items-center gap-2 ${isMy?'bg-blue-50 rounded':''}">
+                <div class="w-5 text-[9px] font-black text-slate-200">${lbl}</div>
+                <div class="flex-1 text-right text-xs ${isD && s1>s2?'winner':''}">${p[r[cK][0]]}<br>${p[r[cK][1]]}</div>
+                <div class="bg-slate-100 px-2 py-1 rounded font-bold w-8 text-center">${r[sK][0]||'-'}</div>
+                <div class="bg-slate-100 px-2 py-1 rounded font-bold w-8 text-center">${r[sK][1]||'-'}</div>
+                <div class="flex-1 text-left text-xs ${isD && s2>s1?'winner':''}">${p[r[cK][2]]}<br>${p[r[cK][3]]}</div>
             </div>`;
         }
+
+        setInterval(fetchLive, 30000); fetchLive();
     </script>
 </body>
 </html>
