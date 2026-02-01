@@ -111,6 +111,44 @@
         let scoringMode = 'total';
         let timeSettings = { start: "14:00", warmup: 5, match: 35 };
 
+// Neue Funktion zum Laden der Turnierliste
+async function loadTournamentList() {
+    const { data, error } = await supabaseClient.from('tournaments').select('id');
+    if(data) {
+        let selectHtml = '<select id="tLoader" class="p-2 border rounded-lg font-bold text-xs bg-white text-slate-800 outline-none">';
+        selectHtml += '<option value="">--- Turnier laden ---</option>';
+        data.forEach(t => {
+            selectHtml += `<option value="${t.id}">${t.id}</option>`;
+        });
+        selectHtml += '</select>';
+        
+        // Füge das Element in den Header ein (neben den Buttons)
+        document.querySelector('.flex.flex-wrap.gap-2').insertAdjacentHTML('afterbegin', selectHtml);
+        
+        document.getElementById('tLoader').onchange = async (e) => {
+            if(!e.target.value) return;
+            const { data: tData } = await supabaseClient.from('tournaments').select('data').eq('id', e.target.value).single();
+            if(tData) {
+                // Hier überschreiben wir T_ID global, damit "Speichern" in das richtige Turnier schreibt!
+                window.currentT_ID = e.target.value; 
+                players = tData.data.p;
+                schedule = tData.data.s || tData.data.s_new;
+                timeSettings = tData.data.t;
+                renderAll();
+                alert("Turnier '" + e.target.value + "' geladen!");
+            }
+        };
+    }
+}
+
+// In deiner saveToSupabase Funktion T_ID durch window.currentT_ID ersetzen:
+async function saveToSupabase() {
+    const idToSave = window.currentT_ID || T_ID;
+    const payload = { p: players, s: schedule, m: scoringMode, t: timeSettings };
+    const { error } = await supabaseClient.from('tournaments').upsert({ id: idToSave, data: payload, updated_at: new Date() });
+    // ...
+}
+        
         async function init() {
             renderAll();
             try {
