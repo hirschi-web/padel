@@ -1,6 +1,20 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+async function fetchLive() {
+    // 1. Hole Info, welches Turnier aktiv ist
+    const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
+    if(config) {
+        const activeID = config.data.active_id;
+        // 2. Hole die Daten dieses Turniers
+        const { data, error } = await supabaseClient.from('tournaments').select('data').eq('id', activeID).single();
+        if (data) {
+            currentData = data.data;
+            // ... Rest wie gehabt ...
+        }
+    }
+}
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Padel Live Score</title>
