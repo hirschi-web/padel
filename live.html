@@ -1,127 +1,80 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<script 
-    async function fetchLive() {
-    // 1. Hole Info, welches Turnier aktiv ist
-    const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
-    if(config) {
-        const activeID = config.data.active_id;
-        // 2. Hole die Daten dieses Turniers
-        const { data, error } = await supabaseClient.from('tournaments').select('data').eq('id', activeID).single();
-        if (data) {
-            currentData = data.data;
-            // ... Rest wie gehabt ...
-        }
-    }
-}
-</script>    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Padel Live Score</title>
+    <title>Padel Live</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { -webkit-tap-highlight-color: transparent; }
-        .winner { color: #16a34a !important; font-weight: 800 !important; }
+        .winner { color: #16a34a !important; font-weight: 800; }
         .score-box { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #f8fafc; border-radius: 6px; color: #2563eb; border: 1px solid #e2e8f0; }
         .my-match { background-color: #eff6ff; border: 1px solid #bfdbfe !important; }
-        .sticky-header { position: sticky; top: 0; z-index: 50; }
-        .refresh-spin { animation: spin 0.5s linear; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans leading-tight">
 
-    <div id="loader" class="flex flex-col items-center justify-center h-screen text-slate-400">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-        <p class="font-bold italic text-sm">Daten werden geladen...</p>
+    <div id="loader" class="flex flex-col items-center justify-center h-screen text-slate-400 animate-pulse">
+        <p class="font-bold italic">Suche aktives Turnier...</p>
     </div>
     
-    <div id="content" class="hidden pb-10">
-        <div class="sticky-header bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
+    <div id="content" class="hidden">
+        <div class="sticky top-0 z-50 bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
             <div>
-                <h1 class="font-black italic uppercase tracking-tighter text-lg leading-none">Padel Live</h1>
-                <div id="lastUpdate" class="text-[9px] opacity-80 mt-1 font-medium"></div>
+                <h1 id="tournamentTitle" class="font-black italic uppercase tracking-tighter text-lg leading-none">Padel Live</h1>
+                <div id="lastUpdate" class="text-[9px] opacity-80 mt-1"></div>
             </div>
-            <button onclick="fetchLive()" id="refreshBtn" class="bg-blue-500 hover:bg-blue-400 p-2 rounded-full transition-all active:scale-90 shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
+            <button onclick="fetchLive()" class="bg-blue-500 p-2 rounded-full active:scale-90">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
         </div>
         
         <div class="m-3 bg-slate-900 text-white p-4 rounded-2xl shadow-lg border-b-4 border-blue-500">
-            <div class="flex justify-between items-center mb-2">
-                <label class="text-[10px] uppercase font-black text-blue-400 tracking-widest">Mein Turnier-Check</label>
-                <button onclick="clearUser()" class="text-[9px] text-slate-500 underline uppercase font-bold">Ändern</button>
-            </div>
-            <select id="userSelect" onchange="saveUser(this.value)" class="w-full bg-slate-800 border-none p-3 rounded-xl font-bold outline-none text-white text-base mb-3 appearance-none shadow-inner">
+            <select id="userSelect" onchange="localStorage.setItem('padel_username', this.value); renderLive();" class="w-full bg-slate-800 border-none p-3 rounded-xl font-bold text-white text-base mb-3 appearance-none shadow-inner">
                 <option value="">Wer bist du?</option>
             </select>
             <div id="userNext" class="space-y-2"></div>
         </div>
 
         <div class="px-3 space-y-6">
-            <section>
-                <h2 class="font-black text-slate-400 uppercase text-[11px] tracking-widest mb-2 px-1 text-center font-bold">Tabelle</h2>
-                <div class="bg-slate-900 rounded-2xl shadow-xl overflow-hidden border-b-4 border-blue-600">
-                    <table class="w-full text-sm">
-                        <tbody id="rankingBody" class="text-white divide-y divide-slate-800"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section>
-                <h2 class="font-black text-slate-400 uppercase text-[11px] tracking-widest mb-2 px-1 text-center font-bold">Spielplan</h2>
-                <div id="schedule" class="space-y-3"></div>
-            </section>
+            <div class="bg-slate-900 rounded-2xl shadow-xl overflow-hidden border-b-4 border-blue-600">
+                <table class="w-full text-sm"><tbody id="rankingBody" class="text-white divide-y divide-slate-800"></tbody></table>
+            </div>
+            <div id="schedule" class="space-y-3"></div>
         </div>
     </div>
 
     <script>
         const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
-        const T_ID = "tournaments";
-        
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         let currentData = null;
+        let activeID = "";
 
         async function fetchLive() {
-            const btn = document.getElementById('refreshBtn');
-            if(btn) btn.classList.add('refresh-spin');
-            try {
-                const { data, error } = await supabaseClient.from('tournaments').select('data').eq('id', T_ID).single();
-                if (data && data.data) {
+            const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
+            if(config) {
+                activeID = config.data.active_id;
+                document.getElementById('tournamentTitle').innerText = activeID;
+                const { data } = await supabaseClient.from('tournaments').select('data').eq('id', activeID).single();
+                if (data) {
                     currentData = data.data;
                     document.getElementById('loader').classList.add('hidden');
                     document.getElementById('content').classList.remove('hidden');
-                    document.getElementById('lastUpdate').innerText = "Update: " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                    document.getElementById('lastUpdate').innerText = "Update: " + new Date().toLocaleTimeString();
                     renderLive();
                 }
-            } catch (e) { console.error("Sync Error", e); }
-            if(btn) setTimeout(() => btn.classList.remove('refresh-spin'), 500);
-        }
-
-        function saveUser(val) {
-            localStorage.setItem('padel_username', val);
-            renderLive();
-        }
-
-        function clearUser() {
-            localStorage.removeItem('padel_username');
-            document.getElementById('userSelect').value = "";
-            renderLive();
+            }
         }
 
         function renderLive() {
-            const { p, s, m, t } = currentData;
-            let sel = localStorage.getItem('padel_username') || "";
-
+            const { p, s_new, m, t } = currentData;
+            const sel = localStorage.getItem('padel_username') || "";
+            
             if(document.getElementById('userSelect').options.length <= 1) {
                 document.getElementById('userSelect').innerHTML = '<option value="">Wer bist du?</option>' + p.map(x => `<option value="${x}">${x}</option>`).join('');
+                document.getElementById('userSelect').value = sel;
             }
-            document.getElementById('userSelect').value = sel;
 
             const getT = (i) => {
                 let [h, min] = t.start.split(':').map(Number);
@@ -129,109 +82,58 @@
                 return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
             };
 
-            // SPIELPLAN RENDERN
-            document.getElementById('schedule').innerHTML = s.map((r, i) => `
-                <div class="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-tight">
-                        <span class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-black italic">RUNDE ${r.id} • ${getT(i)}</span>
-                        <span class="${sel && r.pause.some(idx => p[idx] === sel) ? 'bg-orange-500 text-white' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded italic">Pause: ${p[r.pause[0]]}, ${p[r.pause[1]]}</span>
+            document.getElementById('schedule').innerHTML = s_new.map((r, i) => `
+                <div class="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase italic">
+                        <span>RUNDE ${r.id} • ${getT(i)} Uhr</span>
+                        <span class="${sel && r.pause.includes(p.indexOf(sel)) ? 'text-orange-600 font-black underline' : ''}">Pause: ${r.pause.map(idx => p[idx]).join(', ')}</span>
                     </div>
-                    ${renderMatchRow(r, 's2', 'c2', 'C2', p, sel)}
-                    <div class="h-[1px] bg-slate-100 my-2"></div>
-                    ${renderMatchRow(r, 's3', 'c3', 'C3', p, sel)}
+                    ${r.matches.map(match => {
+                        const isMy = sel && match.team1.concat(match.team2).includes(p.indexOf(sel));
+                        return `
+                        <div class="flex items-center gap-2 p-1.5 rounded-xl ${isMy ? 'my-match' : ''}">
+                            <div class="w-5 text-[8px] font-black text-slate-300">C${match.court}</div>
+                            <div class="flex-1 text-right text-[11px] leading-tight font-semibold">${p[match.team1[0]]}<br>${p[match.team1[1]]}</div>
+                            <div class="score-box">${match.score[0] || '·'}</div>
+                            <div class="score-box">${match.score[1] || '·'}</div>
+                            <div class="flex-1 text-left text-[11px] leading-tight font-semibold">${p[match.team2[0]]}<br>${p[match.team2[1]]}</div>
+                        </div>`;
+                    }).join('')}
                 </div>`).join('');
 
-            // KORRIGIERTE VORSCHAU-LOGIK
-            if (sel) {
-                let upcoming = [];
-                const myGlobalIdx = p.indexOf(sel);
-
-                s.forEach((r, i) => {
-                    const time = getT(i);
-                    let found = false;
-                    let partner = "";
-                    let opponents = [];
-                    let courtName = "";
-
-                    if (r.pause.includes(myGlobalIdx)) {
-                        upcoming.push({ round: r.id, time, text: `⏸️ Du hast Pause`, done: (r.s2[0]!=="" && r.s3[0]!=="") });
-                    } else {
-                        // Check Court 2
-                        let idxInC2 = r.c2.indexOf(myGlobalIdx);
-                        if (idxInC2 !== -1) {
-                            found = true; courtName = "Court 2";
-                            if (idxInC2 < 2) { // In Team 1
-                                partner = p[r.c2[idxInC2 === 0 ? 1 : 0]];
-                                opponents = [p[r.c2[2]], p[r.c2[3]]];
-                            } else { // In Team 2
-                                partner = p[r.c2[idxInC2 === 2 ? 3 : 2]];
-                                opponents = [p[r.c2[0]], p[r.c2[1]]];
-                            }
-                        }
-                        // Check Court 3
-                        let idxInC3 = r.c3.indexOf(myGlobalIdx);
-                        if (idxInC3 !== -1) {
-                            found = true; courtName = "Court 3";
-                            if (idxInC3 < 2) {
-                                partner = p[r.c3[idxInC3 === 0 ? 1 : 0]];
-                                opponents = [p[r.c3[2]], p[r.c3[3]]];
-                            } else {
-                                partner = p[r.c3[idxInC3 === 2 ? 3 : 2]];
-                                opponents = [p[r.c3[0]], p[r.c3[1]]];
-                            }
-                        }
-
-                        if (found) {
-                            upcoming.push({
-                                round: r.id, time,
-                                text: `🎾 ${courtName} | Partner: <b class="text-white">${partner}</b><br><span class="opacity-70 text-[11px]">Gegen: ${opponents[0]} & ${opponents[1]}</span>`,
-                                done: (courtName === "Court 2" ? r.s2[0] !== "" : r.s3[0] !== "")
-                            });
-                        }
-                    }
-                });
-
-                // Zeige nur die nächsten 2 Runden, die noch nicht gespielt wurden (done === false)
-                const nextTwo = upcoming.filter(u => !u.done).slice(0, 2);
-                
-                document.getElementById('userNext').innerHTML = (nextTwo.length > 0 ? nextTwo : upcoming.slice(0,2)).map(obj => `
-                    <div class="bg-blue-600/20 p-3 rounded-xl border border-blue-500/30">
-                        <div class="text-[10px] font-black text-blue-400 uppercase mb-1">Runde ${obj.round} (${obj.time} Uhr)</div>
-                        <div class="text-sm">${obj.text}</div>
-                    </div>`).join('');
-            } else {
-                document.getElementById('userNext').innerHTML = `<div class="text-center py-2 text-slate-500 text-xs italic">Wähle deinen Namen für persönliche Infos</div>`;
+            // Vorschau-Box Logik (Zusammenfassung für den Spieler)
+            if(sel) {
+                const myIdx = p.indexOf(sel);
+                const next = s_new.find(r => r.matches.some(m => m.team1.concat(m.team2).includes(myIdx)) && r.matches.find(m => m.team1.concat(m.team2).includes(myIdx)).score[0] === "");
+                if(next) {
+                    const m = next.matches.find(m => m.team1.concat(m.team2).includes(myIdx));
+                    document.getElementById('userNext').innerHTML = `<div class="bg-blue-600/20 p-3 rounded-xl border border-blue-500/30 text-sm">
+                        Nächstes Spiel: <b>Runde ${next.id}</b> auf <b>Court ${m.court}</b>
+                    </div>`;
+                }
             }
 
-            // RANKING
+            // Ranking
             let st = p.map(name => ({ name, points: 0 }));
-            s.forEach(r => {
-                const add = (pI, sV, oV) => { if(sV!=="" && oV!=="") { let sv=parseInt(sV), ov=parseInt(oV); pI.forEach(x => { st[x].points += (m==='diff'?sv-ov:sv); }); } };
-                add([r.c2[0], r.c2[1]], r.s2[0], r.s2[1]); add([r.c2[2], r.c2[3]], r.s2[1], r.s2[0]);
-                add([r.c3[0], r.c3[1]], r.s3[0], r.s3[1]); add([r.c3[2], r.c3[3]], r.s3[1], r.s3[0]);
+            s_new.forEach(r => {
+                r.matches.forEach(m => {
+                    if(m.score[0] !== "" && m.score[1] !== "") {
+                        const s1 = parseInt(m.score[0]), s2 = parseInt(m.score[1]);
+                        m.team1.forEach(pIdx => st[pIdx].points += (m==='diff'?s1-s2:s1));
+                        m.team2.forEach(pIdx => st[pIdx].points += (m==='diff'?s2-s1:s2));
+                    }
+                });
             });
             st.sort((a,b) => b.points - a.points);
             document.getElementById('rankingBody').innerHTML = st.map((s, i) => `
                 <tr class="${s.name === sel ? 'bg-blue-500/20' : ''}">
                     <td class="p-3 text-slate-500 font-mono text-xs w-8">${i+1}</td>
-                    <td class="p-3 font-bold text-sm ${s.name === sel ? 'text-blue-400' : ''}">${s.name}</td>
+                    <td class="p-3 font-bold text-sm">${s.name}</td>
                     <td class="p-3 text-right font-black text-blue-400 text-lg">${s.points}</td>
                 </tr>`).join('');
         }
 
-        function renderMatchRow(r, sK, cK, lbl, p, sel) {
-            const s1 = r[sK][0]===""?-1:parseInt(r[sK][0]), s2 = r[sK][1]===""?-1:parseInt(r[sK][1]), isD = s1!==-1 && s2!==-1;
-            const isMy = sel && r[cK].some(i => p[i] === sel);
-            return `<div class="flex items-center gap-2 p-1.5 rounded-xl ${isMy ? 'my-match' : ''}">
-                <div class="w-5 text-[8px] font-black text-slate-300">${lbl}</div>
-                <div class="flex-1 text-right text-[11px] leading-tight ${isD && s1>s2?'winner':''} font-semibold">${p[r[cK][0]]}<br>${p[r[cK][1]]}</div>
-                <div class="score-box">${r[sK][0] !== "" ? r[sK][0] : '·'}</div>
-                <div class="score-box">${r[sK][1] !== "" ? r[sK][1] : '·'}</div>
-                <div class="flex-1 text-left text-[11px] leading-tight ${isD && s2>s1?'winner':''} font-semibold">${p[r[cK][2]]}<br>${p[r[cK][3]]}</div>
-            </div>`;
-        }
-
-        setInterval(fetchLive, 15000); 
+        setInterval(fetchLive, 15000);
         fetchLive();
     </script>
 </body>
