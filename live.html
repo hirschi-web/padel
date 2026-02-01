@@ -14,17 +14,18 @@
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans leading-tight">
 
-    <div id="loader" class="flex flex-col items-center justify-center h-screen text-slate-400 animate-pulse">
-        <p class="font-bold italic">Suche aktives Turnier...</p>
+    <div id="loader" class="flex flex-col items-center justify-center h-screen text-slate-400 text-center p-10">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+        <p class="font-bold italic">Warte auf Turnierfreigabe durch Admin...</p>
     </div>
     
-    <div id="content" class="hidden">
+    <div id="content" class="hidden pb-10">
         <div class="sticky top-0 z-50 bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
             <div>
                 <h1 id="tournamentTitle" class="font-black italic uppercase tracking-tighter text-lg leading-none">Padel Live</h1>
-                <div id="lastUpdate" class="text-[9px] opacity-80 mt-1"></div>
+                <div id="lastUpdate" class="text-[9px] opacity-80 mt-1 font-mono"></div>
             </div>
-            <button onclick="fetchLive()" class="bg-blue-500 p-2 rounded-full active:scale-90">
+            <button onclick="fetchLive()" class="bg-blue-500 p-2 rounded-full active:scale-90 shadow-inner">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
         </div>
@@ -38,8 +39,11 @@
 
         <div class="px-3 space-y-6">
             <div class="bg-slate-900 rounded-2xl shadow-xl overflow-hidden border-b-4 border-blue-600">
-                <table class="w-full text-sm"><tbody id="rankingBody" class="text-white divide-y divide-slate-800"></tbody></table>
+                <table class="w-full text-sm">
+                    <tbody id="rankingBody" class="text-white divide-y divide-slate-800"></tbody>
+                </table>
             </div>
+
             <div id="schedule" class="space-y-3"></div>
         </div>
     </div>
@@ -49,26 +53,33 @@
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         let currentData = null;
-        let activeID = "";
 
         async function fetchLive() {
-            const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
-            if(config) {
-                activeID = config.data.active_id;
+            try {
+                // 1. Was ist aktiv?
+                const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
+                if(!config) return;
+
+                const activeID = config.data.active_id;
                 document.getElementById('tournamentTitle').innerText = activeID;
+
+                // 2. Daten laden
                 const { data } = await supabaseClient.from('tournaments').select('data').eq('id', activeID).single();
                 if (data) {
                     currentData = data.data;
                     document.getElementById('loader').classList.add('hidden');
                     document.getElementById('content').classList.remove('hidden');
-                    document.getElementById('lastUpdate').innerText = "Update: " + new Date().toLocaleTimeString();
+                    document.getElementById('lastUpdate').innerText = "Stand: " + new Date().toLocaleTimeString();
                     renderLive();
                 }
-            }
+            } catch (e) { console.error("Fehler beim Laden", e); }
         }
 
         function renderLive() {
-            const { p, s_new, m, t } = currentData;
+            if(!currentData) return;
+            const p = currentData.p;
+            const s = currentData.s_new || currentData.s;
+            const t = currentData.t || { start: "18:00", warmup: 10, match: 20 };
             const sel = localStorage.getItem('padel_username') || "";
             
             if(document.getElementById('userSelect').options.length <= 1) {
@@ -82,45 +93,46 @@
                 return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
             };
 
-            document.getElementById('schedule').innerHTML = s_new.map((r, i) => `
-                <div class="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm">
-                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase italic">
+            // Spielplan
+            document.getElementById('schedule').innerHTML = s.map((r, i) => `
+                <div class="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm relative">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-tight">
                         <span>RUNDE ${r.id} • ${getT(i)} Uhr</span>
-                        <span class="${sel && r.pause.includes(p.indexOf(sel)) ? 'text-orange-600 font-black underline' : ''}">Pause: ${r.pause.map(idx => p[idx]).join(', ')}</span>
+                        <span class="${sel && r.pause.includes(p.indexOf(sel)) ? 'bg-orange-500 text-white px-2 rounded' : 'text-orange-500'}">Pause: ${r.pause.map(idx => p[idx]).join(', ')}</span>
                     </div>
-                    ${r.matches.map(match => {
-                        const isMy = sel && match.team1.concat(match.team2).includes(p.indexOf(sel));
+                    ${r.matches.map(m => {
+                        const isMy = sel && m.team1.concat(m.team2).includes(p.indexOf(sel));
                         return `
-                        <div class="flex items-center gap-2 p-1.5 rounded-xl ${isMy ? 'my-match' : ''}">
-                            <div class="w-5 text-[8px] font-black text-slate-300">C${match.court}</div>
-                            <div class="flex-1 text-right text-[11px] leading-tight font-semibold">${p[match.team1[0]]}<br>${p[match.team1[1]]}</div>
-                            <div class="score-box">${match.score[0] || '·'}</div>
-                            <div class="score-box">${match.score[1] || '·'}</div>
-                            <div class="flex-1 text-left text-[11px] leading-tight font-semibold">${p[match.team2[0]]}<br>${p[match.team2[1]]}</div>
+                        <div class="flex items-center gap-2 p-2 mb-1 rounded-xl ${isMy ? 'my-match' : ''}">
+                            <div class="w-5 text-[8px] font-black text-slate-300">C${m.court}</div>
+                            <div class="flex-1 text-right text-[11px] leading-tight font-bold">${p[m.team1[0]]}<br>${p[m.team1[1]]}</div>
+                            <div class="score-box">${m.score[0] || '·'}</div>
+                            <div class="score-box">${m.score[1] || '·'}</div>
+                            <div class="flex-1 text-left text-[11px] leading-tight font-bold">${p[m.team2[0]]}<br>${p[m.team2[1]]}</div>
                         </div>`;
                     }).join('')}
                 </div>`).join('');
 
-            // Vorschau-Box Logik (Zusammenfassung für den Spieler)
+            // Vorschau für ausgewählten Spieler
             if(sel) {
                 const myIdx = p.indexOf(sel);
-                const next = s_new.find(r => r.matches.some(m => m.team1.concat(m.team2).includes(myIdx)) && r.matches.find(m => m.team1.concat(m.team2).includes(myIdx)).score[0] === "");
+                const next = s.find(r => r.matches.some(m => m.team1.concat(m.team2).includes(myIdx)) && r.matches.find(m => m.team1.concat(m.team2).includes(myIdx)).score[0] === "");
                 if(next) {
                     const m = next.matches.find(m => m.team1.concat(m.team2).includes(myIdx));
-                    document.getElementById('userNext').innerHTML = `<div class="bg-blue-600/20 p-3 rounded-xl border border-blue-500/30 text-sm">
-                        Nächstes Spiel: <b>Runde ${next.id}</b> auf <b>Court ${m.court}</b>
-                    </div>`;
+                    document.getElementById('userNext').innerHTML = `<div class="bg-blue-600/20 p-3 rounded-xl border border-blue-500/30 text-xs font-bold text-blue-300">Nächstes Spiel: Runde ${next.id} | Court ${m.court}</div>`;
+                } else {
+                    document.getElementById('userNext').innerHTML = "";
                 }
             }
 
             // Ranking
             let st = p.map(name => ({ name, points: 0 }));
-            s_new.forEach(r => {
+            s.forEach(r => {
                 r.matches.forEach(m => {
                     if(m.score[0] !== "" && m.score[1] !== "") {
                         const s1 = parseInt(m.score[0]), s2 = parseInt(m.score[1]);
-                        m.team1.forEach(pIdx => st[pIdx].points += (m==='diff'?s1-s2:s1));
-                        m.team2.forEach(pIdx => st[pIdx].points += (m==='diff'?s2-s1:s2));
+                        m.team1.forEach(pIdx => st[pIdx].points += (currentData.m==='diff'?s1-s2:s1));
+                        m.team2.forEach(pIdx => st[pIdx].points += (currentData.m==='diff'?s2-s1:s2));
                     }
                 });
             });
@@ -128,12 +140,12 @@
             document.getElementById('rankingBody').innerHTML = st.map((s, i) => `
                 <tr class="${s.name === sel ? 'bg-blue-500/20' : ''}">
                     <td class="p-3 text-slate-500 font-mono text-xs w-8">${i+1}</td>
-                    <td class="p-3 font-bold text-sm">${s.name}</td>
+                    <td class="p-3 font-bold text-sm ${s.name === sel ? 'text-blue-400' : ''}">${s.name}</td>
                     <td class="p-3 text-right font-black text-blue-400 text-lg">${s.points}</td>
                 </tr>`).join('');
         }
 
-        setInterval(fetchLive, 15000);
+        setInterval(fetchLive, 10000); // Schnelleres Update (10 Sek)
         fetchLive();
     </script>
 </body>
