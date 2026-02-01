@@ -3,70 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Admin - Multi Manager</title>
+    <title>Padel Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        .input-score { width: 38px; text-align: center; border: 2px solid #e2e8f0; border-radius: 6px; font-weight: bold; padding: 4px 0; }
-        .winner { color: #16a34a !important; font-weight: 900 !important; }
-        details > summary { list-style: none; }
-        details > summary::-webkit-details-marker { display: none; }
+        .score-input { width: 45px; height: 45px; text-align: center; font-size: 1.25rem; font-weight: 900; border: 2px solid #cbd5e1; border-radius: 8px; }
+        .score-input:focus { border-color: #3b82f6; outline: none; background: #eff6ff; }
     </style>
 </head>
-<body class="bg-slate-50 p-3 max-w-5xl mx-auto text-slate-900 font-sans">
+<body class="bg-slate-100 p-2 sm:p-6 max-w-5xl mx-auto font-sans text-slate-900">
 
-    <div class="sticky top-0 z-50 bg-slate-50 pb-4">
-        <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200 flex flex-col gap-3">
-            <div class="flex justify-between items-center">
-                <h1 class="text-xl font-black text-blue-600 italic uppercase tracking-tighter">Padel Admin</h1>
-                <div class="flex gap-2">
-                    <button onclick="saveToSupabase()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg text-[10px] uppercase transition-all">☁️ Speichern</button>
-                    <button onclick="setAsLive()" class="bg-orange-500 hover:bg-orange-400 text-white font-bold px-4 py-2 rounded-lg text-[10px] uppercase transition-all shadow-lg shadow-orange-200">📡 Live Schalten</button>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                <span class="text-[9px] font-black uppercase text-slate-400">Turnier:</span>
-                <select id="tLoader" onchange="loadSpecificTournament(this.value)" class="flex-1 bg-transparent font-bold text-sm outline-none cursor-pointer">
-                    <option value="">Wähle ein Turnier aus...</option>
-                </select>
-                <div id="statusBadge" class="hidden px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-[9px] font-black uppercase italic">Geladen</div>
-            </div>
+    <div class="bg-white p-4 rounded-2xl shadow-lg border border-slate-200 mb-6 flex flex-wrap gap-4 justify-between items-center">
+        <div>
+            <h1 class="text-xl font-black italic uppercase text-blue-600 leading-none">Padel Admin</h1>
+            <select id="tLoader" onchange="loadTournament(this.value)" class="mt-2 p-2 border rounded-lg font-bold text-sm bg-slate-50 outline-none w-48">
+                <option value="">Turnier laden...</option>
+            </select>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="save()" class="bg-green-600 text-white px-4 py-2 rounded-xl font-bold uppercase text-[10px]">Speichern</button>
+            <button onclick="goLive()" class="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold uppercase text-[10px]">Live Schalten</button>
         </div>
     </div>
 
-    <div id="adminContent" class="hidden space-y-6">
+    <div id="mainView" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-4" id="schedule"></div>
         
-        <details class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <summary class="p-4 font-bold text-slate-700 cursor-pointer hover:bg-slate-50 flex justify-between items-center">
-                <span class="text-xs uppercase tracking-widest">⚙️ Setup & Spielerliste</span>
-                <span class="text-blue-500 text-[10px] font-black underline">Bearbeiten</span>
-            </summary>
-            <div class="p-4 border-t bg-slate-50 space-y-4">
-                <div id="playerInputs" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
-                <div class="grid grid-cols-2 gap-3 pt-4 border-t">
-                    <div class="bg-white p-2 rounded border">
-                        <label class="block text-[8px] font-bold text-slate-400 uppercase">Startzeit</label>
-                        <input type="time" id="startTime" onchange="updateSettings()" class="w-full font-bold outline-none text-sm">
-                    </div>
-                    <div class="bg-white p-2 rounded border">
-                        <label class="block text-[8px] font-bold text-slate-400 uppercase">Wertung</label>
-                        <select id="scoringMode" onchange="scoringMode=this.value; renderAll();" class="w-full font-bold outline-none text-sm">
-                            <option value="total">Punkte</option>
-                            <option value="diff">Differenz</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </details>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="schedule"></div>
-
-        <div class="bg-slate-900 rounded-2xl shadow-xl overflow-hidden p-5">
-            <h2 class="text-white font-black uppercase text-xs mb-4 tracking-widest border-b border-slate-800 pb-2">Ranking Live</h2>
-            <table class="w-full text-sm text-left text-white">
-                <tbody id="rankingBody" class="divide-y divide-slate-800"></tbody>
-            </table>
+        <div class="bg-slate-900 rounded-3xl p-6 text-white h-fit sticky top-6 shadow-2xl">
+            <h2 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Live Tabelle</h2>
+            <div id="ranking" class="space-y-3"></div>
         </div>
     </div>
 
@@ -74,108 +39,75 @@
         const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-
-        let currentT_ID = "";
-        let players = [];
-        let schedule = [];
-        let scoringMode = 'total';
-        let timeSettings = {};
+        let cur = null; let curID = "";
 
         async function init() {
             const { data } = await supabaseClient.from('tournaments').select('id');
-            const select = document.getElementById('tLoader');
-            data?.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => {
-                const opt = new Option(t.id, t.id);
-                select.add(opt);
-            });
+            data?.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => document.getElementById('tLoader').add(new Option(t.id, t.id)));
         }
 
-        async function loadSpecificTournament(id) {
-            if(!id) {
-                document.getElementById('adminContent').classList.add('hidden');
-                return;
-            }
+        async function loadTournament(id) {
+            if(!id) return;
+            curID = id;
             const { data } = await supabaseClient.from('tournaments').select('data').eq('id', id).single();
-            if(data) {
-                currentT_ID = id;
-                players = data.data.p;
-                schedule = data.data.s_new || data.data.s;
-                scoringMode = data.data.m || 'total';
-                timeSettings = data.data.t || { start: "18:00", warmup: 10, match: 20 };
-                
-                document.getElementById('statusBadge').classList.remove('hidden');
-                document.getElementById('adminContent').classList.remove('hidden');
-                renderAll();
-            }
+            cur = data.data;
+            document.getElementById('mainView').classList.remove('hidden');
+            render();
         }
 
-        function updateSettings() {
-            timeSettings.start = document.getElementById('startTime').value;
-            renderAll();
-        }
-
-        async function saveToSupabase() {
-            if(!currentT_ID) return alert("Wähle zuerst ein Turnier aus!");
-            const payload = { p: players, s_new: schedule, m: scoringMode, t: timeSettings };
-            const { error } = await supabaseClient.from('tournaments').upsert({ id: currentT_ID, data: payload, updated_at: new Date() });
-            if(!error) alert("Gespeichert!");
-        }
-
-        async function setAsLive() {
-            if(!currentT_ID) return alert("Wähle ein Turnier aus!");
-            const { error } = await supabaseClient.from('tournaments').upsert({ id: 'LIVE_CONFIG', data: { active_id: currentT_ID } });
-            if(!error) alert("Dieses Turnier ist nun für alle Spieler LIVE sichtbar!");
-        }
-
-        function renderAll() {
-            // Spieler Inputs
-            document.getElementById('playerInputs').innerHTML = players.map((p, i) => `
-                <input type="text" value="${p}" onblur="players[${i}]=this.value; renderAll();" 
-                class="p-2 border rounded text-xs font-bold outline-none shadow-sm focus:border-blue-400">
-            `).join('');
-            
-            document.getElementById('startTime').value = timeSettings.start;
-            document.getElementById('scoringMode').value = scoringMode;
-
-            // Spielplan
-            document.getElementById('schedule').innerHTML = schedule.map((r, rI) => `
-                <div class="p-4 bg-white rounded-xl border border-slate-200 shadow-sm relative">
-                    <div class="text-[10px] font-black text-slate-400 mb-3 uppercase flex justify-between">
-                        <span>Runde ${r.id}</span>
-                        <span class="text-orange-500 italic">Pause: ${r.pause.map(idx => players[idx]).join(', ')}</span>
+        function render() {
+            const p = cur.p;
+            document.getElementById('schedule').innerHTML = cur.s_new.map((r, rI) => `
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                        <span class="font-black uppercase text-blue-600 italic">Runde ${r.id} ${r.time ? ' • ' + r.time : ''}</span>
                     </div>
                     ${r.matches.map((m, mI) => `
-                        <div class="flex items-center gap-2 mb-3 bg-slate-50 p-2 rounded-lg">
-                            <div class="flex-1 text-right text-[10px] font-bold leading-tight">${players[m.team1[0]]}<br>${players[m.team1[1]]}</div>
-                            <input type="number" value="${m.score[0]}" onchange="schedule[${rI}].matches[${mI}].score[0]=this.value; renderAll();" class="input-score">
-                            <input type="number" value="${m.score[1]}" onchange="schedule[${rI}].matches[${mI}].score[1]=this.value; renderAll();" class="input-score">
-                            <div class="flex-1 text-left text-[10px] font-bold leading-tight">${players[m.team2[0]]}<br>${players[m.team2[1]]}</div>
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="flex-1 text-right font-bold text-sm leading-tight">${p[m.team1[0]]}<br>${p[m.team1[1]]}</div>
+                            <div class="flex gap-2">
+                                <input type="number" value="${m.score[0]}" onchange="cur.s_new[${rI}].matches[${mI}].score[0]=this.value; render();" class="score-input">
+                                <input type="number" value="${m.score[1]}" onchange="cur.s_new[${rI}].matches[${mI}].score[1]=this.value; render();" class="score-input">
+                            </div>
+                            <div class="flex-1 text-left font-bold text-sm leading-tight">${p[m.team2[0]]}<br>${p[m.team2[1]]}</div>
                         </div>
                     `).join('')}
-                </div>`).join('');
+                    <div class="text-[10px] font-bold text-orange-500 uppercase mt-2 bg-orange-50 p-2 rounded-lg">
+                        Pause: ${r.pause.map(idx => p[idx]).join(', ') || 'Keiner'}
+                    </div>
+                </div>
+            `).join('');
             updateRanking();
         }
 
         function updateRanking() {
-            let st = players.map(name => ({ name, points: 0 }));
-            schedule.forEach(r => {
-                r.matches.forEach(m => {
-                    if(m.score[0] !== "" && m.score[1] !== "") {
-                        const s1 = parseInt(m.score[0]), s2 = parseInt(m.score[1]);
-                        m.team1.forEach(pIdx => st[pIdx].points += (scoringMode==='diff'?s1-s2:s1));
-                        m.team2.forEach(pIdx => st[pIdx].points += (scoringMode==='diff'?s2-s1:s2));
-                    }
-                });
-            });
-            st.sort((a,b) => b.points - a.points);
-            document.getElementById('rankingBody').innerHTML = st.map((s, i) => `
-                <tr>
-                    <td class="p-3 text-slate-500 font-mono text-xs w-8">${i+1}</td>
-                    <td class="p-3 font-bold">${s.name}</td>
-                    <td class="p-3 text-right font-black text-blue-400 text-lg">${s.points}</td>
-                </tr>`).join('');
+            let st = cur.p.map(name => ({ name, pts: 0 }));
+            cur.s_new.forEach(r => r.matches.forEach(m => {
+                if(m.score[0] !== "" && m.score[1] !== "") {
+                    const s1 = parseInt(m.score[0]), s2 = parseInt(m.score[1]);
+                    m.team1.forEach(idx => st[idx].pts += (cur.m==='diff' ? s1-s2 : s1));
+                    m.team2.forEach(idx => st[idx].pts += (cur.m==='diff' ? s2-s1 : s2));
+                }
+            }));
+            st.sort((a,b) => b.pts - a.pts);
+            document.getElementById('ranking').innerHTML = st.map((s, i) => `
+                <div class="flex justify-between items-center bg-slate-800 p-3 rounded-xl">
+                    <span class="text-xs font-mono text-slate-500">${i+1}</span>
+                    <span class="flex-1 px-3 font-bold text-sm">${s.name}</span>
+                    <span class="font-black text-blue-400">${s.pts}</span>
+                </div>
+            `).join('');
         }
 
+        async function save() {
+            await supabaseClient.from('tournaments').upsert({ id: curID, data: cur });
+            alert("Gespeichert!");
+        }
+
+        async function goLive() {
+            await supabaseClient.from('tournaments').upsert({ id: 'LIVE_CONFIG', data: { active_id: curID } });
+            alert("Turnier ist jetzt LIVE!");
+        }
         init();
     </script>
 </body>
