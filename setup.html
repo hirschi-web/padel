@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padel Setup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-50 p-4 max-w-2xl mx-auto text-slate-900 font-sans">
+    <div class="bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
+        <h1 class="text-2xl font-black text-blue-600 uppercase mb-6 italic tracking-tighter text-center">Turnier Setup</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Turnier Name</label>
+                <input type="text" id="tName" placeholder="z.B. Sommercup 2024" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Anzahl Spieler</label>
+                    <input type="number" id="pCount" value="8" onchange="updatePlayerInputs()" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Anzahl Plätze</label>
+                    <input type="number" id="cCount" value="2" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none">
+                </div>
+            </div>
+
+            <div id="playerList" class="grid grid-cols-2 gap-2 mt-4">
+                </div>
+
+            <hr class="my-6">
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Startzeit</label>
+                    <input type="time" id="startTime" value="18:00" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Dauer (Std)</label>
+                    <input type="number" id="totalHours" value="3" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Warmup (Min)</label>
+                    <input type="number" id="warmup" value="10" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Spielzeit/Match (Min)</label>
+                    <input type="number" id="matchTime" value="20" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none">
+                </div>
+            </div>
+
+            <div class="flex gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="mode" value="time" checked> <span class="text-sm font-bold">Zeit-Modus</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="mode" value="points"> <span class="text-sm font-bold">24 Punkte Modus</span>
+                </label>
+            </div>
+
+            <button onclick="generateAndSave()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-blue-700 transition-all uppercase tracking-widest mt-6">
+                Turnier Generieren & Speichern
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+
+        function updatePlayerInputs() {
+            const count = document.getElementById('pCount').value;
+            let html = '';
+            for(let i=0; i<count; i++) {
+                html += `<input type="text" placeholder="Spieler ${i+1}" class="p-2 border rounded-lg text-sm font-bold shadow-sm" value="Spieler ${i+1}">`;
+            }
+            document.getElementById('playerList').innerHTML = html;
+        }
+
+        async function generateAndSave() {
+            const name = document.getElementById('tName').value.trim();
+            if(!name) return alert("Bitte Turniername eingeben!");
+
+            const playerInputs = document.querySelectorAll('#playerList input');
+            const players = Array.from(playerInputs).map(i => i.value);
+            const numCourts = parseInt(document.getElementById('cCount').value);
+            const mTime = parseInt(document.getElementById('matchTime').value);
+            const warmup = parseInt(document.getElementById('warmup').value);
+            const start = document.getElementById('startTime').value;
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+
+            // Einfacher Americano-Shuffle Algorithmus (Runden-basiert)
+            let schedule = [];
+            const numRounds = Math.floor((parseInt(document.getElementById('totalHours').value) * 60 - warmup) / mTime);
+            
+            for(let r=1; r<=numRounds; r++) {
+                let round = { id: r, pause: [], matches: [] };
+                let available = [...Array(players.length).keys()];
+                // Mischen
+                available.sort(() => Math.random() - 0.5);
+
+                for(let c=1; c<=numCourts; c++) {
+                    if(available.length >= 4) {
+                        round.matches.push({
+                            court: c,
+                            team1: [available.pop(), available.pop()],
+                            team2: [available.pop(), available.pop()],
+                            score: ["", ""]
+                        });
+                    }
+                }
+                round.pause = available; // Rest hat Pause
+                schedule.push(round);
+            }
+
+            const payload = {
+                p: players,
+                s_new: schedule, // Neues Format für variable Courts
+                m: mode,
+                t: { start, warmup, match: mTime },
+                v: 2.0 // Versions-Flag für neues Format
+            };
+
+            // Prüfen ob existiert
+            const { data: existing } = await supabaseClient.from('tournaments').select('id').eq('id', name).single();
+            if(existing && !confirm("Turnier existiert bereits. Überschreiben?")) return;
+
+            const { error } = await supabaseClient.from('tournaments').upsert({ id: name, data: payload });
+            if(!error) alert("Turnier '" + name + "' wurde erfolgreich erstellt!");
+            else alert("Fehler: " + error.message);
+        }
+
+        updatePlayerInputs();
+    </script>
+</body>
+</html>
