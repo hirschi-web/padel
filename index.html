@@ -158,7 +158,7 @@
 
         async function save() {
             await supabaseClient.from('tournaments').upsert({ id: curID, data: cur });
-            alert("Gespeichert!");
+            
         }
 
         async function goLive() {
