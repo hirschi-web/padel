@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Setup & Edit</title>
+    <title>Padel Setup & Fairness Check</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -17,7 +17,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Erstellen, Laden oder Bearbeiten</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Fairness-Modus Aktiviert</p>
             </div>
             <div class="flex items-center gap-2">
                 <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border">
@@ -25,10 +25,8 @@
                         <option value="new">+ Neues Turnier erstellen</option>
                     </select>
                 </div>
-                <button id="deleteBtn" onclick="deleteTournament()" class="hidden bg-red-100 text-red-600 p-3 rounded-2xl hover:bg-red-200 transition-colors" title="Turnier löschen">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                <button id="deleteBtn" onclick="deleteTournament()" class="hidden bg-red-100 text-red-600 p-3 rounded-2xl hover:bg-red-200 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
             </div>
         </div>
@@ -37,42 +35,20 @@
             <div class="space-y-5">
                 <div>
                     <label class="input-label">Turnier Name</label>
-                    <input type="text" id="tName" placeholder="Name eingeben..." class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all">
+                    <input type="text" id="tName" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all">
                 </div>
-
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="input-label">Spieler Anzahl</label>
-                        <input type="number" id="pCount" value="8" onchange="updatePlayerInputs()" class="w-full p-2 border rounded-lg font-bold">
-                    </div>
-                    <div>
-                        <label class="input-label">Plätze</label>
-                        <input type="number" id="cCount" value="2" class="w-full p-2 border rounded-lg font-bold">
-                    </div>
+                    <div><label class="input-label">Spieler Anzahl</label><input type="number" id="pCount" value="8" onchange="updatePlayerInputs()" class="w-full p-2 border rounded-lg font-bold"></div>
+                    <div><label class="input-label">Plätze</label><input type="number" id="cCount" value="2" class="w-full p-2 border rounded-lg font-bold"></div>
                 </div>
-
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="input-label">Startzeit</label>
-                        <input type="time" id="startTime" value="18:00" class="w-full p-2 border rounded-lg font-bold">
-                    </div>
-                    <div>
-                        <label class="input-label">Dauer (Std)</label>
-                        <input type="number" id="totalHours" value="3" class="w-full p-2 border rounded-lg font-bold">
-                    </div>
+                    <div><label class="input-label">Startzeit</label><input type="time" id="startTime" value="18:00" class="w-full p-2 border rounded-lg font-bold"></div>
+                    <div><label class="input-label">Dauer (Std)</label><input type="number" id="totalHours" value="3" class="w-full p-2 border rounded-lg font-bold"></div>
                 </div>
-
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="input-label">Aufwärmen (Min)</label>
-                        <input type="number" id="warmup" value="10" class="w-full p-2 border rounded-lg font-bold">
-                    </div>
-                    <div>
-                        <label class="input-label">Match-Zeit (Min)</label>
-                        <input type="number" id="matchTime" value="20" class="w-full p-2 border rounded-lg font-bold">
-                    </div>
+                    <div><label class="input-label">Aufwärmen (Min)</label><input type="number" id="warmup" value="10" class="w-full p-2 border rounded-lg font-bold"></div>
+                    <div><label class="input-label">Match-Zeit (Min)</label><input type="number" id="matchTime" value="20" class="w-full p-2 border rounded-lg font-bold"></div>
                 </div>
-
                 <div>
                     <label class="input-label">Spiel-Modus</label>
                     <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border">
@@ -81,32 +57,30 @@
                     </div>
                 </div>
             </div>
-
             <div class="bg-slate-50 p-5 rounded-3xl border border-slate-200 shadow-inner">
                 <label class="input-label mb-3">Teilnehmer:innen</label>
                 <div id="playerList" class="grid grid-cols-1 gap-2 max-h-[380px] overflow-y-auto pr-2"></div>
             </div>
         </div>
 
-        <div class="mt-10 flex gap-4">
-            <button onclick="previewTournament()" class="flex-1 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg">
-                Plan generieren
-            </button>
-        </div>
+        <button onclick="generateFairTournament()" class="w-full mt-10 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg">Plan fair generieren</button>
 
         <div id="previewArea" class="hidden mt-12 space-y-6 border-t pt-10">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-black uppercase italic text-slate-400">Vorschau & Paarungen</h2>
-                <button onclick="shufflePlayersOnly()" class="bg-orange-500 text-white px-5 py-2 rounded-xl btn-action hover:bg-orange-600 shadow-lg shadow-orange-100">
-                    🔀 Shuffle
-                </button>
+                <button onclick="shuffleFair()" class="bg-orange-500 text-white px-5 py-2 rounded-xl btn-action hover:bg-orange-600">🔀 Fair Shuffle</button>
             </div>
             
             <div id="previewList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+            <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 mt-8">
+                <h3 class="text-blue-600 font-black uppercase text-xs mb-4 tracking-widest flex items-center gap-2">
+                    <span class="text-lg">📊</span> Fairness Check (Einsätze vs. Pausen)
+                </h3>
+                <div id="fairnessStats" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+            </div>
             
-            <button onclick="saveFinal()" class="w-full bg-green-600 text-white p-5 rounded-2xl btn-action shadow-xl shadow-green-100 hover:bg-green-700 mt-6">
-                ✅ Turnier speichern / aktualisieren
-            </button>
+            <button onclick="saveFinal()" class="w-full bg-green-600 text-white p-5 rounded-2xl btn-action shadow-xl hover:bg-green-700 mt-6">✅ Turnier speichern</button>
         </div>
     </div>
 
@@ -123,65 +97,9 @@
             const { data } = await supabaseClient.from('tournaments').select('id, data');
             tournamentsList = data || [];
             const select = document.getElementById('tournamentSelect');
-            
-            // Bestehende Optionen löschen (außer die erste)
             while (select.options.length > 1) select.remove(1);
-
-            tournamentsList.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => {
-                const opt = new Option(t.id, t.id);
-                select.add(opt);
-            });
+            tournamentsList.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => select.add(new Option(t.id, t.id)));
             updatePlayerInputs();
-        }
-
-        function loadTournament(id) {
-            const deleteBtn = document.getElementById('deleteBtn');
-            if (id === "new") {
-                document.getElementById('tName').value = "";
-                document.getElementById('previewArea').classList.add('hidden');
-                deleteBtn.classList.add('hidden');
-                updatePlayerInputs();
-                return;
-            }
-            
-            const t = tournamentsList.find(x => x.id === id);
-            if (t) {
-                const d = t.data;
-                document.getElementById('tName').value = t.id;
-                document.getElementById('pCount').value = d.p.length;
-                document.getElementById('startTime').value = d.t?.start || "18:00";
-                document.getElementById('warmup').value = d.t?.warmup || 10;
-                document.getElementById('matchTime').value = d.t?.match || 20;
-                
-                const modeInput = document.querySelectorAll(`input[name="mode"][value="${d.m}"]`);
-                if(modeInput.length) modeInput[0].checked = true;
-                
-                deleteBtn.classList.remove('hidden');
-                updatePlayerInputs();
-                d.p.forEach((name, i) => {
-                    if (document.getElementById(`pIdx_${i}`)) document.getElementById(`pIdx_${i}`).value = name;
-                });
-                
-                currentSchedule = d.s_new || [];
-                renderPreview();
-                document.getElementById('previewArea').classList.remove('hidden');
-            }
-        }
-
-        async function deleteTournament() {
-            const id = document.getElementById('tournamentSelect').value;
-            if (id === "new") return;
-
-            const confirmDelete = confirm(`Bist du sicher, dass du das Turnier "${id}" unwiderruflich löschen möchtest?`);
-            if (confirmDelete) {
-                const { error } = await supabaseClient.from('tournaments').delete().eq('id', id);
-                if (!error) {
-                    alert("Turnier gelöscht.");
-                    location.reload();
-                } else {
-                    alert("Fehler beim Löschen: " + error.message);
-                }
-            }
         }
 
         function updatePlayerInputs() {
@@ -191,30 +109,37 @@
             document.getElementById('playerList').innerHTML = html;
         }
 
-        function previewTournament() {
+        function generateFairTournament() {
             players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
             const numCourts = parseInt(document.getElementById('cCount').value);
             const mTime = parseInt(document.getElementById('matchTime').value);
             const warmup = parseInt(document.getElementById('warmup').value);
             const start = document.getElementById('startTime').value;
-            const mode = document.querySelector('input[name="mode"]:checked').value;
             const totalMin = parseInt(document.getElementById('totalHours').value) * 60;
+            const numRounds = Math.floor((totalMin - warmup) / mTime);
 
             let [sH, sM] = start.split(':').map(Number);
             let schedule = [];
-            const numRounds = Math.floor((totalMin - warmup) / mTime);
-            
+            let playCount = new Array(players.length).fill(0);
+
             for(let r=1; r<=numRounds; r++) {
                 let totalMinCur = sH * 60 + sM + warmup + (r-1)*mTime;
                 totalMinCur = Math.round(totalMinCur / 5) * 5;
-                let rTime = mode === 'time' ? `${String(Math.floor(totalMinCur/60)%24).padStart(2,'0')}:${String(totalMinCur%60).padStart(2,'0')}` : "";
+                let rTime = `${String(Math.floor(totalMinCur/60)%24).padStart(2,'0')}:${String(totalMinCur%60).padStart(2,'0')}`;
                 
                 let round = { id: r, time: rTime, pause: [], matches: [] };
-                let avail = [...Array(players.length).keys()].sort(() => Math.random() - 0.5);
+                
+                // Priorisiere Spieler mit den wenigsten Einsätzen
+                let avail = [...Array(players.length).keys()].sort((a, b) => {
+                    if (playCount[a] !== playCount[b]) return playCount[a] - playCount[b];
+                    return Math.random() - 0.5;
+                });
 
                 for(let c=1; c<=numCourts; c++) {
                     if(avail.length >= 4) {
-                        round.matches.push({ court: c, team1: [avail.pop(), avail.pop()], team2: [avail.pop(), avail.pop()], score: ["", ""] });
+                        let mPlayers = [avail.shift(), avail.shift(), avail.shift(), avail.shift()];
+                        mPlayers.forEach(idx => playCount[idx]++);
+                        round.matches.push({ court: c, team1: [mPlayers[0], mPlayers[1]], team2: [mPlayers[2], mPlayers[3]], score: ["", ""] });
                     }
                 }
                 round.pause = avail;
@@ -224,66 +149,90 @@
             renderPreview();
         }
 
-        function shufflePlayersOnly() {
-            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-            currentSchedule.forEach(round => {
-                let avail = [...Array(players.length).keys()].sort(() => Math.random() - 0.5);
-                round.matches.forEach(match => {
-                    match.team1 = [avail.pop(), avail.pop()];
-                    match.team2 = [avail.pop(), avail.pop()];
-                });
-                round.pause = avail;
-            });
-            renderPreview();
-        }
+        function shuffleFair() { generateFairTournament(); }
 
         function renderPreview() {
             document.getElementById('previewArea').classList.remove('hidden');
-            const mode = document.querySelector('input[name="mode"]:checked').value;
             players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
             
-            document.getElementById('previewList').innerHTML = currentSchedule.map((r, i) => `
+            document.getElementById('previewList').innerHTML = currentSchedule.map((r) => `
                 <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
                     <div class="flex justify-between items-center mb-3">
                         <span class="font-black text-blue-600 uppercase text-xs">Runde ${r.id}</span>
-                        ${mode === 'time' ? `<input type="time" value="${r.time}" onchange="currentSchedule[${i}].time=this.value" class="p-1 border rounded font-bold text-xs">` : ''}
+                        <span class="font-bold text-xs">${r.time} Uhr</span>
                     </div>
                     <div class="space-y-2">
                         ${r.matches.map(m => `
                             <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center shadow-sm">
                                 <span class="font-bold text-slate-300">C${m.court}</span>
                                 <div class="flex-1 text-center font-bold">
-                                    ${players[m.team1[0]]}+${players[m.team1[1]]} <span class="text-blue-500">vs</span> ${players[m.team2[0]]}+${players[m.team2[1]]}
+                                    ${players[m.team1[0]]}+${players[m.team1[1]]} <span class="text-blue-500 italic">vs</span> ${players[m.team2[0]]}+${players[m.team2[1]]}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                    <div class="mt-2 text-[9px] font-bold text-orange-500 italic">Pause: ${r.pause.map(idx => players[idx]).join(', ') || 'Keiner'}</div>
+                </div>
+            `).join('');
+
+            updateFairnessStats();
+        }
+
+        function updateFairnessStats() {
+            let stats = players.map(name => ({ name, play: 0, pause: 0 }));
+            currentSchedule.forEach(r => {
+                r.matches.forEach(m => {
+                    [...m.team1, ...m.team2].forEach(idx => stats[idx].play++);
+                });
+                r.pause.forEach(idx => stats[idx].pause++);
+            });
+
+            document.getElementById('fairnessStats').innerHTML = stats.map(s => `
+                <div class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
+                    <div class="text-[10px] font-black uppercase text-slate-400 truncate">${s.name}</div>
+                    <div class="flex justify-between items-end mt-1">
+                        <div class="text-lg font-black text-blue-600">${s.play}<span class="text-[8px] text-slate-400 ml-0.5">Spiele</span></div>
+                        <div class="text-sm font-bold text-orange-400">${s.pause}<span class="text-[8px] text-slate-400 ml-0.5">Pausen</span></div>
+                    </div>
                 </div>
             `).join('');
         }
 
+        async function loadTournament(id) {
+            const deleteBtn = document.getElementById('deleteBtn');
+            if (id === "new") {
+                document.getElementById('tName').value = "";
+                document.getElementById('previewArea').classList.add('hidden');
+                deleteBtn.classList.add('hidden');
+                updatePlayerInputs();
+                return;
+            }
+            const t = tournamentsList.find(x => x.id === id);
+            if (t) {
+                const d = t.data;
+                document.getElementById('tName').value = t.id;
+                document.getElementById('pCount').value = d.p.length;
+                document.getElementById('startTime').value = d.t?.start || "18:00";
+                deleteBtn.classList.remove('hidden');
+                updatePlayerInputs();
+                d.p.forEach((name, i) => { if (document.getElementById(`pIdx_${i}`)) document.getElementById(`pIdx_${i}`).value = name; });
+                currentSchedule = d.s_new || [];
+                renderPreview();
+            }
+        }
+
         async function saveFinal() {
             const name = document.getElementById('tName').value.trim();
-            if(!name) return alert("Bitte Turniernamen eingeben!");
-            
-            const payload = {
-                p: players,
-                s_new: currentSchedule,
-                m: document.querySelector('input[name="mode"]:checked').value,
-                t: { 
-                    start: document.getElementById('startTime').value, 
-                    warmup: parseInt(document.getElementById('warmup').value), 
-                    match: parseInt(document.getElementById('matchTime').value) 
-                }
-            };
+            const payload = { p: players, s_new: currentSchedule, m: document.querySelector('input[name="mode"]:checked').value, t: { start: document.getElementById('startTime').value } };
+            await supabaseClient.from('tournaments').upsert({ id: name, data: payload });
+            alert("Turnier fair gespeichert!");
+            init();
+        }
 
-            const { error } = await supabaseClient.from('tournaments').upsert({ id: name, data: payload });
-            if(!error) {
-                alert("Turnier '" + name + "' wurde gespeichert!");
-                init(); // Liste neu laden
-            } else {
-                alert("Fehler beim Speichern: " + error.message);
+        async function deleteTournament() {
+            const id = document.getElementById('tournamentSelect').value;
+            if (confirm(`Wirklich löschen?`)) {
+                await supabaseClient.from('tournaments').delete().eq('id', id);
+                location.reload();
             }
         }
 
