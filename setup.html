@@ -17,7 +17,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Fairness-Modus Aktiviert</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Fairness-Modus & Pausen-Anzeige</p>
             </div>
             <div class="flex items-center gap-2">
                 <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border">
@@ -75,7 +75,7 @@
 
             <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 mt-8">
                 <h3 class="text-blue-600 font-black uppercase text-xs mb-4 tracking-widest flex items-center gap-2">
-                    <span class="text-lg">📊</span> Fairness Check (Einsätze vs. Pausen)
+                    <span class="text-lg">📊</span> Fairness Check (Gesamtübersicht)
                 </h3>
                 <div id="fairnessStats" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
             </div>
@@ -129,7 +129,6 @@
                 
                 let round = { id: r, time: rTime, pause: [], matches: [] };
                 
-                // Priorisiere Spieler mit den wenigsten Einsätzen
                 let avail = [...Array(players.length).keys()].sort((a, b) => {
                     if (playCount[a] !== playCount[b]) return playCount[a] - playCount[b];
                     return Math.random() - 0.5;
@@ -170,6 +169,9 @@
                                 </div>
                             </div>
                         `).join('')}
+                    </div>
+                    <div class="mt-3 text-[9px] font-bold text-orange-500 italic bg-orange-50 p-2 rounded-lg border border-orange-100">
+                        Pause: ${r.pause.map(idx => players[idx]).join(', ') || 'Keiner'}
                     </div>
                 </div>
             `).join('');
@@ -220,20 +222,20 @@
             }
         }
 
+        async function deleteTournament() {
+            const id = document.getElementById('tournamentSelect').value;
+            if (confirm(`Sicher löschen?`)) {
+                await supabaseClient.from('tournaments').delete().eq('id', id);
+                location.reload();
+            }
+        }
+
         async function saveFinal() {
             const name = document.getElementById('tName').value.trim();
             const payload = { p: players, s_new: currentSchedule, m: document.querySelector('input[name="mode"]:checked').value, t: { start: document.getElementById('startTime').value } };
             await supabaseClient.from('tournaments').upsert({ id: name, data: payload });
             alert("Turnier fair gespeichert!");
             init();
-        }
-
-        async function deleteTournament() {
-            const id = document.getElementById('tournamentSelect').value;
-            if (confirm(`Wirklich löschen?`)) {
-                await supabaseClient.from('tournaments').delete().eq('id', id);
-                location.reload();
-            }
         }
 
         init();
