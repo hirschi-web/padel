@@ -19,10 +19,17 @@
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
                 <p class="text-[10px] text-slate-400 font-bold uppercase">Erstellen, Laden oder Bearbeiten</p>
             </div>
-            <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border">
-                <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-transparent font-bold text-sm outline-none px-2 cursor-pointer">
-                    <option value="new">+ Neues Turnier erstellen</option>
-                </select>
+            <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border">
+                    <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-transparent font-bold text-sm outline-none px-2 cursor-pointer">
+                        <option value="new">+ Neues Turnier erstellen</option>
+                    </select>
+                </div>
+                <button id="deleteBtn" onclick="deleteTournament()" class="hidden bg-red-100 text-red-600 p-3 rounded-2xl hover:bg-red-200 transition-colors" title="Turnier löschen">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
             </div>
         </div>
         
@@ -116,6 +123,10 @@
             const { data } = await supabaseClient.from('tournaments').select('id, data');
             tournamentsList = data || [];
             const select = document.getElementById('tournamentSelect');
+            
+            // Bestehende Optionen löschen (außer die erste)
+            while (select.options.length > 1) select.remove(1);
+
             tournamentsList.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => {
                 const opt = new Option(t.id, t.id);
                 select.add(opt);
@@ -124,23 +135,28 @@
         }
 
         function loadTournament(id) {
+            const deleteBtn = document.getElementById('deleteBtn');
             if (id === "new") {
                 document.getElementById('tName').value = "";
                 document.getElementById('previewArea').classList.add('hidden');
+                deleteBtn.classList.add('hidden');
                 updatePlayerInputs();
                 return;
             }
+            
             const t = tournamentsList.find(x => x.id === id);
             if (t) {
                 const d = t.data;
                 document.getElementById('tName').value = t.id;
                 document.getElementById('pCount').value = d.p.length;
-                document.getElementById('startTime').value = d.t.start;
-                document.getElementById('warmup').value = d.t.warmup;
-                document.getElementById('matchTime').value = d.t.match;
-                document.querySelectorAll(`input[name="mode"][value="${d.m}"]`)[0].checked = true;
+                document.getElementById('startTime').value = d.t?.start || "18:00";
+                document.getElementById('warmup').value = d.t?.warmup || 10;
+                document.getElementById('matchTime').value = d.t?.match || 20;
                 
-                // Spieler füllen
+                const modeInput = document.querySelectorAll(`input[name="mode"][value="${d.m}"]`);
+                if(modeInput.length) modeInput[0].checked = true;
+                
+                deleteBtn.classList.remove('hidden');
                 updatePlayerInputs();
                 d.p.forEach((name, i) => {
                     if (document.getElementById(`pIdx_${i}`)) document.getElementById(`pIdx_${i}`).value = name;
@@ -149,6 +165,22 @@
                 currentSchedule = d.s_new || [];
                 renderPreview();
                 document.getElementById('previewArea').classList.remove('hidden');
+            }
+        }
+
+        async function deleteTournament() {
+            const id = document.getElementById('tournamentSelect').value;
+            if (id === "new") return;
+
+            const confirmDelete = confirm(`Bist du sicher, dass du das Turnier "${id}" unwiderruflich löschen möchtest?`);
+            if (confirmDelete) {
+                const { error } = await supabaseClient.from('tournaments').delete().eq('id', id);
+                if (!error) {
+                    alert("Turnier gelöscht.");
+                    location.reload();
+                } else {
+                    alert("Fehler beim Löschen: " + error.message);
+                }
             }
         }
 
@@ -249,7 +281,9 @@
             const { error } = await supabaseClient.from('tournaments').upsert({ id: name, data: payload });
             if(!error) {
                 alert("Turnier '" + name + "' wurde gespeichert!");
-                location.reload(); 
+                init(); // Liste neu laden
+            } else {
+                alert("Fehler beim Speichern: " + error.message);
             }
         }
 
