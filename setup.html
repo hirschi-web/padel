@@ -1,244 +1,69 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Setup & Fairness Check</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        .input-label { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; display: block; }
-        .btn-action { transition: all 0.2s; text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; font-size: 11px; }
-    </style>
-</head>
-<body class="bg-slate-100 p-4 max-w-4xl mx-auto text-slate-900 font-sans">
+function generateFairTournament() {
+    players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
+    const numCourts = parseInt(document.getElementById('cCount').value);
+    const mTime = parseInt(document.getElementById('matchTime').value);
+    const warmup = parseInt(document.getElementById('warmup').value);
+    const start = document.getElementById('startTime').value;
+    const totalMin = parseInt(document.getElementById('totalHours').value) * 60;
+    const numRounds = Math.floor((totalMin - warmup) / mTime);
 
-    <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200">
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
-            <div>
-                <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Fairness-Modus & Pausen-Anzeige</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border">
-                    <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-transparent font-bold text-sm outline-none px-2 cursor-pointer">
-                        <option value="new">+ Neues Turnier erstellen</option>
-                    </select>
-                </div>
-                <button id="deleteBtn" onclick="deleteTournament()" class="hidden bg-red-100 text-red-600 p-3 rounded-2xl hover:bg-red-200 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-            </div>
-        </div>
+    let [sH, sM] = start.split(':').map(Number);
+    let schedule = [];
+    
+    // Tracking für Fairness & Abwechslung
+    let playCount = new Array(players.length).fill(0);
+    let partnerMatrix = Array.from({ length: players.length }, () => new Array(players.length).fill(0));
+    let opponentMatrix = Array.from({ length: players.length }, () => new Array(players.length).fill(0));
+
+    for(let r=1; r<=numRounds; r++) {
+        let totalMinCur = sH * 60 + sM + warmup + (r-1)*mTime;
+        totalMinCur = Math.round(totalMinCur / 5) * 5;
+        let rTime = `${String(Math.floor(totalMinCur/60)%24).padStart(2,'0')}:${String(totalMinCur%60).padStart(2,'0')}`;
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="space-y-5">
-                <div>
-                    <label class="input-label">Turnier Name</label>
-                    <input type="text" id="tName" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="input-label">Spieler Anzahl</label><input type="number" id="pCount" value="8" onchange="updatePlayerInputs()" class="w-full p-2 border rounded-lg font-bold"></div>
-                    <div><label class="input-label">Plätze</label><input type="number" id="cCount" value="2" class="w-full p-2 border rounded-lg font-bold"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="input-label">Startzeit</label><input type="time" id="startTime" value="18:00" class="w-full p-2 border rounded-lg font-bold"></div>
-                    <div><label class="input-label">Dauer (Std)</label><input type="number" id="totalHours" value="3" class="w-full p-2 border rounded-lg font-bold"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="input-label">Aufwärmen (Min)</label><input type="number" id="warmup" value="10" class="w-full p-2 border rounded-lg font-bold"></div>
-                    <div><label class="input-label">Match-Zeit (Min)</label><input type="number" id="matchTime" value="20" class="w-full p-2 border rounded-lg font-bold"></div>
-                </div>
-                <div>
-                    <label class="input-label">Spiel-Modus</label>
-                    <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border">
-                        <label class="flex items-center gap-2 font-bold text-xs cursor-pointer"><input type="radio" name="mode" value="time" checked> Zeit-Limit</label>
-                        <label class="flex items-center gap-2 font-bold text-xs cursor-pointer"><input type="radio" name="mode" value="points"> 24 Punkte</label>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-slate-50 p-5 rounded-3xl border border-slate-200 shadow-inner">
-                <label class="input-label mb-3">Teilnehmer:innen</label>
-                <div id="playerList" class="grid grid-cols-1 gap-2 max-h-[380px] overflow-y-auto pr-2"></div>
-            </div>
-        </div>
-
-        <button onclick="generateFairTournament()" class="w-full mt-10 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg">Plan fair generieren</button>
-
-        <div id="previewArea" class="hidden mt-12 space-y-6 border-t pt-10">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-black uppercase italic text-slate-400">Vorschau & Paarungen</h2>
-                <button onclick="shuffleFair()" class="bg-orange-500 text-white px-5 py-2 rounded-xl btn-action hover:bg-orange-600">🔀 Fair Shuffle</button>
-            </div>
-            
-            <div id="previewList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-
-            <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 mt-8">
-                <h3 class="text-blue-600 font-black uppercase text-xs mb-4 tracking-widest flex items-center gap-2">
-                    <span class="text-lg">📊</span> Fairness Check (Gesamtübersicht)
-                </h3>
-                <div id="fairnessStats" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
-            </div>
-            
-            <button onclick="saveFinal()" class="w-full bg-green-600 text-white p-5 rounded-2xl btn-action shadow-xl hover:bg-green-700 mt-6">✅ Turnier speichern</button>
-        </div>
-    </div>
-
-    <script>
-        const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
-        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+        let round = { id: r, time: rTime, pause: [], matches: [] };
         
-        let currentSchedule = [];
-        let players = [];
-        let tournamentsList = [];
+        // 1. Wer ist dran? (Priorität auf Spieler mit wenigsten Einsätzen)
+        let pool = [...Array(players.length).keys()].sort((a, b) => {
+            if (playCount[a] !== playCount[b]) return playCount[a] - playCount[b];
+            return Math.random() - 0.5;
+        });
 
-        async function init() {
-            const { data } = await supabaseClient.from('tournaments').select('id, data');
-            tournamentsList = data || [];
-            const select = document.getElementById('tournamentSelect');
-            while (select.options.length > 1) select.remove(1);
-            tournamentsList.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => select.add(new Option(t.id, t.id)));
-            updatePlayerInputs();
-        }
+        // 2. Aktive Spieler für diese Runde (4 pro Platz)
+        let activeIndices = pool.slice(0, numCourts * 4);
+        let bench = pool.slice(numCourts * 4);
+        round.pause = bench;
 
-        function updatePlayerInputs() {
-            const count = document.getElementById('pCount').value;
-            let html = '';
-            for(let i=0; i<count; i++) html += `<input type="text" id="pIdx_${i}" value="Spieler ${i+1}" class="p-3 border rounded-xl font-bold text-sm bg-white outline-none focus:border-blue-500 shadow-sm">`;
-            document.getElementById('playerList').innerHTML = html;
-        }
-
-        function generateFairTournament() {
-            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-            const numCourts = parseInt(document.getElementById('cCount').value);
-            const mTime = parseInt(document.getElementById('matchTime').value);
-            const warmup = parseInt(document.getElementById('warmup').value);
-            const start = document.getElementById('startTime').value;
-            const totalMin = parseInt(document.getElementById('totalHours').value) * 60;
-            const numRounds = Math.floor((totalMin - warmup) / mTime);
-
-            let [sH, sM] = start.split(':').map(Number);
-            let schedule = [];
-            let playCount = new Array(players.length).fill(0);
-
-            for(let r=1; r<=numRounds; r++) {
-                let totalMinCur = sH * 60 + sM + warmup + (r-1)*mTime;
-                totalMinCur = Math.round(totalMinCur / 5) * 5;
-                let rTime = `${String(Math.floor(totalMinCur/60)%24).padStart(2,'0')}:${String(totalMinCur%60).padStart(2,'0')}`;
+        // 3. Paarungen innerhalb der Aktiven optimieren
+        let remaining = [...activeIndices].sort(() => Math.random() - 0.5);
+        
+        for(let c=1; c<=numCourts; c++) {
+            if(remaining.length >= 4) {
+                // Wir nehmen den ersten Spieler und suchen den bestmöglichen Partner
+                let p1 = remaining.shift();
+                remaining.sort((a, b) => partnerMatrix[p1][a] - partnerMatrix[p1][b] || Math.random() - 0.5);
+                let p2 = remaining.shift();
                 
-                let round = { id: r, time: rTime, pause: [], matches: [] };
+                // Wir suchen das bestmögliche Gegner-Team
+                // Hier versuchen wir Gegner zu finden, gegen die p1 und p2 noch nicht oft gespielt haben
+                remaining.sort((a, b) => (opponentMatrix[p1][a] + opponentMatrix[p2][a]) - (opponentMatrix[p1][b] + opponentMatrix[p2][b]) || Math.random() - 0.5);
+                let p3 = remaining.shift();
+                let p4 = remaining.shift();
+
+                // Stats aktualisieren
+                [p1, p2, p3, p4].forEach(idx => playCount[idx]++);
+                partnerMatrix[p1][p2]++; partnerMatrix[p2][p1]++;
+                partnerMatrix[p3][p4]++; partnerMatrix[p4][p3]++;
                 
-                let avail = [...Array(players.length).keys()].sort((a, b) => {
-                    if (playCount[a] !== playCount[b]) return playCount[a] - playCount[b];
-                    return Math.random() - 0.5;
+                [p1, p2].forEach(p => {
+                    opponentMatrix[p][p3]++; opponentMatrix[p][p4]++;
+                    opponentMatrix[p3][p]++; opponentMatrix[p4][p]++;
                 });
 
-                for(let c=1; c<=numCourts; c++) {
-                    if(avail.length >= 4) {
-                        let mPlayers = [avail.shift(), avail.shift(), avail.shift(), avail.shift()];
-                        mPlayers.forEach(idx => playCount[idx]++);
-                        round.matches.push({ court: c, team1: [mPlayers[0], mPlayers[1]], team2: [mPlayers[2], mPlayers[3]], score: ["", ""] });
-                    }
-                }
-                round.pause = avail;
-                schedule.push(round);
-            }
-            currentSchedule = schedule;
-            renderPreview();
-        }
-
-        function shuffleFair() { generateFairTournament(); }
-
-        function renderPreview() {
-            document.getElementById('previewArea').classList.remove('hidden');
-            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-            
-            document.getElementById('previewList').innerHTML = currentSchedule.map((r) => `
-                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="font-black text-blue-600 uppercase text-xs">Runde ${r.id}</span>
-                        <span class="font-bold text-xs">${r.time} Uhr</span>
-                    </div>
-                    <div class="space-y-2">
-                        ${r.matches.map(m => `
-                            <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center shadow-sm">
-                                <span class="font-bold text-slate-300">C${m.court}</span>
-                                <div class="flex-1 text-center font-bold">
-                                    ${players[m.team1[0]]}+${players[m.team1[1]]} <span class="text-blue-500 italic">vs</span> ${players[m.team2[0]]}+${players[m.team2[1]]}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div class="mt-3 text-[9px] font-bold text-orange-500 italic bg-orange-50 p-2 rounded-lg border border-orange-100">
-                        Pause: ${r.pause.map(idx => players[idx]).join(', ') || 'Keiner'}
-                    </div>
-                </div>
-            `).join('');
-
-            updateFairnessStats();
-        }
-
-        function updateFairnessStats() {
-            let stats = players.map(name => ({ name, play: 0, pause: 0 }));
-            currentSchedule.forEach(r => {
-                r.matches.forEach(m => {
-                    [...m.team1, ...m.team2].forEach(idx => stats[idx].play++);
-                });
-                r.pause.forEach(idx => stats[idx].pause++);
-            });
-
-            document.getElementById('fairnessStats').innerHTML = stats.map(s => `
-                <div class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
-                    <div class="text-[10px] font-black uppercase text-slate-400 truncate">${s.name}</div>
-                    <div class="flex justify-between items-end mt-1">
-                        <div class="text-lg font-black text-blue-600">${s.play}<span class="text-[8px] text-slate-400 ml-0.5">Spiele</span></div>
-                        <div class="text-sm font-bold text-orange-400">${s.pause}<span class="text-[8px] text-slate-400 ml-0.5">Pausen</span></div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function loadTournament(id) {
-            const deleteBtn = document.getElementById('deleteBtn');
-            if (id === "new") {
-                document.getElementById('tName').value = "";
-                document.getElementById('previewArea').classList.add('hidden');
-                deleteBtn.classList.add('hidden');
-                updatePlayerInputs();
-                return;
-            }
-            const t = tournamentsList.find(x => x.id === id);
-            if (t) {
-                const d = t.data;
-                document.getElementById('tName').value = t.id;
-                document.getElementById('pCount').value = d.p.length;
-                document.getElementById('startTime').value = d.t?.start || "18:00";
-                deleteBtn.classList.remove('hidden');
-                updatePlayerInputs();
-                d.p.forEach((name, i) => { if (document.getElementById(`pIdx_${i}`)) document.getElementById(`pIdx_${i}`).value = name; });
-                currentSchedule = d.s_new || [];
-                renderPreview();
+                round.matches.push({ court: c, team1: [p1, p2], team2: [p3, p4], score: ["", ""] });
             }
         }
-
-        async function deleteTournament() {
-            const id = document.getElementById('tournamentSelect').value;
-            if (confirm(`Sicher löschen?`)) {
-                await supabaseClient.from('tournaments').delete().eq('id', id);
-                location.reload();
-            }
-        }
-
-        async function saveFinal() {
-            const name = document.getElementById('tName').value.trim();
-            const payload = { p: players, s_new: currentSchedule, m: document.querySelector('input[name="mode"]:checked').value, t: { start: document.getElementById('startTime').value } };
-            await supabaseClient.from('tournaments').upsert({ id: name, data: payload });
-            alert("Turnier fair gespeichert!");
-            init();
-        }
-
-        init();
-    </script>
-</body>
-</html>
+        schedule.push(round);
+    }
+    currentSchedule = schedule;
+    renderPreview();
+}
