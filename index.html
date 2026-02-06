@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Championship Ottakring - Live</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .match-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        input[type="number"] { -moz-appearance: textfield; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .score-input { width: 3rem; height: 3rem; text-align: center; font-size: 1.25rem; font-weight: 900; background: #f1f5f9; border-radius: 0.75rem; border: 2px solid transparent; transition: all 0.2s; }
+        .score-input:focus { border-color: #3b82f6; background: white; outline: none; }
+        .ranking-row:nth-child(even) { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="p-3 sm:p-6 max-w-2xl mx-auto pb-20">
+
+    <header class="mb-8 text-center">
+        <h1 id="title" class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter">Championship Ottakring</h1>
+        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Live Scoreboard & Ranking</p>
+    </header>
+
+    <div id="scheduleContainer" class="space-y-8">
+        </div>
+
+    <hr class="my-12 border-slate-200">
+
+    <section>
+        <h2 class="text-xl font-black uppercase italic text-slate-800 mb-4 flex items-center gap-2">
+            <span>🏆</span> Live Ranking
+        </h2>
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-900 text-white text-[10px] uppercase tracking-widest">
+                    <tr>
+                        <th class="p-4">Spieler</th>
+                        <th class="p-4 text-center">Pkt</th>
+                        <th class="p-4 text-center">Diff</th>
+                    </tr>
+                </thead>
+                <tbody id="rankingBody" class="font-bold text-sm text-slate-700">
+                    </tbody>
+            </table>
+        </div>
+    </section>
+
+    <script>
+        const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+        
+        const T_ID = 'Championship_Ottakring';
+        let tData = null;
+
+        async function loadData() {
+            const { data, error } = await supabaseClient.from('tournaments').select('*').eq('id', T_ID).single();
+            if (data) {
+                tData = data.data;
+                renderSchedule();
+                calculateRanking();
+            }
+        }
+
+        function renderSchedule() {
+            const container = document.getElementById('scheduleContainer');
+            container.innerHTML = tData.s_new.map((round, rIdx) => `
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center px-2">
+                        <span class="text-xs font-black uppercase text-blue-500 italic">Runde ${round.id}</span>
+                        <span class="text-[10px] font-bold text-slate-400 italic">Pause: ${round.pause.map(p => tData.p[p]).join(', ')}</span>
+                    </div>
+                    ${round.matches.map((m, mIdx) => `
+                        <div class="match-card p-4">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex-1 text-center">
+                                    <div class="text-[11px] font-bold text-slate-800 leading-tight">
+                                        ${tData.p[m.team1[0]]}<br>${tData.p[m.team1[1]]}
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" value="${m.score[0]}" 
+                                        oninput="autoSave(${rIdx}, ${mIdx}, 0, this.value)"
+                                        class="score-input" placeholder="0">
+                                    <span class="text-slate-300 font-black">:</span>
+                                    <input type="number" value="${m.score[1]}" 
+                                        oninput="autoSave(${rIdx}, ${mIdx}, 1, this.value)"
+                                        class="score-input" placeholder="0">
+                                </div>
+                                <div class="flex-1 text-center">
+                                    <div class="text-[11px] font-bold text-slate-800 leading-tight">
+                                        ${tData.p[m.team2[0]]}<br>${tData.p[m.team2[1]]}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+        }
+
+        async function autoSave(rIdx, mIdx, teamIdx, val) {
+            tData.s_new[rIdx].matches[mIdx].score[teamIdx] = val;
+            
+            const match = tData.s_new[rIdx].matches[mIdx];
+            // Nur speichern, wenn beide Felder befüllt sind (oder eines gelöscht wurde)
+            if (match.score[0] !== "" && match.score[1] !== "") {
+                await supabaseClient.from('tournaments').update({ data: tData }).eq('id', T_ID);
+                calculateRanking();
+            }
+        }
+
+        function calculateRanking() {
+            let stats = tData.p.map(name => ({ name, points: 0, diff: 0 }));
+
+            tData.s_new.forEach(round => {
+                round.matches.forEach(m => {
+                    const s1 = parseInt(m.score[0]);
+                    const s2 = parseInt(m.score[1]);
+                    if (!isNaN(s1) && !isNaN(s2)) {
+                        // Team 1
+                        m.team1.forEach(pIdx => {
+                            stats[pIdx].points += s1;
+                            stats[pIdx].diff += (s1 - s2);
+                        });
+                        // Team 2
+                        m.team2.forEach(pIdx => {
+                            stats[pIdx].points += s2;
+                            stats[pIdx].diff += (s2 - s1);
+                        });
+                    }
+                });
+            });
+
+            // "Gegner" herausfiltern und sortieren
+            const filteredStats = stats.filter(s => !s.name.includes("Gegner"))
+                                       .sort((a, b) => b.points - a.points || b.diff - a.diff);
+
+            document.getElementById('rankingBody').innerHTML = filteredStats.map((s, i) => `
+                <tr class="ranking-row border-b border-slate-100">
+                    <td class="p-4 flex items-center gap-3">
+                        <span class="text-[10px] text-slate-400 w-4">${i + 1}.</span>
+                        ${s.name}
+                    </td>
+                    <td class="p-4 text-center font-black text-blue-600">${s.points}</td>
+                    <td class="p-4 text-center text-xs ${s.diff >= 0 ? 'text-green-500' : 'text-red-400'}">
+                        ${s.diff > 0 ? '+' : ''}${s.diff}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        loadData();
+        // Alle 30 Sek. neu laden falls andere auch eintragen
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>
