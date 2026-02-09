@@ -22,7 +22,7 @@
 
     <header class="mb-6">
         <div class="flex justify-between items-start mb-4">
-            <h1 id="tournamentTitle" class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter font-bold">Lade...</h1>
+            <h1 id="tournamentTitle" class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter">Lade...</h1>
             <button onclick="fetchLive()" class="refresh-btn bg-white p-3 rounded-full shadow-sm border border-slate-200 text-xl" title="Aktualisieren">🔄</button>
         </div>
         <div class="mt-4">
@@ -111,7 +111,6 @@
             const currentVal = select.value || savedUser; 
             const players = tData.p.filter(name => name && !name.includes("Gegner"));
             
-            // Verhindert das Springen: Nur neu füllen, wenn sich die Anzahl geändert hat oder leer ist
             if (select.options.length <= 1) {
                 select.innerHTML = '<option value="">-- Wer bist du? --</option>';
                 players.forEach(name => {
@@ -140,6 +139,7 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center px-2">
                         <span class="text-[13px] font-black uppercase text-slate-400 italic font-bold">Runde ${round.id}</span>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">${round.time || ''} Uhr</span>
                     </div>
                     ${round.matches.map((m, mIdx) => {
                         const p1=tData.p[m.team1[0]], p2=tData.p[m.team1[1]], p3=tData.p[m.team2[0]], p4=tData.p[m.team2[1]];
@@ -207,7 +207,7 @@
                         <span class="text-[11px] text-slate-300 font-mono font-bold">${i+1}.</span>
                         <span class="text-base font-bold ${s.name === focus ? 'highlight-name' : ''}">${s.name}</span>
                     </td>
-                    <td class="p-4 text-center text-blue-600 font-black text-lg font-bold">${s.points}</td>
+                    <td class="p-4 text-center text-blue-600 font-black text-lg">${s.points}</td>
                     <td class="p-4 text-center text-sm font-bold ${s.diff>=0?'text-green-500':'text-red-400'}">${s.diff>0?'+':''}${s.diff}</td>
                 </tr>`).join('');
             return stats;
@@ -292,7 +292,7 @@
                             <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
                                 <div class="flex justify-between items-center mb-4">
                                     <span class="text-slate-400 text-[10px] font-black uppercase tracking-widest">Team Check</span>
-                                    <span class="${rColor} text-[11px] font-black uppercase italic">${rating}</span>
+                                    <span class="${rColor} text-[11px] font-black uppercase italic font-bold">${rating}</span>
                                 </div>
                                 <div class="grid grid-cols-2 gap-4 text-xs font-bold">
                                     <div class="space-y-2 border-r border-slate-700/50 pr-2">
@@ -313,7 +313,7 @@
             if (targetPlayer) {
                 const diff = targetPlayer.points - stats.find(s => s.name === focus).points;
                 mission = `<div class="bg-green-500/10 border border-green-500/30 p-3 rounded-xl mt-3 text-center">
-                    <p class="text-xs text-green-400 font-bold italic font-bold">🚀 Mission: +${diff + 1} Pkt. mehr als ${targetPlayer.name} für Platz ${myIdx}!</p>
+                    <p class="text-xs text-green-400 font-bold italic">🚀 Mission: +${diff + 1} Pkt. mehr als ${targetPlayer.name} für Platz ${myIdx}!</p>
                 </div>`;
             }
 
