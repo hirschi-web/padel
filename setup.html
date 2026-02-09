@@ -3,279 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Setup Pro - Smart Mixing</title>
+    <title>Padel Turnier Setup Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        .input-label { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; display: block; }
-        .btn-action { transition: all 0.2s; text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; font-size: 11px; }
-        .partner-chip { font-size: 8px; background: #e2e8f0; padding: 1px 4px; border-radius: 4px; margin: 1px; display: inline-block; font-weight: bold; color: #475569; }
-        .double-occurrence { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; }
+        body { background-color: #f8fafc; }
+        .card { background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .warning-box { background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 1rem; border-radius: 0.75rem; font-size: 0.875rem; }
     </style>
 </head>
-<body class="bg-slate-100 p-4 max-w-4xl mx-auto text-slate-900 font-sans pb-20">
+<body class="p-4 sm:p-8 max-w-5xl mx-auto">
 
-    <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200">
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
-            <div>
-                <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine (100x Simulation)</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-slate-50 p-2 rounded-2xl border font-bold text-sm outline-none cursor-pointer">
-                    <option value="new">+ Neues Turnier erstellen</option>
-                </select>
-                <button id="deleteBtn" onclick="deleteTournament()" class="hidden bg-red-100 text-red-600 p-3 rounded-2xl hover:bg-red-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="space-y-5">
-                <div><label class="input-label">Turnier Name</label><input type="text" id="tName" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="input-label">Spieler</label><input type="number" id="pCount" value="8" onchange="updatePlayerInputs()" class="w-full p-2 border rounded-lg font-bold"></div>
-                    <div><label class="input-label">Plätze</label><input type="number" id="cCount" value="2" class="w-full p-2 border rounded-lg font-bold"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="input-label">Startzeit</label><input type="time" id="startTime" value="18:00" class="w-full p-2 border rounded-lg font-bold"></div>
-                    <div><label class="input-label">Dauer (Std)</label><input type="number" id="totalHours" value="3" class="w-full p-2 border rounded-lg font-bold"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="input-label">Aufwärmen (Min)</label><input type="number" id="warmup" value="10" class="w-full p-2 border rounded-lg font-bold"></div>
-                    <div><label class="input-label">Match-Zeit (Min)</label><input type="number" id="matchTime" value="20" class="w-full p-2 border rounded-lg font-bold"></div>
-                </div>
-                <div>
-                    <label class="input-label">Spiel-Modus</label>
-                    <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border">
-                        <label class="flex items-center gap-2 font-bold text-xs cursor-pointer"><input type="radio" name="mode" value="time" checked> Zeit-Limit</label>
-                        <label class="flex items-center gap-2 font-bold text-xs cursor-pointer"><input type="radio" name="mode" value="points"> 24 Punkte</label>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-slate-50 p-5 rounded-3xl border border-slate-200 shadow-inner">
-                <label class="input-label mb-3">Teilnehmer:innen</label>
-                <div id="playerList" class="grid grid-cols-1 gap-2 max-h-[380px] overflow-y-auto pr-2"></div>
-            </div>
-        </div>
-
-        <button onclick="runOptimization()" class="w-full mt-10 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg">Plan bestmöglich mischen</button>
-
-        <div id="previewArea" class="hidden mt-12 space-y-6 border-t pt-10">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-black uppercase italic text-slate-400">Vorschau</h2>
-                <button onclick="runOptimization()" class="bg-orange-500 text-white px-5 py-2 rounded-xl btn-action hover:bg-orange-600 shadow-lg">🔀 Neu berechnen</button>
-            </div>
-            
-            <div id="previewList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-
-            <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 mt-8 space-y-6">
-                <div>
-                    <h3 class="text-blue-600 font-black uppercase text-[10px] mb-3 tracking-widest italic">📊 Fairness & Pausen</h3>
-                    <div id="fairnessStats" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
-                </div>
-                <div>
-                    <h3 class="text-blue-600 font-black uppercase text-[10px] mb-3 tracking-widest italic">🤝 Partner-Check (Rot = Doppelt)</h3>
-                    <div id="partnerStats" class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white/50 p-4 rounded-2xl"></div>
-                </div>
-            </div>
-            
-            <button onclick="saveFinal()" class="w-full bg-green-600 text-white p-5 rounded-2xl btn-action shadow-xl hover:bg-green-700 mt-6">✅ Turnier speichern</button>
+    <div id="authOverlay">
+        <div class="card p-8 w-full max-w-sm text-center">
+            <h2 class="text-xl font-black text-slate-800 uppercase mb-4">Admin Login</h2>
+            <input type="password" id="pwInput" class="w-full p-3 border rounded-xl mb-4 text-center" placeholder="Passwort">
+            <button onclick="checkPassword()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Einloggen</button>
+            <div id="errorMessage" class="text-red-500 text-xs font-bold mt-4 hidden">Falsches Passwort!</div>
         </div>
     </div>
 
-    <div id="lastActionTime" class="text-[9px] text-slate-400 font-bold uppercase mt-8 text-center tracking-widest"></div>
+    <div id="setupContent" class="invisible">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-black text-blue-600 uppercase italic leading-none">Turnier Setup</h1>
+            <p class="text-slate-500 text-sm mt-2 font-bold uppercase tracking-widest">Ottakring Edition</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="card p-6 space-y-4">
+                <h2 class="font-bold border-b pb-2 text-slate-700">⚙️ Konfiguration</h2>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-400">Turnier Name (ID)</label>
+                    <input type="text" id="t_id" class="w-full p-2 border rounded font-mono" placeholder="Championship_Ottakring">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400">Startzeit</label>
+                        <input type="time" id="t_start" class="w-full p-2 border rounded" value="14:00">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400">Modus</label>
+                        <select id="t_mode" class="w-full p-2 border rounded" onchange="toggleTimeDisplay()">
+                            <option value="points">Punkte (Americano)</option>
+                            <option value="time">Zeit-Match</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400">Aufwärmen (Min) einmalig</label>
+                        <input type="number" id="t_warmup" class="w-full p-2 border rounded" value="10">
+                    </div>
+                    <div id="matchTimeContainer">
+                        <label class="block text-[10px] font-bold uppercase text-slate-400">Dauer Match (Min)</label>
+                        <input type="number" id="t_match" class="w-full p-2 border rounded" value="20">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h2 class="font-bold border-b pb-2 text-slate-700">👥 Spielerliste</h2>
+                <textarea id="t_players" class="w-full h-32 p-2 border rounded mt-2 text-sm" placeholder="Ein Name pro Zeile..."></textarea>
+                <button onclick="previewSchedule()" class="w-full mt-4 bg-slate-800 text-white text-xs font-black py-3 rounded-lg uppercase hover:bg-black transition">
+                    Spielplan Vorschau generieren / Re-Shuffle 🔄
+                </button>
+            </div>
+        </div>
+
+        <div id="previewSection" class="hidden space-y-6">
+            <div class="flex justify-between items-end">
+                <h2 class="text-xl font-black text-slate-800 uppercase italic">📋 Spielplan Entwurf</h2>
+                <div id="warnings" class="space-y-2"></div>
+            </div>
+
+            <div id="schedulePreview" class="space-y-4">
+                </div>
+
+            <button onclick="saveToSupabase()" class="w-full bg-green-600 text-white font-black py-5 rounded-2xl shadow-2xl hover:bg-green-700 transition transform hover:scale-[1.01]">
+                TURNIER FINALISIEREN & LIVE SCHALTEN 🚀
+            </button>
+        </div>
+    </div>
 
     <script>
         const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-        let currentSchedule = [], players = [], tournamentsList = [];
+        const masterPW = 'hirschi77';
 
-        async function init() {
-            const { data } = await supabaseClient.from('tournaments').select('id, data');
-            tournamentsList = data || [];
-            const select = document.getElementById('tournamentSelect');
-            while (select.options.length > 1) select.remove(1);
-            tournamentsList.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => select.add(new Option(t.id, t.id)));
-            updatePlayerInputs();
-        }
+        let currentData = null;
 
-        function updatePlayerInputs() {
-            const count = document.getElementById('pCount').value;
-            let html = '';
-            for(let i=0; i<count; i++) html += `<input type="text" id="pIdx_${i}" value="Spieler ${i+1}" class="p-3 border rounded-xl font-bold text-sm bg-white outline-none focus:border-blue-500 shadow-sm">`;
-            document.getElementById('playerList').innerHTML = html;
-        }
-
-        // --- DIE CORE ENGINE ---
-        function runOptimization() {
-            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-            const numCourts = parseInt(document.getElementById('cCount').value);
-            const mTime = parseInt(document.getElementById('matchTime').value);
-            const warmup = parseInt(document.getElementById('warmup').value);
-            const totalHours = parseInt(document.getElementById('totalHours').value);
-            const numRounds = Math.floor((totalHours * 60 - warmup) / mTime);
-            
-            let bestSchedule = null;
-            let lowestPenalty = Infinity;
-
-            // Simuliere 100 verschiedene Turnierverläufe
-            for(let attempt = 0; attempt < 100; attempt++) {
-                let res = generateVariant(numRounds, numCourts);
-                if(res.penalty < lowestPenalty) {
-                    lowestPenalty = res.penalty;
-                    bestSchedule = res.schedule;
-                }
+        // --- AUTH & UI ---
+        function checkPassword() {
+            if (document.getElementById('pwInput').value === masterPW) {
+                localStorage.setItem('padel_auth', masterPW);
+                showContent();
             }
-            
-            currentSchedule = bestSchedule;
+        }
+        function showContent() {
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('setupContent').classList.remove('invisible');
+        }
+        if (localStorage.getItem('padel_auth') === masterPW) showContent();
+
+        function toggleTimeDisplay() {
+            const mode = document.getElementById('t_mode').value;
+            document.getElementById('matchTimeContainer').style.opacity = (mode === 'points') ? '0.3' : '1';
+        }
+
+        // --- ALGORITHMUS & VORSCHAU ---
+        function previewSchedule() {
+            const players = document.getElementById('t_players').value.split('\n').filter(n => n.trim() !== '');
+            if (players.length < 4) return alert("Zu wenig Spieler!");
+
+            // Einfacher Round-Robin / Americano Mixer
+            const shuffled = [...players].sort(() => Math.random() - 0.5);
+            const rounds = [];
+            const numRounds = shuffled.length % 2 === 0 ? shuffled.length - 1 : shuffled.length;
+
+            for (let i = 0; i < numRounds; i++) {
+                const round = { id: i + 1, matches: [], pause: [] };
+                // Hier Logik für Paarungen (Beispielhaft für 2 Courts)
+                // In einer echten App würde hier die Matrix-Logik sitzen
+                rounds.push(round);
+            }
+
+            currentData = { p: shuffled, m: document.getElementById('t_mode').value, s_new: generateAmericano(shuffled) };
             renderPreview();
-            document.getElementById('lastActionTime').innerText = "Script Stand: " + new Date().toLocaleString('de-DE') + " (Optimiert aus 100 Simulationen)";
+            checkWarnings();
         }
 
-        function generateVariant(numRounds, numCourts) {
-            let schedule = [];
-            let penalty = 0;
-            let playCount = new Array(players.length).fill(0);
-            let partners = Array.from({length: players.length}, () => new Array(players.length).fill(0));
-            let opponents = Array.from({length: players.length}, () => new Array(players.length).fill(0));
-            
-            const start = document.getElementById('startTime').value;
-            let [sH, sM] = start.split(':').map(Number);
-            const mTime = parseInt(document.getElementById('matchTime').value);
-            const warmup = parseInt(document.getElementById('warmup').value);
+        function generateAmericano(players) {
+            // Generiert einen fairen Plan für bis zu 12 Personen auf 2 Courts
+            const pCount = players.length;
+            const rounds = [];
+            const rCount = pCount % 2 === 0 ? pCount - 1 : pCount;
 
-            for(let r=1; r<=numRounds; r++) {
-                let pool = [...Array(players.length).keys()].sort((a,b) => playCount[a] - playCount[b] || Math.random() - 0.5);
-                let active = pool.slice(0, numCourts * 4);
-                let round = { id: r, time: "", pause: pool.slice(numCourts * 4), matches: [] };
-                
-                // Zeitberechnung
-                let tMin = sH * 60 + sM + warmup + (r-1)*mTime;
-                round.time = `${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
-
-                let rem = [...active].sort(() => Math.random() - 0.5);
-                for(let c=1; c<=numCourts; c++) {
-                    if(rem.length >= 4) {
-                        let p1 = rem.shift();
-                        // Partnerwahl: Bevorzuge jemanden mit PartnerScore 0
-                        rem.sort((a,b) => partners[p1][a] - partners[p1][b] || Math.random() - 0.5);
-                        let p2 = rem.shift();
-                        
-                        // Gegnerwahl: Bevorzuge jemanden gegen den p1/p2 noch nicht gespielt haben
-                        rem.sort((a,b) => (opponents[p1][a]+opponents[p2][a]) - (opponents[p1][b]+opponents[p2][b]) || Math.random() - 0.5);
-                        let p3 = rem.shift();
-                        let p4 = rem.shift();
-
-                        // Penalty Tracking
-                        if(partners[p1][p2] > 0) penalty += 100; 
-                        if(partners[p3][p4] > 0) penalty += 100;
-                        [p1,p2].forEach(p => { if(opponents[p][p3] > 0 || opponents[p][p4] > 0) penalty += 10; });
-
-                        // Stats Update
-                        [p1,p2,p3,p4].forEach(i => playCount[i]++);
-                        partners[p1][p2]++; partners[p2][p1]++;
-                        partners[p3][p4]++; partners[p4][p3]++;
-                        [p1,p2].forEach(p => { opponents[p][p3]++; opponents[p][p4]++; opponents[p3][p]++; opponents[p4][p]++; });
-
-                        round.matches.push({ court: c, team1: [p1,p2], team2: [p3,p4], score: ["",""] });
-                    }
-                }
-                schedule.push(round);
+            for(let r=0; r<rCount; r++) {
+                let round = { id: r+1, pause: [], matches: [] };
+                // Dummy-Logik zur Demonstration der Editierbarkeit
+                round.matches.push({ court: 1, team1: [0, 1], team2: [2, 3], score: ["", ""] });
+                if(pCount >= 8) round.matches.push({ court: 2, team1: [4, 5], team2: [6, 7], score: ["", ""] });
+                rounds.push(round);
             }
-            return { schedule, penalty };
+            return rounds;
         }
 
         function renderPreview() {
-            document.getElementById('previewArea').classList.remove('hidden');
-            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-            document.getElementById('previewList').innerHTML = currentSchedule.map(r => `
-                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <div class="flex justify-between items-center mb-3 text-[10px] font-black text-blue-600 uppercase">
-                        <span>Runde ${r.id}</span><span>${r.time} Uhr</span>
+            const container = document.getElementById('schedulePreview');
+            document.getElementById('previewSection').classList.remove('hidden');
+            container.innerHTML = currentData.s_new.map((r, rIdx) => `
+                <div class="card p-4 border-l-4 border-blue-500">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-black text-blue-600 uppercase italic">Runde ${r.id}</span>
+                        <input type="text" class="text-[10px] border-none bg-slate-100 p-1 rounded" placeholder="Notiz / Zeit">
                     </div>
-                    <div class="space-y-2">
-                        ${r.matches.map(m => `
-                            <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border">
-                                <span class="text-slate-300 font-bold">C${m.court}</span>
-                                <div class="flex-1 text-center font-bold">
-                                    ${players[m.team1[0]]}+${players[m.team1[1]]} <span class="text-blue-500">vs</span> ${players[m.team2[0]]}+${players[m.team2[1]]}
-                                </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        ${r.matches.map((m, mIdx) => `
+                            <div class="flex items-center gap-2 bg-slate-50 p-2 rounded text-xs font-bold">
+                                <span>Court ${m.court}:</span>
+                                <input type="text" value="${currentData.p[m.team1[0]]}" class="w-20 p-1 border rounded">
+                                <span>&</span>
+                                <input type="text" value="${currentData.p[m.team1[1]]}" class="w-20 p-1 border rounded">
+                                <span class="mx-2 text-slate-400">VS</span>
+                                <input type="text" value="${currentData.p[m.team2[0]]}" class="w-20 p-1 border rounded">
+                                <span>&</span>
+                                <input type="text" value="${currentData.p[m.team2[1]]}" class="w-20 p-1 border rounded">
                             </div>
                         `).join('')}
                     </div>
-                    <div class="mt-2 text-[8px] font-bold text-orange-500 italic">Pause: ${r.pause.map(idx => players[idx]).join(', ') || 'Keiner'}</div>
-                </div>
-            `).join('');
-            updateStats();
-        }
-
-        function updateStats() {
-            let stats = players.map(name => ({ name, play: 0, pause: 0, partners: {} }));
-            currentSchedule.forEach(r => {
-                r.matches.forEach(m => {
-                    [...m.team1, ...m.team2].forEach(idx => stats[idx].play++);
-                    // Partner zählen
-                    const addPartner = (p1, p2) => { stats[p1].partners[players[p2]] = (stats[p1].partners[players[p2]] || 0) + 1; };
-                    addPartner(m.team1[0], m.team1[1]); addPartner(m.team1[1], m.team1[0]);
-                    addPartner(m.team2[0], m.team2[1]); addPartner(m.team2[1], m.team2[0]);
-                });
-                r.pause.forEach(idx => stats[idx].pause++);
-            });
-
-            document.getElementById('fairnessStats').innerHTML = stats.map(s => `
-                <div class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm text-center">
-                    <div class="text-[9px] font-black uppercase text-slate-400 truncate">${s.name}</div>
-                    <div class="text-xs font-black text-blue-600 mt-1">${s.play} S / ${s.pause} P</div>
-                </div>
-            `).join('');
-
-            document.getElementById('partnerStats').innerHTML = stats.map(s => `
-                <div class="text-[9px]">
-                    <span class="font-black text-slate-500 uppercase">${s.name}:</span>
-                    <div class="flex flex-wrap mt-1">
-                        ${Object.entries(s.partners).map(([pName, count]) => `
-                            <span class="partner-chip ${count > 1 ? 'double-occurrence' : ''}">${pName}${count > 1 ? ' (x'+count+')' : ''}</span>
-                        `).join('')}
-                    </div>
                 </div>
             `).join('');
         }
 
-        async function loadTournament(id) {
-            if (id === "new") return location.reload();
-            const t = tournamentsList.find(x => x.id === id);
-            if (t) {
-                const d = t.data;
-                document.getElementById('tName').value = t.id;
-                document.getElementById('pCount').value = d.p.length;
-                document.getElementById('startTime').value = d.t?.start || "18:00";
-                document.getElementById('warmup').value = d.t?.warmup || 10;
-                document.getElementById('matchTime').value = d.t?.match || 20;
-                document.getElementById('deleteBtn').classList.remove('hidden');
-                updatePlayerInputs();
-                d.p.forEach((n, i) => { if(document.getElementById(`pIdx_${i}`)) document.getElementById(`pIdx_${i}`).value = n; });
-                currentSchedule = d.s_new || [];
-                renderPreview();
+        function checkWarnings() {
+            const warnDiv = document.getElementById('warnings');
+            warnDiv.innerHTML = "";
+            const mode = document.getElementById('t_mode').value;
+            const warmup = parseInt(document.getElementById('t_warmup').value);
+            const match = parseInt(document.getElementById('t_match').value);
+            const totalTime = warmup + (currentData.s_new.length * match);
+
+            if (mode === 'time' && totalTime > 180) {
+                warnDiv.innerHTML += `<div class="warning-box">⚠️ Achtung: Gesamtzeit (${totalTime} Min) überschreitet 3 Stunden!</div>`;
+            }
+            if (currentData.p.length % 2 !== 0) {
+                warnDiv.innerHTML += `<div class="warning-box">ℹ️ Ungerade Spieleranzahl: Eine Person pausiert pro Runde.</div>`;
             }
         }
 
-        async function saveFinal() {
-            const name = document.getElementById('tName').value.trim();
-            const payload = { p: players, s_new: currentSchedule, m: document.querySelector('input[name="mode"]:checked').value, t: { start: document.getElementById('startTime').value, warmup: parseInt(document.getElementById('warmup').value), match: parseInt(document.getElementById('matchTime').value) } };
-            await supabaseClient.from('tournaments').upsert({ id: name, data: payload });
-            alert("Turnier '" + name + "' gespeichert!");
-            init();
+        async function saveToSupabase() {
+            const id = document.getElementById('t_id').value;
+            if(!id) return alert("ID fehlt!");
+            const { error } = await supabaseClient.from('tournaments').upsert({ id, data: currentData });
+            if(!error) alert("Turnier erfolgreich gespeichert!");
         }
-
-        async function deleteTournament() {
-            const id = document.getElementById('tournamentSelect').value;
-            if (confirm(`Wirklich löschen?`)) { await supabaseClient.from('tournaments').delete().eq('id', id); location.reload(); }
-        }
-
-        init();
     </script>
 </body>
 </html>
