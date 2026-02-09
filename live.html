@@ -9,11 +9,11 @@
     <style>
         body { background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .match-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; transition: all 0.3s; }
-        /* Deine gewünschte blaue Umrandung für eigene Spiele */
+        /* Blauer Rahmen für eigene Spiele */
         .match-active { border: 2px solid #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
         .score-input { width: 3rem; height: 3rem; text-align: center; font-size: 1.25rem; font-weight: 900; background: #f1f5f9; border-radius: 0.75rem; border: 2px solid transparent; outline: none; }
         .score-input:focus { border-color: #3b82f6; background: white; }
-        /* Deine gewünschte rote Markierung für den Namen */
+        /* Rote Markierung für den eigenen Namen */
         .highlight-name { color: #ef4444 !important; font-weight: 900; }
         .prediction-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border-radius: 1.5rem; }
         details summary::-webkit-details-marker { display: none; }
@@ -81,76 +81,44 @@
         let tData = null;
         let currentT_ID = null;
 
-        // --- DATENBANK LOGIK WIE BEI LIVE_OLD ---
-        async function loadData() {
+        // --- DEINE ORIGINAL LOGIK AUS LIVE_OLD ---
+        async function fetchLive() {
             try {
-                // 1. Schritt: Wir schauen in der 'config' Tabelle nach, welches Turnier gerade "active_tournament" ist.
-                // Das ist die Logik, die sicherstellt, dass alle das richtige Turnier sehen.
-                let { data: configData, error: configError } = await supabaseClient
-                    .from('config')
-                    .select('value')
-                    .eq('key', 'active_tournament')
+                // 1. Hole Config aus der tournaments Tabelle (ID = LIVE_CONFIG)
+                const { data: config } = await supabaseClient
+                    .from('tournaments')
+                    .select('data')
+                    .eq('id', 'LIVE_CONFIG')
                     .single();
-
-                let activeID = null;
-
-                if (configData && configData.value) {
-                    activeID = configData.value;
-                } else {
-                    // FALLBACK: Falls die Config Tabelle leer ist oder fehlt, nehmen wir das allerneueste Turnier (Notlösung)
-                    // console.log("Config nicht gefunden, lade neuestes...");
-                    const { data: latest } = await supabaseClient
-                        .from('tournaments')
-                        .select('id')
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .single();
-                    if (latest) activeID = latest.id;
-                }
-
-                if (!activeID) {
-                    document.getElementById('tournamentTitle').innerText = "Kein aktives Turnier!";
-                    return;
-                }
-
-                // 2. Schritt: Wir laden die eigentlichen Daten dieses Turniers
-                if (activeID !== currentT_ID || !tData) {
-                    const { data: tournamentData, error: tError } = await supabaseClient
-                        .from('tournaments')
-                        .select('*')
-                        .eq('id', activeID)
-                        .single();
+                
+                if (!config) return;
+                
+                const activeID = config.data.active_id;
+                document.getElementById('tournamentTitle').innerText = activeID.replace(/_/g, ' '); // Schönere Formatierung
+                
+                // 2. Hole das eigentliche Turnier
+                const { data } = await supabaseClient
+                    .from('tournaments')
+                    .select('data')
+                    .eq('id', activeID)
+                    .single();
+                
+                if (data) {
+                    currentT_ID = activeID; // ID speichern für Updates
+                    tData = data.data;      // Daten speichern für View
                     
-                    if (tournamentData) {
-                        currentT_ID = activeID;
-                        tData = tournamentData.data;
-                        document.getElementById('tournamentTitle').innerText = currentT_ID.replace(/_/g, ' ');
-                        
-                        // Dropdown füllen (nur beim ersten Mal)
-                        if(document.getElementById('userSelect').options.length <= 1) fillUserSelect();
-                        updateView();
-                    }
-                } else {
-                    // Wenn ID gleich ist, laden wir nur die Daten neu (für Live-Score Updates)
-                     const { data: tournamentData } = await supabaseClient
-                        .from('tournaments')
-                        .select('data')
-                        .eq('id', activeID)
-                        .single();
-                     if(tournamentData) {
-                         tData = tournamentData.data;
-                         updateView();
-                     }
+                    // User Select nur beim ersten Mal füllen
+                    if(document.getElementById('userSelect').options.length <= 1) fillUserSelect();
+                    
+                    updateView(); // Rendert die neue UI
                 }
-
-            } catch (err) {
-                console.error("Fehler beim Laden:", err);
+            } catch (e) { 
+                console.error("Fehler in fetchLive:", e); 
             }
         }
 
         function fillUserSelect() {
             const select = document.getElementById('userSelect');
-            // Filtert "Gegner" heraus, falls Platzhalter drin sind
             const players = tData.p.filter(name => !name.includes("Gegner"));
             players.forEach(name => {
                 let opt = document.createElement('option');
@@ -210,7 +178,6 @@
             tData.s_new.forEach(round => {
                 round.matches.forEach(m => {
                     const p = [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]];
-                    // Prüfen auf leere Strings oder null
                     const scoreEmpty = (m.score[0] === "" || m.score[0] === null);
                     
                     if (p.includes(focusName) && scoreEmpty && next.length < 2) {
@@ -229,7 +196,6 @@
 
         async function saveScore(rIdx, mIdx, tIdx, val) {
             tData.s_new[rIdx].matches[mIdx].score[tIdx] = val;
-            // Speichern nur wenn beide Scores da sind
             if(tData.s_new[rIdx].matches[mIdx].score[0] !== "" && tData.s_new[rIdx].matches[mIdx].score[1] !== "") {
                 await supabaseClient.from('tournaments').update({ data: tData }).eq('id', currentT_ID);
                 updateView();
@@ -245,10 +211,8 @@
                     m.team2.forEach(i => { stats[i].points += s2; stats[i].diff += (s2-s1); stats[i].games++; });
                 }
             }));
-            
             const filtered = stats.filter(s => !s.name.includes("Gegner")).sort((a,b) => b.points - a.points || b.diff - a.diff);
             const focus = document.getElementById('userSelect').value;
-            
             document.getElementById('rankingBody').innerHTML = filtered.map((s, i) => `
                 <tr class="border-b border-slate-50 ${s.name === focus ? 'bg-blue-50' : ''}">
                     <td class="p-4 flex items-center gap-3">
@@ -270,20 +234,17 @@
             const me = stats.find(s => s.name === focus);
             const totalR = tData.s_new.length;
             
-            // Erst anzeigen, wenn mindestens die Hälfte gespielt ist
             if (!me || me.games < totalR / 2) { section.classList.add('hidden'); return; }
             
             section.classList.remove('hidden');
             const avg = me.points / (me.games || 1);
-            const boost = avg * 1.2; // 20% besser spielen
-            
-            // Verbleibende eigene Spiele zählen
+            const boost = avg * 1.2;
             const rem = tData.s_new.reduce((a, r) => a + r.matches.filter(m => (m.score[0] === "" || m.score[0] === null) && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(focus)).length, 0);
             
             const myPot = me.points + (rem * boost);
             const othersPot = stats.filter(s => s.name !== focus && !s.name.includes("Gegner")).map(s => {
                 const sRem = tData.s_new.reduce((acc, r) => acc + r.matches.filter(m => (m.score[0] === "" || m.score[0] === null) && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(s.name)).length, 0);
-                const sAvg = s.games > 0 ? s.points / s.games : 12; // Durchschnitt der Gegner annehmen (oder 12 als Standard)
+                const sAvg = s.games > 0 ? s.points / s.games : 12;
                 return { name: s.name, pot: s.points + (sRem * sAvg) };
             });
 
@@ -296,14 +257,13 @@
                     <p>Wenn du <span class="text-blue-400 font-bold">20% besser</span> spielst, ist Platz ${bestP} möglich!</p>
                 </div>
                 <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700 text-[11px] italic text-slate-300">
-                    "Ziel: ${boost.toFixed(1)} Pkt pro Spiel. Das Modell nimmt an, dass deine Gegner ihre bisherige Form halten."
+                    "Modell-Annahme: Du erzielst ${boost.toFixed(1)} Pkt/Spiel, Gegner bleiben konstant."
                 </div>
             `;
         }
 
-        loadData();
-        // Polling alle 10 Sekunden für Live-Updates
-        setInterval(loadData, 10000);
+        fetchLive();
+        setInterval(fetchLive, 10000);
     </script>
 </body>
 </html>
