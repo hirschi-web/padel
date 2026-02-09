@@ -71,7 +71,7 @@
         
         let tData = null;
         let currentT_ID = null;
-        let currentMode = 'total'; // Standard auf Gesamtpunkte gesetzt
+        let currentMode = 'total'; // Initialer Modus: Gesamtpunkte
 
         async function init() {
             const { data: allT } = await supabaseClient.from('tournaments').select('id');
@@ -88,7 +88,7 @@
 
             const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
             if(config) {
-                // Wir erzwingen hier 'total', falls nichts anderes explizit gewählt wird
+                // Wir setzen den Modus aus der DB, Standard ist jedoch 'total'
                 currentMode = config.data.mode || 'total';
                 document.getElementById('modeSelect').value = currentMode;
                 if(config.data.active_id) changeTournament(config.data.active_id);
@@ -111,12 +111,14 @@
 
         async function changeMode(mode) {
             currentMode = mode;
+            // Speichere den gewählten Modus in der LIVE_CONFIG für die Live-Seite
             const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
             if(config) {
                 config.data.mode = mode;
                 await supabaseClient.from('tournaments').update({ data: config.data }).eq('id', 'LIVE_CONFIG');
-                updateView();
             }
+            // Aktualisiere das Leaderboard sofort lokal
+            renderRanking();
         }
 
         function updateView() {
@@ -138,7 +140,7 @@
                         const win1 = s1 > s2;
                         const win2 = s2 > s1;
                         return `
-                        <div class="match-card p-5 relative">
+                        <div class="match-card p-5">
                             <div class="flex items-center justify-between gap-4">
                                 <div class="flex-1 text-center font-bold text-sm ${win1 ? 'winner' : ''}">
                                     ${tData.p[m.team1[0]]}<br>${tData.p[m.team1[1]]}
@@ -173,8 +175,15 @@
                 }
             }));
 
+            // Sortierung basierend auf dem gewählten Modus
             const sorted = stats.filter(s => !s.name.includes("Gegner"))
-                .sort((a,b) => currentMode === 'total' ? (b.points - a.points || b.diff - a.diff) : (b.diff - a.diff || b.points - a.points));
+                .sort((a,b) => {
+                    if (currentMode === 'total') {
+                        return b.points - a.points || b.diff - a.diff; // Erst Punkte, dann Diff
+                    } else {
+                        return b.diff - a.diff || b.points - a.points; // Erst Diff, dann Punkte
+                    }
+                });
 
             document.getElementById('rankingBody').innerHTML = sorted.map((s, i) => `
                 <tr class="border-b border-slate-50">
@@ -190,7 +199,7 @@
         function markUnsaved(el, rIdx, mIdx, tIdx) {
             el.classList.add('unsaved');
             tData.s_new[rIdx].matches[mIdx].score[tIdx] = el.value;
-            renderRanking(); 
+            renderRanking(); // Ranking aktualisiert sich bei Eingabe sofort visuell
         }
 
         async function saveAllScores() {
