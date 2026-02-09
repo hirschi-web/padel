@@ -3,202 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Turnier Setup Pro</title>
+    <title>Padel Setup - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { background-color: #f8fafc; }
-        .card { background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
-        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        .warning-box { background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 1rem; border-radius: 0.75rem; font-size: 0.875rem; }
+        body { background-color: #f1f5f9; }
+        .card { background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); padding: 1.5rem; }
+        input { border: 1px solid #cbd5e1; padding: 0.5rem; border-radius: 0.5rem; outline: none; }
+        input:focus { border-color: #3b82f6; ring: 2px; ring-color: #3b82f6; }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 0.75rem; font-weight: bold; transition: all 0.2s; cursor: pointer; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
     </style>
 </head>
-<body class="p-4 sm:p-8 max-w-5xl mx-auto">
+<body class="p-4 max-w-4xl mx-auto space-y-6">
 
-    <div id="authOverlay">
-        <div class="card p-8 w-full max-w-sm text-center">
-            <h2 class="text-xl font-black text-slate-800 uppercase mb-4">Admin Login</h2>
-            <input type="password" id="pwInput" class="w-full p-3 border rounded-xl mb-4 text-center" placeholder="Passwort">
-            <button onclick="checkPassword()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Einloggen</button>
-            <div id="errorMessage" class="text-red-500 text-xs font-bold mt-4 hidden">Falsches Passwort!</div>
+    <header class="flex justify-between items-center">
+        <h1 class="text-2xl font-black text-slate-800 uppercase italic">Tournament Admin</h1>
+        <div id="statusTag" class="text-xs font-bold px-2 py-1 rounded bg-slate-200 text-slate-500 uppercase">Offline</div>
+    </header>
+
+    <section class="card space-y-4">
+        <h2 class="font-bold text-slate-500 uppercase text-xs tracking-widest">Turnier Verwaltung</h2>
+        <div class="flex flex-wrap gap-3">
+            <select id="tournamentSelect" class="flex-1 min-w-[200px] p-2 rounded-lg border border-slate-300 font-medium">
+                <option value="">-- Turnier wählen --</option>
+            </select>
+            <button onclick="loadSelectedTournament()" class="btn btn-primary">Laden</button>
+            <button onclick="deleteTournament()" class="btn btn-danger">Löschen</button>
         </div>
-    </div>
-
-    <div id="setupContent" class="invisible">
-        <header class="mb-8 text-center">
-            <h1 class="text-3xl font-black text-blue-600 uppercase italic leading-none">Turnier Setup</h1>
-            <p class="text-slate-500 text-sm mt-2 font-bold uppercase tracking-widest">Ottakring Edition</p>
-        </header>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="card p-6 space-y-4">
-                <h2 class="font-bold border-b pb-2 text-slate-700">⚙️ Konfiguration</h2>
-                <div>
-                    <label class="block text-[10px] font-bold uppercase text-slate-400">Turnier Name (ID)</label>
-                    <input type="text" id="t_id" class="w-full p-2 border rounded font-mono" placeholder="Championship_Ottakring">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-400">Startzeit</label>
-                        <input type="time" id="t_start" class="w-full p-2 border rounded" value="14:00">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-400">Modus</label>
-                        <select id="t_mode" class="w-full p-2 border rounded" onchange="toggleTimeDisplay()">
-                            <option value="points">Punkte (Americano)</option>
-                            <option value="time">Zeit-Match</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-400">Aufwärmen (Min) einmalig</label>
-                        <input type="number" id="t_warmup" class="w-full p-2 border rounded" value="10">
-                    </div>
-                    <div id="matchTimeContainer">
-                        <label class="block text-[10px] font-bold uppercase text-slate-400">Dauer Match (Min)</label>
-                        <input type="number" id="t_match" class="w-full p-2 border rounded" value="20">
-                    </div>
-                </div>
-            </div>
-
-            <div class="card p-6">
-                <h2 class="font-bold border-b pb-2 text-slate-700">👥 Spielerliste</h2>
-                <textarea id="t_players" class="w-full h-32 p-2 border rounded mt-2 text-sm" placeholder="Ein Name pro Zeile..."></textarea>
-                <button onclick="previewSchedule()" class="w-full mt-4 bg-slate-800 text-white text-xs font-black py-3 rounded-lg uppercase hover:bg-black transition">
-                    Spielplan Vorschau generieren / Re-Shuffle 🔄
-                </button>
-            </div>
+        <div class="flex gap-3">
+            <input type="text" id="newTournamentName" placeholder="Neuer Turniername (z.B. Ottakring_10)" class="flex-1">
+            <button onclick="createNewTournament()" class="btn bg-green-500 text-white">Neu Erstellen</button>
         </div>
+    </section>
 
-        <div id="previewSection" class="hidden space-y-6">
-            <div class="flex justify-between items-end">
-                <h2 class="text-xl font-black text-slate-800 uppercase italic">📋 Spielplan Entwurf</h2>
-                <div id="warnings" class="space-y-2"></div>
-            </div>
-
-            <div id="schedulePreview" class="space-y-4">
-                </div>
-
-            <button onclick="saveToSupabase()" class="w-full bg-green-600 text-white font-black py-5 rounded-2xl shadow-2xl hover:bg-green-700 transition transform hover:scale-[1.01]">
-                TURNIER FINALISIEREN & LIVE SCHALTEN 🚀
-            </button>
+    <section class="card space-y-4">
+        <div class="flex justify-between items-center">
+            <h2 class="font-bold text-slate-500 uppercase text-xs tracking-widest">Teilnehmer</h2>
+            <span id="playerCount" class="text-xs font-bold text-blue-600">0 Spieler</span>
         </div>
-    </div>
+        <div id="playerInputs" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            </div>
+        <button onclick="addPlayerField()" class="text-blue-500 text-sm font-bold">+ Spieler hinzufügen</button>
+    </section>
+
+    <section class="card grid grid-cols-2 gap-6">
+        <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Anzahl Courts</label>
+            <input type="number" id="courtCount" value="2" class="w-full">
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Anzahl Runden</label>
+            <input type="number" id="roundCount" value="4" class="w-full">
+        </div>
+    </section>
+
+    <section class="flex flex-col gap-3">
+        <button onclick="generateSchedule()" class="btn bg-slate-800 text-white text-lg">Spielplan generieren & Aktivieren</button>
+        <p class="text-center text-[10px] text-slate-400 uppercase font-bold">Achtung: Generieren setzt alle Spielstände zurück!</p>
+    </section>
 
     <script>
         const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-        const masterPW = 'hirschi77';
 
-        let currentData = null;
+        let currentT_ID = "";
+        let players = [];
 
-        // --- AUTH & UI ---
-        function checkPassword() {
-            if (document.getElementById('pwInput').value === masterPW) {
-                localStorage.setItem('padel_auth', masterPW);
-                showContent();
-            }
-        }
-        function showContent() {
-            document.getElementById('authOverlay').style.display = 'none';
-            document.getElementById('setupContent').classList.remove('invisible');
-        }
-        if (localStorage.getItem('padel_auth') === masterPW) showContent();
-
-        function toggleTimeDisplay() {
-            const mode = document.getElementById('t_mode').value;
-            document.getElementById('matchTimeContainer').style.opacity = (mode === 'points') ? '0.3' : '1';
+        // Initialisierung
+        async function init() {
+            const { data } = await supabaseClient.from('tournaments').select('id').neq('id', 'LIVE_CONFIG');
+            const select = document.getElementById('tournamentSelect');
+            data.forEach(t => {
+                let opt = document.createElement('option');
+                opt.value = t.id; opt.innerText = t.id;
+                select.appendChild(opt);
+            });
+            // Standardmäßig 8 Felder anzeigen
+            for(let i=0; i<8; i++) addPlayerField();
         }
 
-        // --- ALGORITHMUS & VORSCHAU ---
-        function previewSchedule() {
-            const players = document.getElementById('t_players').value.split('\n').filter(n => n.trim() !== '');
-            if (players.length < 4) return alert("Zu wenig Spieler!");
-
-            // Einfacher Round-Robin / Americano Mixer
-            const shuffled = [...players].sort(() => Math.random() - 0.5);
-            const rounds = [];
-            const numRounds = shuffled.length % 2 === 0 ? shuffled.length - 1 : shuffled.length;
-
-            for (let i = 0; i < numRounds; i++) {
-                const round = { id: i + 1, matches: [], pause: [] };
-                // Hier Logik für Paarungen (Beispielhaft für 2 Courts)
-                // In einer echten App würde hier die Matrix-Logik sitzen
-                rounds.push(round);
-            }
-
-            currentData = { p: shuffled, m: document.getElementById('t_mode').value, s_new: generateAmericano(shuffled) };
-            renderPreview();
-            checkWarnings();
+        function addPlayerField(name = "") {
+            const container = document.getElementById('playerInputs');
+            const idx = container.children.length;
+            const input = document.createElement('input');
+            input.type = "text";
+            input.placeholder = `Spieler ${idx + 1}`;
+            input.value = name;
+            input.className = "player-input";
+            container.appendChild(input);
+            updatePlayerCount();
         }
 
-        function generateAmericano(players) {
-            // Generiert einen fairen Plan für bis zu 12 Personen auf 2 Courts
-            const pCount = players.length;
-            const rounds = [];
-            const rCount = pCount % 2 === 0 ? pCount - 1 : pCount;
-
-            for(let r=0; r<rCount; r++) {
-                let round = { id: r+1, pause: [], matches: [] };
-                // Dummy-Logik zur Demonstration der Editierbarkeit
-                round.matches.push({ court: 1, team1: [0, 1], team2: [2, 3], score: ["", ""] });
-                if(pCount >= 8) round.matches.push({ court: 2, team1: [4, 5], team2: [6, 7], score: ["", ""] });
-                rounds.push(round);
-            }
-            return rounds;
+        function updatePlayerCount() {
+            const count = Array.from(document.querySelectorAll('.player-input')).filter(i => i.value.trim() !== "").length;
+            document.getElementById('playerCount').innerText = `${count} Spieler`;
         }
 
-        function renderPreview() {
-            const container = document.getElementById('schedulePreview');
-            document.getElementById('previewSection').classList.remove('hidden');
-            container.innerHTML = currentData.s_new.map((r, rIdx) => `
-                <div class="card p-4 border-l-4 border-blue-500">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-black text-blue-600 uppercase italic">Runde ${r.id}</span>
-                        <input type="text" class="text-[10px] border-none bg-slate-100 p-1 rounded" placeholder="Notiz / Zeit">
-                    </div>
-                    <div class="grid grid-cols-1 gap-2">
-                        ${r.matches.map((m, mIdx) => `
-                            <div class="flex items-center gap-2 bg-slate-50 p-2 rounded text-xs font-bold">
-                                <span>Court ${m.court}:</span>
-                                <input type="text" value="${currentData.p[m.team1[0]]}" class="w-20 p-1 border rounded">
-                                <span>&</span>
-                                <input type="text" value="${currentData.p[m.team1[1]]}" class="w-20 p-1 border rounded">
-                                <span class="mx-2 text-slate-400">VS</span>
-                                <input type="text" value="${currentData.p[m.team2[0]]}" class="w-20 p-1 border rounded">
-                                <span>&</span>
-                                <input type="text" value="${currentData.p[m.team2[1]]}" class="w-20 p-1 border rounded">
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
+        async function createNewTournament() {
+            const name = document.getElementById('newTournamentName').value.trim();
+            if(!name) return alert("Name fehlt!");
+            
+            const emptyData = { p: [], s_new: [] };
+            const { error } = await supabaseClient.from('tournaments').insert([{ id: name, data: emptyData }]);
+            
+            if(error) alert("Fehler: " + error.message);
+            else location.reload();
         }
 
-        function checkWarnings() {
-            const warnDiv = document.getElementById('warnings');
-            warnDiv.innerHTML = "";
-            const mode = document.getElementById('t_mode').value;
-            const warmup = parseInt(document.getElementById('t_warmup').value);
-            const match = parseInt(document.getElementById('t_match').value);
-            const totalTime = warmup + (currentData.s_new.length * match);
-
-            if (mode === 'time' && totalTime > 180) {
-                warnDiv.innerHTML += `<div class="warning-box">⚠️ Achtung: Gesamtzeit (${totalTime} Min) überschreitet 3 Stunden!</div>`;
-            }
-            if (currentData.p.length % 2 !== 0) {
-                warnDiv.innerHTML += `<div class="warning-box">ℹ️ Ungerade Spieleranzahl: Eine Person pausiert pro Runde.</div>`;
+        async function loadSelectedTournament() {
+            const id = document.getElementById('tournamentSelect').value;
+            if(!id) return;
+            
+            const { data } = await supabaseClient.from('tournaments').select('data').eq('id', id).single();
+            if(data) {
+                currentT_ID = id;
+                document.getElementById('statusTag').innerText = "Aktiv: " + id;
+                document.getElementById('statusTag').classList.replace('text-slate-500', 'text-blue-600');
+                
+                // Felder füllen
+                const container = document.getElementById('playerInputs');
+                container.innerHTML = "";
+                data.data.p.forEach(name => addPlayerField(name));
+                if(data.data.p.length < 8) {
+                    for(let i=data.data.p.length; i<8; i++) addPlayerField();
+                }
             }
         }
 
-        async function saveToSupabase() {
-            const id = document.getElementById('t_id').value;
-            if(!id) return alert("ID fehlt!");
-            const { error } = await supabaseClient.from('tournaments').upsert({ id, data: currentData });
-            if(!error) alert("Turnier erfolgreich gespeichert!");
+        async function deleteTournament() {
+            const id = document.getElementById('tournamentSelect').value;
+            if(!id) return;
+            
+            // Deine gewünschte Bestätigung
+            const confirmed = confirm(`Bist du sicher, dass du das Turnier "${id}" unwiderruflich löschen möchtest?`);
+            if(!confirmed) return;
+
+            const { error } = await supabaseClient.from('tournaments').delete().eq('id', id);
+            if(error) alert("Fehler beim Löschen");
+            else location.reload();
         }
+
+        async function generateSchedule() {
+            const id = currentT_ID || document.getElementById('tournamentSelect').value;
+            if(!id) return alert("Bitte erst ein Turnier laden oder wählen!");
+
+            const playerList = Array.from(document.querySelectorAll('.player-input'))
+                                    .map(i => i.value.trim())
+                                    .filter(i => i !== "");
+            
+            if(playerList.length < 4) return alert("Zu wenig Spieler!");
+
+            const courts = parseInt(document.getElementById('courtCount').value);
+            const rounds = parseInt(document.getElementById('roundCount').value);
+            
+            // Einfacher Zufalls-Algorithmus für Padel-Paarungen
+            let schedule = [];
+            for(let r=1; r<=rounds; r++) {
+                let round = { id: r, matches: [] };
+                let pool = [...Array(playerList.length).keys()].sort(() => Math.random() - 0.5);
+                
+                for(let c=1; c<=courts; c++) {
+                    if(pool.length >= 4) {
+                        round.matches.push({
+                            court: c,
+                            team1: [pool.pop(), pool.pop()],
+                            team2: [pool.pop(), pool.pop()],
+                            score: ["", ""]
+                        });
+                    }
+                }
+                schedule.push(round);
+            }
+
+            const finalData = { p: playerList, s_new: schedule };
+
+            // 1. Turnier-Daten updaten
+            await supabaseClient.from('tournaments').update({ data: finalData }).eq('id', id);
+
+            // 2. LIVE_CONFIG aktualisieren (Damit live.html sofort umschaltet)
+            await supabaseClient.from('tournaments').update({ 
+                data: { active_id: id } 
+            }).eq('id', 'LIVE_CONFIG');
+
+            alert("Spielplan generiert und als LIVE gesetzt!");
+        }
+
+        init();
     </script>
 </body>
 </html>
