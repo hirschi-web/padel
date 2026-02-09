@@ -12,7 +12,7 @@
         .match-active { border: 2px solid #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
         .score-display { width: 3.5rem; height: 3.5rem; text-align: center; font-size: 1.5rem; font-weight: 900; background: #f1f5f9; border-radius: 0.75rem; border: none; outline: none; color: #1e293b; -webkit-appearance: none; appearance: none; }
         .highlight-name { color: #ef4444 !important; font-weight: 900; font-size: 1rem; }
-        .prediction-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border-radius: 1.5rem; }
+        .prediction-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border-radius: 1.5rem; min-height: 100px; }
         details summary::-webkit-details-marker { display: none; }
         .refresh-btn { transition: transform 0.3s ease; }
         .refresh-btn:active { transform: rotate(180deg); }
@@ -22,11 +22,11 @@
 
     <header class="mb-6">
         <div class="flex justify-between items-start mb-4">
-            <h1 id="tournamentTitle" class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter">Lade...</h1>
+            <h1 id="tournamentTitle" class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter font-bold">Lade...</h1>
             <button onclick="fetchLive()" class="refresh-btn bg-white p-3 rounded-full shadow-sm border border-slate-200 text-xl" title="Aktualisieren">🔄</button>
         </div>
         <div class="mt-4">
-            <label class="text-[12px] font-bold uppercase text-slate-400 block mb-1 font-mono text-center font-bold">Spieler Fokus</label>
+            <label class="text-[12px] font-black uppercase text-slate-400 block mb-1 font-mono text-center font-bold">Spieler Fokus</label>
             <select id="userSelect" onchange="saveUserSelection()" class="w-full p-4 rounded-xl border-2 border-blue-100 font-bold bg-white shadow-sm focus:border-blue-500 outline-none text-lg">
                 <option value="">-- Wer bist du? --</option>
             </select>
@@ -41,7 +41,7 @@
             </span>
             Deine nächsten Spiele
         </h2>
-        <div id="nextMatchesList" class="space-y-3"></div>
+        <div id="nextMatchesList" class="space-y-3 font-bold"></div>
     </div>
 
     <div id="scheduleContainer" class="space-y-10"></div>
@@ -65,7 +65,7 @@
             <div class="prediction-card p-6 shadow-2xl relative overflow-hidden group">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h3 class="text-xl font-black uppercase italic tracking-wide text-blue-400">Padel-Bot Analyse</h3>
+                        <h3 class="text-xl font-black uppercase italic tracking-wide text-blue-400 font-bold">Padel-Bot Analyse</h3>
                         <p class="text-[12px] text-slate-400 uppercase font-bold">Trend & Prognose</p>
                     </div>
                     <span class="text-3xl transition-transform group-open:rotate-180">🤖</span>
@@ -109,15 +109,19 @@
             const select = document.getElementById('userSelect');
             const savedUser = localStorage.getItem('padel_focus_user');
             const currentVal = select.value || savedUser; 
-            select.innerHTML = '<option value="">-- Wer bist du? --</option>';
             const players = tData.p.filter(name => name && !name.includes("Gegner"));
-            players.forEach(name => {
-                let opt = document.createElement('option');
-                opt.value = name;
-                opt.innerText = name;
-                if(name === currentVal) opt.selected = true;
-                select.appendChild(opt);
-            });
+            
+            // Verhindert das Springen: Nur neu füllen, wenn sich die Anzahl geändert hat oder leer ist
+            if (select.options.length <= 1) {
+                select.innerHTML = '<option value="">-- Wer bist du? --</option>';
+                players.forEach(name => {
+                    let opt = document.createElement('option');
+                    opt.value = name;
+                    opt.innerText = name;
+                    select.appendChild(opt);
+                });
+            }
+            if(currentVal) select.value = currentVal;
         }
 
         function updateView() {
@@ -181,7 +185,7 @@
 
             if (next.length > 0) {
                 container.classList.remove('hidden');
-                document.getElementById('nextMatchesList').innerHTML = next.map(text => `<div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-[15px] font-bold shadow-sm">${text}</div>`).join('');
+                document.getElementById('nextMatchesList').innerHTML = next.map(text => `<div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-[15px] shadow-sm">${text}</div>`).join('');
             } else { container.classList.add('hidden'); }
         }
 
@@ -203,7 +207,7 @@
                         <span class="text-[11px] text-slate-300 font-mono font-bold">${i+1}.</span>
                         <span class="text-base font-bold ${s.name === focus ? 'highlight-name' : ''}">${s.name}</span>
                     </td>
-                    <td class="p-4 text-center text-blue-600 font-black text-lg">${s.points}</td>
+                    <td class="p-4 text-center text-blue-600 font-black text-lg font-bold">${s.points}</td>
                     <td class="p-4 text-center text-sm font-bold ${s.diff>=0?'text-green-500':'text-red-400'}">${s.diff>0?'+':''}${s.diff}</td>
                 </tr>`).join('');
             return stats;
@@ -236,8 +240,7 @@
                 }));
                 const last = scores.length > 0 ? scores[scores.length - 1] : 0;
                 const prev = scores.length > 1 ? scores[scores.length - 2] : last;
-                let symbol = "➡️";
-                let val = 0;
+                let symbol = "➡️"; let val = 0;
                 if (last > prev + 2) { symbol = "↗️"; val = 1; }
                 else if (last < prev - 2) { symbol = "↘️"; val = -1; }
                 return { symbol, val };
@@ -262,22 +265,17 @@
                         const opps = isTeam1 ? [p[2], p[3]] : [p[0], p[1]];
                         
                         const trendMe = getTrendData(focus);
-                        const trendPartner = getTrendData(partner);
+                        const trendP = getTrendData(partner);
                         const trendO1 = getTrendData(opps[0]);
                         const trendO2 = getTrendData(opps[1]);
+                        const rMe = getRank(focus); const rP = getRank(partner);
+                        const rO1 = getRank(opps[0]); const rO2 = getRank(opps[1]);
 
-                        const rankMe = getRank(focus);
-                        const rankP = getRank(partner);
-                        const rankO1 = getRank(opps[0]);
-                        const rankO2 = getRank(opps[1]);
-
-                        // REALISTISCHE LOGIK
-                        const teamAvgRank = (rankMe + rankP) / 2;
-                        const oppAvgRank = (rankO1 + rankO2) / 2;
-                        const trendDiff = (trendMe.val + trendPartner.val) - (trendO1.val + trendO2.val);
+                        const teamAvgRank = (rMe + rP) / 2;
+                        const oppAvgRank = (rO1 + rO2) / 2;
+                        const trendDiff = (trendMe.val + trendP.val) - (trendO1.val + trendO2.val);
                         
-                        let rating = "Machbar";
-                        let rColor = "text-blue-400";
+                        let rating = "Machbar"; let rColor = "text-blue-400";
                         if (oppAvgRank < teamAvgRank - 2.5) { rating = "Harte Nuss"; rColor = "text-red-400"; }
                         else if (oppAvgRank > teamAvgRank + 2.5 || trendDiff >= 2) { rating = "Favorit / Easy"; rColor = "text-green-400"; }
 
@@ -298,12 +296,12 @@
                                 </div>
                                 <div class="grid grid-cols-2 gap-4 text-xs font-bold">
                                     <div class="space-y-2 border-r border-slate-700/50 pr-2">
-                                        <div class="flex justify-between text-slate-300"><span>Du (${rankMe}.)</span> <span>${trendMe.symbol}</span></div>
-                                        <div class="flex justify-between text-slate-300"><span>Partner (${rankP}.)</span> <span>${trendPartner.symbol}</span></div>
+                                        <div class="flex justify-between text-slate-300"><span>${focus} (${rMe}.)</span> <span>${trendMe.symbol}</span></div>
+                                        <div class="flex justify-between text-slate-300"><span>${partner} (${rP}.)</span> <span>${trendP.symbol}</span></div>
                                     </div>
                                     <div class="space-y-2 pl-2">
-                                        <div class="flex justify-between text-slate-300"><span>Gegner 1 (${rankO1}.)</span> <span>${trendO1.symbol}</span></div>
-                                        <div class="flex justify-between text-slate-300"><span>Gegner 2 (${rankO2}.)</span> <span>${trendO2.symbol}</span></div>
+                                        <div class="flex justify-between text-slate-300"><span>${opps[0]} (${rO1}.)</span> <span>${trendO1.symbol}</span></div>
+                                        <div class="flex justify-between text-slate-300"><span>${opps[1]} (${rO2}.)</span> <span>${trendO2.symbol}</span></div>
                                     </div>
                                 </div>
                             </div>`;
@@ -315,12 +313,16 @@
             if (targetPlayer) {
                 const diff = targetPlayer.points - stats.find(s => s.name === focus).points;
                 mission = `<div class="bg-green-500/10 border border-green-500/30 p-3 rounded-xl mt-3 text-center">
-                    <p class="text-xs text-green-400 font-bold italic">🚀 Mission: +${diff + 1} Pkt. mehr als ${targetPlayer.name} für Platz ${myIdx}!</p>
+                    <p class="text-xs text-green-400 font-bold italic font-bold">🚀 Mission: +${diff + 1} Pkt. mehr als ${targetPlayer.name} für Platz ${myIdx}!</p>
                 </div>`;
             }
 
             document.getElementById('predictionContent').innerHTML = `
                 <div class="space-y-4">
+                    <div class="flex items-center justify-between bg-blue-500/10 p-3 rounded-xl border border-blue-500/20">
+                        <span class="text-xs font-black uppercase text-blue-300 font-bold">Dein Trend</span>
+                        <span class="text-2xl">${getTrendData(focus).symbol}</span>
+                    </div>
                     ${nextMatchContent}
                     ${mission}
                     <p class="text-[9px] text-slate-500 text-center uppercase tracking-widest font-black pt-2">Analyse-Modus: Aktiv (Runde ${completedRounds})</p>
