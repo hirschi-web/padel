@@ -19,7 +19,7 @@
         select { -webkit-appearance: none; appearance: none; }
     </style>
 </head>
-<body class="p-4 max-w-2xl mx-auto pb-24 text-slate-800">
+<body class="p-4 max-w-2xl mx-auto pb-32 text-slate-800">
 
     <header class="mb-8 space-y-4">
         <h1 class="text-3xl font-black text-slate-900 uppercase italic tracking-tighter text-center">Admin Panel</h1>
@@ -41,9 +41,23 @@
         </div>
     </header>
 
-    <div id="scheduleContainer" class="space-y-10 text-center py-10 text-slate-400 italic font-medium">
-        Wähle ein Turnier aus...
+    <div id="scheduleContainer" class="space-y-10">
+        <div class="text-center py-10 text-slate-400 italic font-medium">Wähle ein Turnier aus...</div>
     </div>
+
+    <hr class="my-12 border-slate-200">
+
+    <section id="rankingSection" class="mb-10 hidden">
+        <h2 class="text-2xl font-black uppercase italic mb-4 flex items-center gap-2">🏆 Live Ranking</h2>
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-slate-900 text-white text-[12px] uppercase tracking-widest">
+                    <tr><th class="p-4">Spieler</th><th class="p-4 text-center">Pkt</th><th class="p-4 text-center">Diff</th></tr>
+                </thead>
+                <tbody id="rankingBody" class="font-bold text-base"></tbody>
+            </table>
+        </div>
+    </section>
 
     <button id="globalSaveBtn" onclick="saveAllScores()" class="save-btn shadow-lg hidden">
         <span>Speichern</span>
@@ -57,13 +71,12 @@
         
         let tData = null;
         let currentT_ID = null;
+        let currentMode = 'diff';
 
         async function init() {
-            // Lade Liste aller Turniere (außer LIVE_CONFIG)
             const { data: allT } = await supabaseClient.from('tournaments').select('id');
             const select = document.getElementById('tournamentSelect');
             select.innerHTML = '<option value="">-- Turnier wählen --</option>';
-            
             allT.forEach(t => {
                 if(t.id !== 'LIVE_CONFIG') {
                     const opt = document.createElement('option');
@@ -73,11 +86,11 @@
                 }
             });
 
-            // Lade aktuelles Turnier aus LIVE_CONFIG
             const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
             if(config) {
-                changeTournament(config.data.active_id);
-                document.getElementById('modeSelect').value = config.data.mode || 'diff';
+                currentMode = config.data.mode || 'diff';
+                document.getElementById('modeSelect').value = currentMode;
+                if(config.data.active_id) changeTournament(config.data.active_id);
             }
         }
 
@@ -90,22 +103,28 @@
             if (data) {
                 tData = data.data;
                 document.getElementById('globalSaveBtn').classList.remove('hidden');
-                renderSchedule();
+                document.getElementById('rankingSection').classList.remove('hidden');
+                updateView();
             }
         }
 
         async function changeMode(mode) {
+            currentMode = mode;
             const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
             if(config) {
                 config.data.mode = mode;
                 await supabaseClient.from('tournaments').update({ data: config.data }).eq('id', 'LIVE_CONFIG');
+                updateView();
             }
+        }
+
+        function updateView() {
+            renderSchedule();
+            renderRanking();
         }
 
         function renderSchedule() {
             const container = document.getElementById('scheduleContainer');
-            if(!tData) return;
-            
             container.innerHTML = tData.s_new.map((round, rIdx) => `
                 <div class="space-y-4">
                     <div class="px-2 font-black uppercase text-slate-400 italic text-sm text-left">Runde ${round.id}</div>
@@ -139,29 +158,49 @@
             `).join('');
         }
 
+        function renderRanking() {
+            let stats = tData.p.map(name => ({ name, points: 0, diff: 0 }));
+            tData.s_new.forEach(r => r.matches.forEach(m => {
+                const s1 = parseInt(m.score[0]), s2 = parseInt(m.score[1]);
+                if (!isNaN(s1) && !isNaN(s2)) {
+                    m.team1.forEach(i => { stats[i].points += s1; stats[i].diff += (s1-s2); });
+                    m.team2.forEach(i => { stats[i].points += s2; stats[i].diff += (s2-s1); });
+                }
+            }));
+
+            const sorted = stats.filter(s => !s.name.includes("Gegner"))
+                .sort((a,b) => currentMode === 'diff' ? (b.diff - a.diff || b.points - a.points) : (b.points - a.points || b.diff - a.diff));
+
+            document.getElementById('rankingBody').innerHTML = sorted.map((s, i) => `
+                <tr class="border-b border-slate-50">
+                    <td class="p-4 flex items-center gap-3">
+                        <span class="text-[11px] text-slate-300 font-mono font-bold">${i+1}.</span>
+                        <span class="text-base font-bold">${s.name}</span>
+                    </td>
+                    <td class="p-4 text-center text-blue-600 font-black text-lg">${s.points}</td>
+                    <td class="p-4 text-center text-sm font-bold ${s.diff>=0?'text-green-500':'text-red-400'}">${s.diff>0?'+':''}${s.diff}</td>
+                </tr>`).join('');
+        }
+
         function markUnsaved(el, rIdx, mIdx, tIdx) {
             el.classList.add('unsaved');
             tData.s_new[rIdx].matches[mIdx].score[tIdx] = el.value;
+            renderRanking(); // Live-Update des Rankings bei Eingabe
         }
 
         async function saveAllScores() {
             const btn = document.getElementById('globalSaveBtn');
             btn.classList.add('loading');
             btn.innerHTML = "<span>Speichert...</span>";
-
             try {
-                const { error } = await supabaseClient
-                    .from('tournaments')
-                    .update({ data: tData })
-                    .eq('id', currentT_ID);
-
+                const { error } = await supabaseClient.from('tournaments').update({ data: tData }).eq('id', currentT_ID);
                 if (!error) {
                     document.querySelectorAll('.unsaved').forEach(el => el.classList.remove('unsaved'));
                     btn.innerHTML = "<span>Gespeichert! ✅</span>";
                     setTimeout(() => {
                         btn.innerHTML = "<span>Speichern</span> <span>💾</span>";
                         btn.classList.remove('loading');
-                        renderSchedule();
+                        updateView();
                     }, 1500);
                 }
             } catch (e) {
