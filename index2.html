@@ -34,8 +34,7 @@
             <div class="relative">
                 <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Modus</label>
                 <select id="modeSelect" onchange="changeMode(this.value)" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm outline-none focus:border-blue-500">
-                  
-                    <option value="total">Gesamtpunkte</option>
+                    <option value="total" selected>Gesamtpunkte</option>
                     <option value="diff">Punktedifferenz</option>
                 </select>
             </div>
@@ -72,7 +71,7 @@
         
         let tData = null;
         let currentT_ID = null;
-        let currentMode = 'diff';
+        let currentMode = 'total'; // Standard auf Gesamtpunkte gesetzt
 
         async function init() {
             const { data: allT } = await supabaseClient.from('tournaments').select('id');
@@ -89,7 +88,8 @@
 
             const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
             if(config) {
-                currentMode = config.data.mode || 'diff';
+                // Wir erzwingen hier 'total', falls nichts anderes explizit gewählt wird
+                currentMode = config.data.mode || 'total';
                 document.getElementById('modeSelect').value = currentMode;
                 if(config.data.active_id) changeTournament(config.data.active_id);
             }
@@ -128,14 +128,17 @@
             const container = document.getElementById('scheduleContainer');
             container.innerHTML = tData.s_new.map((round, rIdx) => `
                 <div class="space-y-4">
-                    <div class="px-2 font-black uppercase text-slate-400 italic text-sm text-left">Runde ${round.id}</div>
+                    <div class="flex justify-between items-center px-2">
+                        <span class="font-black uppercase text-slate-400 italic text-sm">Runde ${round.id}</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${round.time || ''} Uhr</span>
+                    </div>
                     ${round.matches.map((m, mIdx) => {
                         const s1 = parseInt(m.score[0]);
                         const s2 = parseInt(m.score[1]);
                         const win1 = s1 > s2;
                         const win2 = s2 > s1;
                         return `
-                        <div class="match-card p-5">
+                        <div class="match-card p-5 relative">
                             <div class="flex items-center justify-between gap-4">
                                 <div class="flex-1 text-center font-bold text-sm ${win1 ? 'winner' : ''}">
                                     ${tData.p[m.team1[0]]}<br>${tData.p[m.team1[1]]}
@@ -153,6 +156,7 @@
                                     ${tData.p[m.team2[0]]}<br>${tData.p[m.team2[1]]}
                                 </div>
                             </div>
+                            <div class="text-center text-[9px] mt-3 text-slate-300 font-black uppercase tracking-widest">Court ${m.court}</div>
                         </div>`;
                     }).join('')}
                 </div>
@@ -170,7 +174,7 @@
             }));
 
             const sorted = stats.filter(s => !s.name.includes("Gegner"))
-                .sort((a,b) => currentMode === 'diff' ? (b.diff - a.diff || b.points - a.points) : (b.points - a.points || b.diff - a.diff));
+                .sort((a,b) => currentMode === 'total' ? (b.points - a.points || b.diff - a.diff) : (b.diff - a.diff || b.points - a.points));
 
             document.getElementById('rankingBody').innerHTML = sorted.map((s, i) => `
                 <tr class="border-b border-slate-50">
@@ -186,7 +190,7 @@
         function markUnsaved(el, rIdx, mIdx, tIdx) {
             el.classList.add('unsaved');
             tData.s_new[rIdx].matches[mIdx].score[tIdx] = el.value;
-            renderRanking(); // Live-Update des Rankings bei Eingabe
+            renderRanking(); 
         }
 
         async function saveAllScores() {
