@@ -3,26 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Championship Ottakring - Live</title>
+    <title>Padel Turnier - Live</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .match-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; transition: all 0.3s; }
         .match-active { border: 2px solid #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
-        .score-input { width: 3rem; height: 3rem; text-align: center; font-size: 1.25rem; font-weight: 900; background: #f1f5f9; border-radius: 0.75rem; border: 2px solid transparent; }
-        .highlight-name { color: #ef4444 !important; font-weight: 900; } /* Dein Name in Rot */
+        .score-input { width: 3rem; height: 3rem; text-align: center; font-size: 1.25rem; font-weight: 900; background: #f1f5f9; border-radius: 0.75rem; border: 2px solid transparent; outline: none; }
+        .score-input:focus { border-color: #3b82f6; background: white; }
+        .highlight-name { color: #ef4444 !important; font-weight: 900; }
         .prediction-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border-radius: 1.5rem; }
+        details summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body class="p-3 sm:p-6 max-w-2xl mx-auto pb-20 text-slate-800">
 
     <header class="mb-6 text-center">
-        <h1 class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter">Championship Ottakring</h1>
+        <h1 id="tournamentTitle" class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter">Lade Turnier...</h1>
         <div class="mt-4">
-            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-mono">Mein Name (Fokus)</label>
+            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-mono text-center">Spieler Fokus</label>
             <select id="userSelect" onchange="updateView()" class="w-full p-3 rounded-xl border-2 border-blue-100 font-bold bg-white shadow-sm focus:border-blue-500 outline-none">
-                <option value="">-- Spieler wählen --</option>
+                <option value="">-- Wer bist du? --</option>
             </select>
         </div>
     </header>
@@ -57,12 +59,11 @@
                 <div class="flex justify-between items-center">
                     <div>
                         <h3 class="text-lg font-black uppercase italic tracking-wide text-blue-400">Padel-Bot Analyse</h3>
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">Bestmöglicher Platz & Strategie</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold">Simulation & Strategie</p>
                     </div>
-                    <span class="text-2xl group-open:rotate-180 transition-transform">🤖</span>
+                    <span class="text-2xl transition-transform group-open:rotate-180">🤖</span>
                 </div>
-                <div id="predictionContent" class="mt-4 space-y-4 text-sm font-medium leading-relaxed border-t border-slate-700 pt-4">
-                    </div>
+                <div id="predictionContent" class="mt-4 space-y-4 text-sm font-medium leading-relaxed border-t border-slate-700 pt-4"></div>
             </div>
         </summary>
     </details>
@@ -71,13 +72,23 @@
         const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-        const T_ID = 'Championship_Ottakring';
+        
         let tData = null;
+        let currentT_ID = null;
 
         async function loadData() {
-            const { data } = await supabaseClient.from('tournaments').select('*').eq('id', T_ID).single();
+            // Holt das zuletzt aktualisierte Turnier (das im Setup gerade gespeichert wurde)
+            const { data, error } = await supabaseClient
+                .from('tournaments')
+                .select('*')
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .single();
+
             if (data) {
+                currentT_ID = data.id;
                 tData = data.data;
+                document.getElementById('tournamentTitle').innerText = currentT_ID.replace(/_/g, ' ');
                 if(document.getElementById('userSelect').options.length <= 1) fillUserSelect();
                 updateView();
             }
@@ -85,7 +96,8 @@
 
         function fillUserSelect() {
             const select = document.getElementById('userSelect');
-            tData.p.filter(name => !name.includes("Gegner")).forEach(name => {
+            const players = tData.p.filter(name => !name.includes("Gegner"));
+            players.forEach(name => {
                 let opt = document.createElement('option');
                 opt.value = name; opt.innerText = name;
                 select.appendChild(opt);
@@ -109,20 +121,21 @@
                         <span class="text-[11px] font-black uppercase text-slate-400 italic">Runde ${round.id}</span>
                     </div>
                     ${round.matches.map((m, mIdx) => {
-                        const isMyMatch = focusName && (tData.p[m.team1[0]] === focusName || tData.p[m.team1[1]] === focusName || tData.p[m.team2[0]] === focusName || tData.p[m.team2[1]] === focusName);
+                        const p1=tData.p[m.team1[0]], p2=tData.p[m.team1[1]], p3=tData.p[m.team2[0]], p4=tData.p[m.team2[1]];
+                        const isMyMatch = focusName && (p1===focusName || p2===focusName || p3===focusName || p4===focusName);
                         return `
                         <div class="match-card p-4 ${isMyMatch ? 'match-active' : ''}">
                             <div class="flex items-center justify-between gap-2">
-                                <div class="flex-1 text-center text-[11px] font-bold ${focusName && (tData.p[m.team1[0]] === focusName || tData.p[m.team1[1]] === focusName) ? 'highlight-name' : ''}">
-                                    ${tData.p[m.team1[0]]}<br>${tData.p[m.team1[1]]}
+                                <div class="flex-1 text-center text-[11px] font-bold ${focusName && (p1===focusName || p2===focusName) ? 'highlight-name' : ''}">
+                                    ${p1}<br>${p2}
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <input type="number" value="${m.score[0]}" onchange="saveScore(${rIdx}, ${mIdx}, 0, this.value)" class="score-input" placeholder="-">
                                     <span class="text-slate-300 font-black">:</span>
                                     <input type="number" value="${m.score[1]}" onchange="saveScore(${rIdx}, ${mIdx}, 1, this.value)" class="score-input" placeholder="-">
                                 </div>
-                                <div class="flex-1 text-center text-[11px] font-bold ${focusName && (tData.p[m.team2[0]] === focusName || tData.p[m.team2[1]] === focusName) ? 'highlight-name' : ''}">
-                                    ${tData.p[m.team2[0]]}<br>${tData.p[m.team2[1]]}
+                                <div class="flex-1 text-center text-[11px] font-bold ${focusName && (p3===focusName || p4===focusName) ? 'highlight-name' : ''}">
+                                    ${p3}<br>${p4}
                                 </div>
                             </div>
                             <div class="text-center text-[9px] mt-2 text-slate-300 font-bold uppercase tracking-tighter">Court ${m.court}</div>
@@ -140,11 +153,11 @@
             const next = [];
             tData.s_new.forEach(round => {
                 round.matches.forEach(m => {
-                    const players = [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]];
-                    if (players.includes(focusName) && m.score[0] === "" && next.length < 2) {
-                        const withPartner = (tData.p[m.team1[0]] === focusName) ? tData.p[m.team1[1]] : (tData.p[m.team1[1]] === focusName) ? tData.p[m.team1[0]] : (tData.p[m.team2[0]] === focusName) ? tData.p[m.team2[1]] : tData.p[m.team2[0]];
-                        const opponents = (players.slice(0,2).includes(focusName)) ? [players[2], players[3]] : [players[0], players[1]];
-                        next.push(`R${round.id} auf Court ${m.court} mit <span class="text-blue-600">${withPartner}</span> vs. <span class="text-slate-500">${opponents.join('/')}</span>`);
+                    const p = [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]];
+                    if (p.includes(focusName) && m.score[0] === "" && next.length < 2) {
+                        const partner = (p[0] === focusName) ? p[1] : (p[1] === focusName) ? p[0] : (p[2] === focusName) ? p[3] : p[2];
+                        const opps = (p.slice(0,2).includes(focusName)) ? [p[2], p[3]] : [p[0], p[1]];
+                        next.push(`R${round.id} / Court ${m.court} mit <span class="text-blue-600">${partner}</span> vs. <span class="text-slate-500">${opps.join('/')}</span>`);
                     }
                 });
             });
@@ -158,7 +171,7 @@
         async function saveScore(rIdx, mIdx, tIdx, val) {
             tData.s_new[rIdx].matches[mIdx].score[tIdx] = val;
             if(tData.s_new[rIdx].matches[mIdx].score[0] !== "" && tData.s_new[rIdx].matches[mIdx].score[1] !== "") {
-                await supabaseClient.from('tournaments').update({ data: tData }).eq('id', T_ID);
+                await supabaseClient.from('tournaments').update({ data: tData, updated_at: new Date() }).eq('id', currentT_ID);
                 updateView();
             }
         }
@@ -173,11 +186,12 @@
                 }
             }));
             const filtered = stats.filter(s => !s.name.includes("Gegner")).sort((a,b) => b.points - a.points || b.diff - a.diff);
+            const focus = document.getElementById('userSelect').value;
             document.getElementById('rankingBody').innerHTML = filtered.map((s, i) => `
-                <tr class="border-b border-slate-50 ${s.name === document.getElementById('userSelect').value ? 'bg-blue-50' : ''}">
+                <tr class="border-b border-slate-50 ${s.name === focus ? 'bg-blue-50' : ''}">
                     <td class="p-4 flex items-center gap-3">
-                        <span class="text-[9px] text-slate-300">${i+1}.</span>
-                        <span class="${s.name === document.getElementById('userSelect').value ? 'highlight-name' : ''}">${s.name}</span>
+                        <span class="text-[9px] text-slate-300 font-mono">${i+1}.</span>
+                        <span class="${s.name === focus ? 'highlight-name' : ''}">${s.name}</span>
                     </td>
                     <td class="p-4 text-center text-blue-600 font-black">${s.points}</td>
                     <td class="p-4 text-center text-xs ${s.diff>=0?'text-green-500':'text-red-400'}">${s.diff>0?'+':''}${s.diff}</td>
@@ -186,47 +200,36 @@
         }
 
         function calculatePrediction() {
-            const focusName = document.getElementById('userSelect').value;
+            const focus = document.getElementById('userSelect').value;
             const section = document.getElementById('predictionSection');
-            if (!focusName) { section.classList.add('hidden'); return; }
+            if (!focus) { section.classList.add('hidden'); return; }
 
             const stats = calculateRanking();
-            const totalRounds = tData.s_new.length;
-            const playedRounds = stats.find(s => s.name === focusName).games;
-
-            if (playedRounds < totalRounds / 2) { section.classList.add('hidden'); return; }
-            section.classList.remove('hidden');
-
-            const me = stats.find(s => s.name === focusName);
-            const avgPoints = me.points / playedRounds;
-            const "GutLaufenPunkte" = avgPoints * 1.2;
+            const me = stats.find(s => s.name === focus);
+            const totalR = tData.s_new.length;
+            if (me.games < totalR / 2) { section.classList.add('hidden'); return; }
             
-            const remainingMatches = [];
-            tData.s_new.forEach(r => r.matches.forEach(m => {
-                if (m.score[0] === "" && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(focusName)) {
-                    remainingMatches.push(m);
-                }
-            }));
-
-            const potentialTotal = me.points + (remainingMatches.length * "GutLaufenPunkte");
-            const othersPotential = stats.filter(s => s.name !== focusName && !s.name.includes("Gegner")).map(s => {
+            section.classList.remove('hidden');
+            const avg = me.points / me.games;
+            const boost = avg * 1.2;
+            const rem = tData.s_new.reduce((a, r) => a + r.matches.filter(m => m.score[0] === "" && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(focus)).length, 0);
+            
+            const myPot = me.points + (rem * boost);
+            const othersPot = stats.filter(s => s.name !== focus && !s.name.includes("Gegner")).map(s => {
                 const sRem = tData.s_new.reduce((acc, r) => acc + r.matches.filter(m => m.score[0] === "" && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(s.name)).length, 0);
-                return { name: s.name, current: s.points, pot: s.points + (sRem * (s.points / s.games || 12)) };
+                return { name: s.name, pot: s.points + (sRem * (s.points / s.games || 12)) };
             });
 
-            const sortedPot = [...othersPotential, {name: focusName, pot: potentialTotal}].sort((a,b) => b.pot - a.pot);
-            const bestRank = sortedPot.findIndex(s => s.name === focusName) + 1;
+            const sorted = [...othersPot, {name: focus, pot: myPot}].sort((a,b) => b.pot - a.pot);
+            const bestP = sorted.findIndex(s => s.name === focus) + 1;
 
             document.getElementById('predictionContent').innerHTML = `
                 <div class="flex items-center gap-3">
-                    <div class="bg-blue-500/20 p-2 rounded-lg text-blue-400 font-black text-xl">#${bestRank}</div>
-                    <p>Wenn es <span class="text-blue-400">gut läuft (+20% Boost)</span>, ist Platz ${bestRank} für dich noch drin!</p>
+                    <div class="bg-blue-500/20 p-2 rounded-lg text-blue-400 font-black text-xl">#${bestP}</div>
+                    <p>Bestmögliches Ziel: <span class="text-blue-400">Platz ${bestP}</span></p>
                 </div>
-                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                    <p class="text-xs italic text-slate-300">
-                        "Deine aktuelle Punkte-Power liegt bei ${avgPoints.toFixed(1)}. Bei 120% Leistung machst du ca. ${"GutLaufenPunkte".toFixed(1)} pro Rest-Match. 
-                        Tipp: Deine Gegner stagnieren in der Performance – nutze die nächsten 2 Spiele für maximale Differenz!"
-                    </p>
+                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700 text-xs italic text-slate-300">
+                    "Wenn du 20% stärker spielst als bisher (Ziel: ${boost.toFixed(1)} Pkt/Spiel), kannst du dich noch auf Platz ${bestP} schieben. Die Konkurrenz bleibt laut Modell konstant."
                 </div>
             `;
         }
