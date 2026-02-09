@@ -9,11 +9,9 @@
     <style>
         body { background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .match-card { background: white; border-radius: 1.5rem; border: 1px solid #e2e8f0; transition: all 0.3s; }
-        /* Blauer Rahmen für eigene Spiele */
         .match-active { border: 2px solid #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
         .score-input { width: 3rem; height: 3rem; text-align: center; font-size: 1.25rem; font-weight: 900; background: #f1f5f9; border-radius: 0.75rem; border: 2px solid transparent; outline: none; }
         .score-input:focus { border-color: #3b82f6; background: white; }
-        /* Rote Markierung für den eigenen Namen */
         .highlight-name { color: #ef4444 !important; font-weight: 900; }
         .prediction-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border-radius: 1.5rem; }
         details summary::-webkit-details-marker { display: none; }
@@ -22,10 +20,10 @@
 <body class="p-3 sm:p-6 max-w-2xl mx-auto pb-20 text-slate-800">
 
     <header class="mb-6 text-center">
-        <h1 id="tournamentTitle" class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter">Lade Turnier...</h1>
+        <h1 id="tournamentTitle" class="text-3xl font-black text-blue-600 uppercase italic tracking-tighter">Lade...</h1>
         <div class="mt-4">
             <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-mono">Spieler Fokus</label>
-            <select id="userSelect" onchange="updateView()" class="w-full p-3 rounded-xl border-2 border-blue-100 font-bold bg-white shadow-sm focus:border-blue-500 outline-none">
+            <select id="userSelect" onchange="saveUserSelection()" class="w-full p-3 rounded-xl border-2 border-blue-100 font-bold bg-white shadow-sm focus:border-blue-500 outline-none">
                 <option value="">-- Wer bist du? --</option>
             </select>
         </div>
@@ -64,7 +62,7 @@
                 <div class="flex justify-between items-center">
                     <div>
                         <h3 class="text-lg font-black uppercase italic tracking-wide text-blue-400">Padel-Bot Analyse</h3>
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">Dein Potential</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold">Bestmöglicher Platz</p>
                     </div>
                     <span class="text-2xl transition-transform group-open:rotate-180">🤖</span>
                 </div>
@@ -81,48 +79,48 @@
         let tData = null;
         let currentT_ID = null;
 
-        // --- DEINE ORIGINAL LOGIK AUS LIVE_OLD ---
+        // Speicher-Funktion für den gewählten Namen
+        function saveUserSelection() {
+            const val = document.getElementById('userSelect').value;
+            localStorage.setItem('padel_focus_user', val);
+            updateView();
+        }
+
         async function fetchLive() {
             try {
-                // 1. Hole Config aus der tournaments Tabelle (ID = LIVE_CONFIG)
-                const { data: config } = await supabaseClient
-                    .from('tournaments')
-                    .select('data')
-                    .eq('id', 'LIVE_CONFIG')
-                    .single();
-                
-                if (!config) return;
-                
+                // 1. Hole Config (Original Logik)
+                const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
+                if(!config) return;
                 const activeID = config.data.active_id;
-                document.getElementById('tournamentTitle').innerText = activeID.replace(/_/g, ' '); // Schönere Formatierung
                 
-                // 2. Hole das eigentliche Turnier
-                const { data } = await supabaseClient
-                    .from('tournaments')
-                    .select('data')
-                    .eq('id', activeID)
-                    .single();
+                // 2. Hole Turnier-Daten
+                const { data } = await supabaseClient.from('tournaments').select('data').eq('id', activeID).single();
                 
                 if (data) {
-                    currentT_ID = activeID; // ID speichern für Updates
-                    tData = data.data;      // Daten speichern für View
+                    currentT_ID = activeID;
+                    tData = data.data;
+                    document.getElementById('tournamentTitle').innerText = activeID.replace(/_/g, ' ');
                     
-                    // User Select nur beim ersten Mal füllen
-                    if(document.getElementById('userSelect').options.length <= 1) fillUserSelect();
-                    
-                    updateView(); // Rendert die neue UI
+                    fillUserSelect();
+                    updateView();
                 }
-            } catch (e) { 
-                console.error("Fehler in fetchLive:", e); 
-            }
+            } catch (e) { console.error(e); }
         }
 
         function fillUserSelect() {
             const select = document.getElementById('userSelect');
-            const players = tData.p.filter(name => !name.includes("Gegner"));
+            // Priorität: 1. Aktuelle Auswahl im Dropdown, 2. Gespeicherter Name im LocalStorage
+            const savedUser = localStorage.getItem('padel_focus_user');
+            const currentVal = select.value || savedUser; 
+            
+            select.innerHTML = '<option value="">-- Wer bist du? --</option>';
+            const players = tData.p.filter(name => name && !name.includes("Gegner"));
+            
             players.forEach(name => {
                 let opt = document.createElement('option');
-                opt.value = name; opt.innerText = name;
+                opt.value = name;
+                opt.innerText = name;
+                if(name === currentVal) opt.selected = true;
                 select.appendChild(opt);
             });
         }
@@ -146,7 +144,6 @@
                     ${round.matches.map((m, mIdx) => {
                         const p1=tData.p[m.team1[0]], p2=tData.p[m.team1[1]], p3=tData.p[m.team2[0]], p4=tData.p[m.team2[1]];
                         const isMyMatch = focusName && (p1===focusName || p2===focusName || p3===focusName || p4===focusName);
-                        
                         return `
                         <div class="match-card p-4 ${isMyMatch ? 'match-active' : ''}">
                             <div class="flex items-center justify-between gap-2">
@@ -178,12 +175,10 @@
             tData.s_new.forEach(round => {
                 round.matches.forEach(m => {
                     const p = [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]];
-                    const scoreEmpty = (m.score[0] === "" || m.score[0] === null);
-                    
-                    if (p.includes(focusName) && scoreEmpty && next.length < 2) {
+                    if (p.includes(focusName) && (m.score[0] === "" || m.score[0] === null) && next.length < 2) {
                         const partner = (p[0] === focusName) ? p[1] : (p[1] === focusName) ? p[0] : (p[2] === focusName) ? p[3] : p[2];
                         const opps = (p.slice(0,2).includes(focusName)) ? [p[2], p[3]] : [p[0], p[1]];
-                        next.push(`R${round.id} / Court ${m.court} mit <span class="text-blue-600">${partner}</span> vs. <span class="text-slate-500">${opps.join('/')}</span>`);
+                        next.push(`R${round.id} / C${m.court} mit <span class="text-blue-600">${partner}</span> vs. <span class="text-slate-500">${opps.join('/')}</span>`);
                     }
                 });
             });
@@ -229,37 +224,20 @@
             const focus = document.getElementById('userSelect').value;
             const section = document.getElementById('predictionSection');
             if (!focus) { section.classList.add('hidden'); return; }
-
             const stats = calculateRanking();
             const me = stats.find(s => s.name === focus);
-            const totalR = tData.s_new.length;
-            
-            if (!me || me.games < totalR / 2) { section.classList.add('hidden'); return; }
-            
+            if (!me || me.games < tData.s_new.length / 2) { section.classList.add('hidden'); return; }
             section.classList.remove('hidden');
-            const avg = me.points / (me.games || 1);
-            const boost = avg * 1.2;
+            const boost = (me.points / (me.games || 1)) * 1.2;
             const rem = tData.s_new.reduce((a, r) => a + r.matches.filter(m => (m.score[0] === "" || m.score[0] === null) && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(focus)).length, 0);
-            
             const myPot = me.points + (rem * boost);
             const othersPot = stats.filter(s => s.name !== focus && !s.name.includes("Gegner")).map(s => {
                 const sRem = tData.s_new.reduce((acc, r) => acc + r.matches.filter(m => (m.score[0] === "" || m.score[0] === null) && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(s.name)).length, 0);
-                const sAvg = s.games > 0 ? s.points / s.games : 12;
-                return { name: s.name, pot: s.points + (sRem * sAvg) };
+                return { name: s.name, pot: s.points + (sRem * (s.points / (s.games || 1) || 12)) };
             });
-
             const sorted = [...othersPot, {name: focus, pot: myPot}].sort((a,b) => b.pot - a.pot);
             const bestP = sorted.findIndex(s => s.name === focus) + 1;
-
-            document.getElementById('predictionContent').innerHTML = `
-                <div class="flex items-center gap-3">
-                    <div class="bg-blue-500/20 p-2 rounded-lg text-blue-400 font-black text-xl">#${bestP}</div>
-                    <p>Wenn du <span class="text-blue-400 font-bold">20% besser</span> spielst, ist Platz ${bestP} möglich!</p>
-                </div>
-                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700 text-[11px] italic text-slate-300">
-                    "Modell-Annahme: Du erzielst ${boost.toFixed(1)} Pkt/Spiel, Gegner bleiben konstant."
-                </div>
-            `;
+            document.getElementById('predictionContent').innerHTML = `<p>Platz <span class="text-blue-400 font-bold">${bestP}</span> möglich, wenn du dich um 20% steigerst!</p>`;
         }
 
         fetchLive();
