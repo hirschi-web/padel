@@ -214,25 +214,41 @@
         }
 
         function calculatePrediction() {
-            const focus = document.getElementById('userSelect').value;
-            const section = document.getElementById('predictionSection');
-            if (!focus) { section.classList.add('hidden'); return; }
-            const stats = calculateRanking();
-            const me = stats.find(s => s.name === focus);
-            if (!me || me.games < tData.s_new.length / 2) { section.classList.add('hidden'); return; }
-            section.classList.remove('hidden');
-            const boost = (me.points / (me.games || 1)) * 1.2;
-            const rem = tData.s_new.reduce((a, r) => a + r.matches.filter(m => (m.score[0] === "" || m.score[0] === null) && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(focus)).length, 0);
-            const myPot = me.points + (rem * boost);
-            const othersPot = stats.filter(s => s.name !== focus && !s.name.includes("Gegner")).map(s => {
-                const sRem = tData.s_new.reduce((acc, r) => acc + r.matches.filter(m => (m.score[0] === "" || m.score[0] === null) && [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]].includes(s.name)).length, 0);
-                return { name: s.name, pot: s.points + (sRem * (s.points / (s.games || 1) || 12)) };
-            });
-            const sorted = [...othersPot, {name: focus, pot: myPot}].sort((a,b) => b.pot - a.pot);
-            const bestP = sorted.findIndex(s => s.name === focus) + 1;
-            document.getElementById('predictionContent').innerHTML = `<p>Platz <span class="text-blue-400 font-bold">${bestP}</span> möglich, wenn du dich um 20% steigerst!</p>`;
-        }
+    const focus = document.getElementById('userSelect').value;
+    const section = document.getElementById('predictionSection');
+    if (!focus) { section.classList.add('hidden'); return; }
 
+    const stats = calculateRanking(); 
+    
+    // Zähle gespielte Runden im Turnier insgesamt
+    const completedRounds = tData.s_new.filter(r => r.matches.every(m => m.score[0] !== "" && m.score[0] !== null)).length;
+
+    // Aktivierung erst ab/für die 3. Runde
+    if (completedRounds < 2) {
+        section.classList.remove('hidden');
+        document.getElementById('predictionContent').innerHTML = `<p class="text-slate-400 italic text-sm text-center py-4">🤖 Padel-Bot sammelt Daten... <br>Analyse startet nach Runde 2.</p>`;
+        return;
+    }
+
+    section.classList.remove('hidden');
+
+    // TREND-ANALYSE LOGIK
+    const getTrend = (playerName) => {
+        let scores = [];
+        tData.s_new.forEach(r => r.matches.forEach(m => {
+            const p = [tData.p[m.team1[0]], tData.p[m.team1[1]], tData.p[m.team2[0]], tData.p[m.team2[1]]];
+            if (p.includes(playerName) && m.score[0] !== "" && m.score[0] !== null) {
+                const s = (tData.p[m.team1[0]] === playerName || tData.p[m.team1[1]] === playerName) ? parseInt(m.score[0]) : parseInt(m.score[1]);
+                scores.push(s);
+            }
+        }));
+        if (scores.length < 2) return "➡️";
+        const last = scores[scores.length - 1];
+        const prev = scores[scores.length - 2];
+        if (last > prev + 2) return "↗️"; 
+        if (last < prev - 2) return "↘️"; 
+        return "➡️";
+    }
         fetchLive();
         setInterval(fetchLive, 10000);
     </script>
