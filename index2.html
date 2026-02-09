@@ -11,25 +11,41 @@
         .match-card { background: white; border-radius: 1.25rem; border: 1px solid #e2e8f0; }
         .score-input { width: 3.5rem; height: 3.5rem; text-align: center; font-size: 1.5rem; font-weight: 800; background: #f8fafc; border-radius: 0.75rem; border: 2px solid #e2e8f0; transition: all 0.2s; }
         .score-input:focus { border-color: #3b82f6; background: white; outline: none; }
-        /* Markierung für ungespeicherte Änderungen */
         .unsaved { border-color: #f59e0b !important; background: #fffbeb; }
-        /* Gewinner-Farbe */
         .winner { color: #10b981 !important; }
-        .save-btn { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #2563eb; color: white; padding: 1rem 2rem; border-radius: 9999px; font-weight: 900; box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4); display: flex; items-center gap-2; z-index: 50; transition: all 0.2s; }
+        .save-btn { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #2563eb; color: white; padding: 1rem 2rem; border-radius: 9999px; font-weight: 900; box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4); display: flex; items-center gap-2; z-index: 50; transition: all 0.2s; border: none; cursor: pointer; }
         .save-btn:active { transform: scale(0.95); }
         .save-btn.loading { opacity: 0.7; pointer-events: none; }
+        select { -webkit-appearance: none; appearance: none; }
     </style>
 </head>
 <body class="p-4 max-w-2xl mx-auto pb-24 text-slate-800">
 
-    <header class="mb-8 text-center">
-        <h1 id="tournamentTitle" class="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Admin Panel</h1>
-        <p class="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">Ergebnisse eintragen</p>
+    <header class="mb-8 space-y-4">
+        <h1 class="text-3xl font-black text-slate-900 uppercase italic tracking-tighter text-center">Admin Panel</h1>
+        
+        <div class="grid grid-cols-2 gap-3">
+            <div class="relative">
+                <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Turnier wählen</label>
+                <select id="tournamentSelect" onchange="changeTournament(this.value)" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm outline-none focus:border-blue-500">
+                    <option value="">Lade...</option>
+                </select>
+            </div>
+            <div class="relative">
+                <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Modus</label>
+                <select id="modeSelect" onchange="changeMode(this.value)" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm outline-none focus:border-blue-500">
+                    <option value="diff">Punktedifferenz</option>
+                    <option value="total">Gesamtpunkte</option>
+                </select>
+            </div>
+        </div>
     </header>
 
-    <div id="scheduleContainer" class="space-y-10"></div>
+    <div id="scheduleContainer" class="space-y-10 text-center py-10 text-slate-400 italic font-medium">
+        Wähle ein Turnier aus...
+    </div>
 
-    <button id="globalSaveBtn" onclick="saveAllScores()" class="save-btn shadow-lg">
+    <button id="globalSaveBtn" onclick="saveAllScores()" class="save-btn shadow-lg hidden">
         <span>Speichern</span>
         <span id="saveIcon">💾</span>
     </button>
@@ -43,22 +59,56 @@
         let currentT_ID = null;
 
         async function init() {
+            // Lade Liste aller Turniere (außer LIVE_CONFIG)
+            const { data: allT } = await supabaseClient.from('tournaments').select('id');
+            const select = document.getElementById('tournamentSelect');
+            select.innerHTML = '<option value="">-- Turnier wählen --</option>';
+            
+            allT.forEach(t => {
+                if(t.id !== 'LIVE_CONFIG') {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.innerText = t.id.replace(/_/g, ' ');
+                    select.appendChild(opt);
+                }
+            });
+
+            // Lade aktuelles Turnier aus LIVE_CONFIG
             const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
-            if(!config) return;
-            currentT_ID = config.data.active_id;
-            const { data } = await supabaseClient.from('tournaments').select('data').eq('id', currentT_ID).single();
+            if(config) {
+                changeTournament(config.data.active_id);
+                document.getElementById('modeSelect').value = config.data.mode || 'diff';
+            }
+        }
+
+        async function changeTournament(id) {
+            if(!id) return;
+            currentT_ID = id;
+            document.getElementById('tournamentSelect').value = id;
+            
+            const { data } = await supabaseClient.from('tournaments').select('data').eq('id', id).single();
             if (data) {
                 tData = data.data;
-                document.getElementById('tournamentTitle').innerText = currentT_ID.replace(/_/g, ' ');
+                document.getElementById('globalSaveBtn').classList.remove('hidden');
                 renderSchedule();
+            }
+        }
+
+        async function changeMode(mode) {
+            const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
+            if(config) {
+                config.data.mode = mode;
+                await supabaseClient.from('tournaments').update({ data: config.data }).eq('id', 'LIVE_CONFIG');
             }
         }
 
         function renderSchedule() {
             const container = document.getElementById('scheduleContainer');
+            if(!tData) return;
+            
             container.innerHTML = tData.s_new.map((round, rIdx) => `
                 <div class="space-y-4">
-                    <div class="px-2 font-black uppercase text-slate-400 italic text-sm">Runde ${round.id}</div>
+                    <div class="px-2 font-black uppercase text-slate-400 italic text-sm text-left">Runde ${round.id}</div>
                     ${round.matches.map((m, mIdx) => {
                         const s1 = parseInt(m.score[0]);
                         const s2 = parseInt(m.score[1]);
@@ -89,7 +139,6 @@
             `).join('');
         }
 
-        // Markiert Felder gelb, wenn sie geändert wurden
         function markUnsaved(el, rIdx, mIdx, tIdx) {
             el.classList.add('unsaved');
             tData.s_new[rIdx].matches[mIdx].score[tIdx] = el.value;
@@ -107,13 +156,12 @@
                     .eq('id', currentT_ID);
 
                 if (!error) {
-                    // Alle gelben Markierungen entfernen
                     document.querySelectorAll('.unsaved').forEach(el => el.classList.remove('unsaved'));
                     btn.innerHTML = "<span>Gespeichert! ✅</span>";
                     setTimeout(() => {
                         btn.innerHTML = "<span>Speichern</span> <span>💾</span>";
                         btn.classList.remove('loading');
-                        renderSchedule(); // Gewinner-Farben neu berechnen
+                        renderSchedule();
                     }, 1500);
                 }
             } catch (e) {
