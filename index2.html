@@ -16,23 +16,28 @@
         .save-btn { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #2563eb; color: white; padding: 1rem 2rem; border-radius: 9999px; font-weight: 900; box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4); display: flex; items-center gap-2; z-index: 50; transition: all 0.2s; border: none; cursor: pointer; }
         .save-btn:active { transform: scale(0.95); }
         .save-btn.loading { opacity: 0.7; pointer-events: none; }
+        .live-btn { background: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; }
+        .live-btn:active { transform: scale(0.95); opacity: 0.8; }
         select { -webkit-appearance: none; appearance: none; }
     </style>
 </head>
 <body class="p-4 max-w-2xl mx-auto pb-32 text-slate-800">
 
     <header class="mb-8 space-y-4">
-        <h1 class="text-3xl font-black text-slate-900 uppercase italic tracking-tighter text-center">Admin Panel</h1>
+        <div class="flex justify-between items-center">
+            <h1 class="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Admin Panel</h1>
+            <button id="liveStatusBtn" onclick="makeTournamentLive()" class="live-btn shadow-sm">Live schalten 📡</button>
+        </div>
         
         <div class="grid grid-cols-2 gap-3">
             <div class="relative">
-                <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Turnier wählen</label>
+                <label class="text-[10px] font-black uppercase text-slate-400 ml-2 font-bold">Turnier wählen</label>
                 <select id="tournamentSelect" onchange="changeTournament(this.value)" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm outline-none focus:border-blue-500">
                     <option value="">Lade...</option>
                 </select>
             </div>
             <div class="relative">
-                <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Modus</label>
+                <label class="text-[10px] font-black uppercase text-slate-400 ml-2 font-bold">Modus (Ranking)</label>
                 <select id="modeSelect" onchange="changeMode(this.value)" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm outline-none focus:border-blue-500">
                     <option value="total" selected>Gesamtpunkte</option>
                     <option value="diff">Punktedifferenz</option>
@@ -42,16 +47,16 @@
     </header>
 
     <div id="scheduleContainer" class="space-y-10">
-        <div class="text-center py-10 text-slate-400 italic font-medium">Wähle ein Turnier aus...</div>
+        <div class="text-center py-10 text-slate-400 italic font-medium font-bold">Wähle ein Turnier aus...</div>
     </div>
 
     <hr class="my-12 border-slate-200">
 
     <section id="rankingSection" class="mb-10 hidden">
-        <h2 class="text-2xl font-black uppercase italic mb-4 flex items-center gap-2">🏆 Live Ranking</h2>
+        <h2 class="text-2xl font-black uppercase italic mb-4 flex items-center gap-2 font-bold">🏆 Live Ranking</h2>
         <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-            <table class="w-full text-left">
-                <thead class="bg-slate-900 text-white text-[12px] uppercase tracking-widest">
+            <table class="w-full text-left font-bold">
+                <thead class="bg-slate-900 text-white text-[12px] uppercase tracking-widest font-bold">
                     <tr><th class="p-4">Spieler</th><th class="p-4 text-center">Pkt</th><th class="p-4 text-center">Diff</th></tr>
                 </thead>
                 <tbody id="rankingBody" class="font-bold text-base"></tbody>
@@ -71,7 +76,7 @@
         
         let tData = null;
         let currentT_ID = null;
-        let currentMode = 'total'; // Initialer Modus: Gesamtpunkte
+        let currentMode = 'total'; 
 
         async function init() {
             const { data: allT } = await supabaseClient.from('tournaments').select('id');
@@ -88,7 +93,6 @@
 
             const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
             if(config) {
-                // Wir setzen den Modus aus der DB, Standard ist jedoch 'total'
                 currentMode = config.data.mode || 'total';
                 document.getElementById('modeSelect').value = currentMode;
                 if(config.data.active_id) changeTournament(config.data.active_id);
@@ -109,16 +113,34 @@
             }
         }
 
+        async function makeTournamentLive() {
+            if(!currentT_ID) return alert("Bitte zuerst ein Turnier auswählen!");
+            const btn = document.getElementById('liveStatusBtn');
+            btn.innerText = "Wird geschaltet...";
+            
+            const { error } = await supabaseClient
+                .from('tournaments')
+                .update({ data: { active_id: currentT_ID, mode: currentMode } })
+                .eq('id', 'LIVE_CONFIG');
+
+            if(!error) {
+                btn.innerText = "AKTIV ✅";
+                btn.style.background = "#10b981";
+                setTimeout(() => {
+                    btn.innerText = "Live schalten 📡";
+                    btn.style.background = "#ef4444";
+                }, 2000);
+            }
+        }
+
         async function changeMode(mode) {
             currentMode = mode;
-            // Speichere den gewählten Modus in der LIVE_CONFIG für die Live-Seite
-            const { data: config } = await supabaseClient.from('tournaments').select('data').eq('id', 'LIVE_CONFIG').single();
-            if(config) {
-                config.data.mode = mode;
-                await supabaseClient.from('tournaments').update({ data: config.data }).eq('id', 'LIVE_CONFIG');
-            }
-            // Aktualisiere das Leaderboard sofort lokal
+            // Lokal sofort aktualisieren
             renderRanking();
+            // In DB für Live-Seite speichern
+            await supabaseClient.from('tournaments').update({ 
+                data: { active_id: currentT_ID, mode: mode } 
+            }).eq('id', 'LIVE_CONFIG');
         }
 
         function updateView() {
@@ -145,7 +167,7 @@
                                 <div class="flex-1 text-center font-bold text-sm ${win1 ? 'winner' : ''}">
                                     ${tData.p[m.team1[0]]}<br>${tData.p[m.team1[1]]}
                                 </div>
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 font-bold">
                                     <input type="number" value="${m.score[0] || ''}" 
                                         oninput="markUnsaved(this, ${rIdx}, ${mIdx}, 0)" 
                                         class="score-input" placeholder="-">
@@ -158,7 +180,7 @@
                                     ${tData.p[m.team2[0]]}<br>${tData.p[m.team2[1]]}
                                 </div>
                             </div>
-                            <div class="text-center text-[9px] mt-3 text-slate-300 font-black uppercase tracking-widest">Court ${m.court}</div>
+                            <div class="text-center text-[9px] mt-3 text-slate-300 font-black uppercase tracking-widest font-bold">Court ${m.court}</div>
                         </div>`;
                     }).join('')}
                 </div>
@@ -175,23 +197,22 @@
                 }
             }));
 
-            // Sortierung basierend auf dem gewählten Modus
             const sorted = stats.filter(s => !s.name.includes("Gegner"))
                 .sort((a,b) => {
                     if (currentMode === 'total') {
-                        return b.points - a.points || b.diff - a.diff; // Erst Punkte, dann Diff
+                        return b.points - a.points || b.diff - a.diff;
                     } else {
-                        return b.diff - a.diff || b.points - a.points; // Erst Diff, dann Punkte
+                        return b.diff - a.diff || b.points - a.points;
                     }
                 });
 
             document.getElementById('rankingBody').innerHTML = sorted.map((s, i) => `
-                <tr class="border-b border-slate-50">
+                <tr class="border-b border-slate-50 font-bold">
                     <td class="p-4 flex items-center gap-3">
                         <span class="text-[11px] text-slate-300 font-mono font-bold">${i+1}.</span>
                         <span class="text-base font-bold">${s.name}</span>
                     </td>
-                    <td class="p-4 text-center text-blue-600 font-black text-lg">${s.points}</td>
+                    <td class="p-4 text-center text-blue-600 font-black text-lg font-bold">${s.points}</td>
                     <td class="p-4 text-center text-sm font-bold ${s.diff>=0?'text-green-500':'text-red-400'}">${s.diff>0?'+':''}${s.diff}</td>
                 </tr>`).join('');
         }
@@ -199,7 +220,7 @@
         function markUnsaved(el, rIdx, mIdx, tIdx) {
             el.classList.add('unsaved');
             tData.s_new[rIdx].matches[mIdx].score[tIdx] = el.value;
-            renderRanking(); // Ranking aktualisiert sich bei Eingabe sofort visuell
+            renderRanking(); 
         }
 
         async function saveAllScores() {
