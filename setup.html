@@ -6,81 +6,97 @@
     <title>Padel Turnier Setup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
-        .input-card { background: white; border-radius: 1.5rem; padding: 2rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; }
-        label { display: block; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 0.5rem; }
-        input, select { width: 100%; padding: 1rem; border-radius: 1rem; border: 2px solid #e2e8f0; font-weight: 700; outline: none; transition: all 0.2s; }
-        input:focus { border-color: #3b82f6; }
-        .btn-primary { background: #000; color: #fff; padding: 1.25rem; border-radius: 1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; width: 100%; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.2); }
-        .warning-box { background: #fef2f2; border: 2px solid #fee2e2; color: #991b1b; padding: 1rem; border-radius: 1rem; font-size: 0.875rem; font-weight: 700; margin-bottom: 1rem; display: none; }
+        h1 { font-weight: 900; letter-spacing: -0.05em; color: #000; }
+        label { display: block; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #94a3b8; margin-bottom: 8px; margin-left: 4px; }
+        input, select, textarea { 
+            width: 100%; padding: 16px; border-radius: 16px; background: white; 
+            border: 2px solid #f1f5f9; font-weight: 700; outline: none; transition: all 0.2s; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        input:focus, select:focus, textarea:focus { border-color: #3b82f6; }
+        .btn-primary { 
+            background: #000; color: #fff; padding: 20px; border-radius: 20px; 
+            font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; 
+            transition: all 0.3s; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+        .btn-primary:active { scale: 0.98; }
+        .warning-box { 
+            background: #fff1f2; border: 2px solid #ffe4e6; color: #e11d48; 
+            padding: 16px; border-radius: 16px; font-size: 12px; font-weight: 800; 
+            margin-bottom: 24px; display: none; text-transform: uppercase; letter-spacing: 0.05em;
+        }
     </style>
 </head>
-<body class="pb-20">
+<body class="pb-24">
 
     <div class="max-w-md mx-auto p-6">
-        <h1 class="text-4xl font-[900] italic uppercase tracking-tighter mb-10 mt-6">Turnier Setup</h1>
+        <div class="pt-10 mb-12">
+            <h1 class="text-6xl italic uppercase leading-[0.8] tracking-tighter">SETUP</h1>
+            <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mt-4 pl-1">Turnier Konfiguration</p>
+        </div>
 
-        <div class="space-y-6">
-            <div class="input-card">
-                <div class="mb-6">
-                    <label>Turnier Name / ID</label>
-                    <input type="text" id="tId" placeholder="z.B. padel-cup-2024">
+        <div class="space-y-10">
+            <div class="space-y-4">
+                <div>
+                    <label>Turnier ID</label>
+                    <input type="text" id="tId" placeholder="ID eingeben">
                 </div>
                 <div class="relative">
                     <label>Admin Passwort</label>
-                    <input type="password" id="tPw" placeholder="Passwort vergeben">
-                    <button onclick="togglePw()" class="absolute right-4 top-10 text-xl">👁️</button>
+                    <input type="password" id="tPw" placeholder="Passwort">
+                    <button onclick="togglePw()" class="absolute right-4 top-[38px] text-xl opacity-30 hover:opacity-100 transition-opacity">👁️</button>
                 </div>
             </div>
 
-            <div class="input-card">
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <label>Plätze</label>
-                        <input type="number" id="tCourts" value="2" oninput="checkConsistency()">
-                    </div>
-                    <div>
-                        <label>Typ</label>
-                        <select id="tType" onchange="checkConsistency()">
-                            <option value="single">Einzelspieler</option>
-                            <option value="team">Feste Teams</option>
-                        </select>
-                    </div>
+            <div>
+                <label>Teilnehmer (Einer pro Zeile)</label>
+                <textarea id="tPlayers" oninput="checkConsistency()" class="h-48 resize-none" placeholder="Name 1&#10;Name 2..."></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label>Plätze</label>
+                    <input type="number" id="tCourts" value="2" oninput="checkConsistency()">
                 </div>
                 <div>
-                    <label>Teilnehmer (pro Zeile einer)</label>
-                    <textarea id="tPlayers" oninput="checkConsistency()" class="w-full h-40 p-4 border-2 border-e2e8f0 rounded-xl font-bold outline-none focus:border-blue-500" placeholder="Spieler 1&#10;Spieler 2..."></textarea>
+                    <label>Modus</label>
+                    <select id="tType" onchange="checkConsistency()">
+                        <option value="single">Einzelspieler</option>
+                        <option value="team">Feste Teams</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="input-card">
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <label>Startzeit</label>
-                        <input type="time" id="tStartTime" value="18:00" oninput="checkConsistency()">
-                    </div>
-                    <div>
-                        <label>Endzeit</label>
-                        <input type="time" id="tEndTime" value="20:00" oninput="checkConsistency()">
-                    </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label>Startzeit</label>
+                    <input type="time" id="tStartTime" value="18:00" oninput="checkConsistency()">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label>Aufwärmen (min)</label>
-                        <input type="number" id="tWarmup" value="0">
-                    </div>
-                    <div>
-                        <label>Rundenzeit (min)</label>
-                        <input type="number" id="tDuration" value="20" oninput="checkConsistency()">
-                    </div>
+                <div>
+                    <label>Endzeit</label>
+                    <input type="time" id="tEndTime" value="20:00" oninput="checkConsistency()">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label>Aufwärmen (min)</label>
+                    <input type="number" id="tWarmup" value="0">
+                </div>
+                <div>
+                    <label>Matchzeit (min)</label>
+                    <input type="number" id="tDuration" value="20" oninput="checkConsistency()">
                 </div>
             </div>
 
             <div id="consistencyWarning" class="warning-box"></div>
-            <button onclick="saveAndGenerate()" class="btn-primary">Plan bestmöglich mischen & speichern</button>
+            
+            <button onclick="saveAndGenerate()" class="btn-primary mt-4">
+                Plan mischen & speichern
+            </button>
         </div>
     </div>
 
@@ -89,13 +105,11 @@
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-        // PW Sichtbarkeit
         function togglePw() {
             const el = document.getElementById('tPw');
             el.type = el.type === 'password' ? 'text' : 'password';
         }
 
-        // Konsistenz-Check Funktion
         function checkConsistency() {
             const players = document.getElementById('tPlayers').value.split('\n').filter(n => n.trim() !== "");
             const type = document.getElementById('tType').value;
@@ -112,21 +126,16 @@
             const units = type === 'team' ? players.length / 2 : players.length;
             const playersPerRound = courts * 4;
             
-            // Mathematische Prüfung: Geht es für jeden gleichmäßig auf?
             const totalSlots = rounds * playersPerRound;
             const isConsistent = (totalSlots % units === 0);
 
             if (!isConsistent && rounds > 0) {
-                // Vorschlag berechnen (Suche nach nächster Dauer, die besser passt)
                 let suggestion = duration;
                 for(let d = 10; d <= 60; d += 5) {
                     let r = Math.floor(totalMin / d);
-                    if((r * playersPerRound) % units === 0) {
-                        suggestion = d;
-                        break;
-                    }
+                    if((r * playersPerRound) % units === 0) { suggestion = d; break; }
                 }
-                warnBox.innerHTML = `⚠️ Ungleichmäßige Verteilung! Nicht alle Spieler spielen gleich oft.<br><b>Vorschlag: ${suggestion}min Rundenzeit</b> für ein faireres Ergebnis.`;
+                warnBox.innerHTML = `⚠️ Ungleichmäßiger Plan!<br>Vorschlag: ${suggestion}min Matchzeit.`;
                 warnBox.style.display = 'block';
             } else {
                 warnBox.style.display = 'none';
@@ -138,32 +147,57 @@
             if(!id) return alert("ID fehlt!");
 
             const players = document.getElementById('tPlayers').value.split('\n').filter(n => n.trim() !== "");
-            const warmup = parseInt(document.getElementById('tWarmup').value) || 0;
-            const duration = parseInt(document.getElementById('tDuration').value);
+            const type = document.getElementById('tType').value;
             const courts = parseInt(document.getElementById('tCourts').value);
             const start = document.getElementById('tStartTime').value;
             const end = document.getElementById('tEndTime').value;
+            const warmup = parseInt(document.getElementById('tWarmup').value) || 0;
+            const duration = parseInt(document.getElementById('tDuration').value);
 
-            // Einfacher Generator (Beispiel-Logik für Schedule)
+            if (players.length < 4) return alert("Zu wenig Spieler!");
+
+            // --- MISCHER ALGORITHMUS ---
             let schedule = [];
             const totalMin = (new Date(`1970-01-01T${end}`) - new Date(`1970-01-01T${start}`)) / 60000;
             const roundCount = Math.floor(totalMin / duration);
+            
+            let playerIndices = players.map((_, i) => i);
+            let pool = [];
 
-            for(let i=0; i<roundCount; i++) {
-                let time = new Date(`1970-01-01T${start}`);
-                time.setMinutes(time.getMinutes() + warmup + (i * duration));
-                let timeStr = time.toTimeString().substring(0,5);
-                
-                let matches = [];
-                for(let c=0; c<courts; c++) {
-                    matches.push({ court: c+1, team1: [0, 1], team2: [2, 3], score: ["", ""] });
+            for(let r=0; r < roundCount; r++) {
+                if (pool.length < courts * 4) {
+                    let shuffle = [...playerIndices].sort(() => Math.random() - 0.5);
+                    pool = [...pool, ...shuffle];
                 }
-                schedule.push({ id: i+1, time: timeStr, matches: matches, pause: [] });
+
+                let roundPlayers = pool.splice(0, courts * 4);
+                let matches = [];
+                for(let c=0; c < courts; c++) {
+                    let mP = roundPlayers.splice(0, 4);
+                    matches.push({
+                        court: c + 1,
+                        team1: [mP[0], mP[1]],
+                        team2: [mP[2], mP[3]],
+                        score: [null, null]
+                    });
+                }
+
+                let startTime = new Date(`1970-01-01T${start}`);
+                startTime.setMinutes(startTime.getMinutes() + warmup + (r * duration));
+                
+                let pauseIndices = playerIndices.filter(i => !matches.some(m => m.team1.includes(i) || m.team2.includes(i)));
+
+                schedule.push({
+                    id: r + 1,
+                    time: startTime.toTimeString().substring(0, 5),
+                    matches: matches,
+                    pause: pauseIndices
+                });
             }
 
             const payload = {
                 pw: document.getElementById('tPw').value,
-                type: document.getElementById('tType').value,
+                type: type,
                 p: players,
                 s_new: schedule,
                 warmup: warmup,
@@ -175,10 +209,9 @@
 
             const { error } = await supabaseClient.from('tournaments').upsert({ id: id, data: payload });
             if(error) alert("Fehler: " + error.message);
-            else alert("Turnier gespeichert!");
+            else alert("Plan generiert & gespeichert!");
         }
 
-        // Beim Laden Check, ob Daten existieren (ID aus URL)
         async function loadExisting() {
             const urlId = new URLSearchParams(window.location.search).get('id');
             if(urlId) {
@@ -187,13 +220,13 @@
                     const d = data[0].data;
                     document.getElementById('tId').value = data[0].id;
                     document.getElementById('tPw').value = d.pw || "";
+                    document.getElementById('tType').value = d.type || "single";
+                    document.getElementById('tCourts').value = d.courts || 2;
+                    document.getElementById('tPlayers').value = (d.p || []).join('\n');
+                    document.getElementById('tStartTime').value = d.start || "18:00";
+                    document.getElementById('tEndTime').value = d.end || "20:00";
                     document.getElementById('tWarmup').value = d.warmup !== undefined ? d.warmup : 0;
-                    document.getElementById('tPlayers').value = d.p.join('\n');
-                    document.getElementById('tType').value = d.type;
-                    document.getElementById('tCourts').value = d.courts;
-                    document.getElementById('tStartTime').value = d.start;
-                    document.getElementById('tEndTime').value = d.end;
-                    document.getElementById('tDuration').value = d.duration;
+                    document.getElementById('tDuration').value = d.duration || 20;
                     checkConsistency();
                 }
             }
