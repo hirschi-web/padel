@@ -8,52 +8,74 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .score-input:disabled { background: transparent; border: none; color: #1e293b; font-weight: 900; -webkit-appearance: none; opacity: 1; font-size: 1.1rem; }
-        .score-input { width: 45px; text-align: center; border-radius: 12px; font-weight: 900; padding: 6px; background: #f1f5f9; border: 2px solid #e2e8f0; }
-        .is-editing .score-input:not(:disabled) { background: #fff; border-color: #3b82f6; }
-        .rank-0 { background: #fef3c7; border: 2px solid #f59e0b !important; }
-        .rank-1 { background: #f1f5f9; border: 2px solid #94a3b8 !important; }
-        .rank-2 { background: #fff7ed; border: 2px solid #d97706 !important; }
-        .bot-card { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
-        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        
+        /* Tiefschwarze Header-Optik */
+        h1 { font-weight: 900; letter-spacing: -0.05em; color: #000; }
+        
+        /* Score Inputs */
+        .score-input:disabled { background: transparent; border: none; color: #000; font-weight: 900; -webkit-appearance: none; opacity: 1; font-size: 1.2rem; }
+        .score-input { width: 50px; text-align: center; border-radius: 12px; font-weight: 900; padding: 8px; background: #f1f5f9; border: 2px solid #e2e8f0; transition: all 0.2s; }
+        .is-editing .score-input:not(:disabled) { background: #fff; border-color: #3b82f6; box-shadow: 0 0 15px rgba(59,130,246,0.1); }
+        
+        /* Knallgelbe Ranking Highlights */
+        .rank-0 { background: #facc15 !important; color: #000 !important; border: 2px solid #000 !important; }
+        .rank-1 { background: #e2e8f0 !important; }
+        .rank-2 { background: #ffedd5 !important; }
+        
+        /* Markante Bot-Sektion mit Glaseffekt */
+        .bot-card { 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Große Karten-Abstände & Styling */
+        .match-card {
+            background: #white;
+            border-radius: 2.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .match-focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.1), 0 10px 10px -5px rgba(59, 130, 246, 0.04);
+            transform: scale(1.02);
+        }
     </style>
 </head>
-<body class="bg-[#f8fafc] text-slate-900 pb-20">
+<body class="pb-20">
 
     <div class="max-w-md mx-auto p-6">
-        <div class="flex justify-between items-start mb-10">
+        <div class="flex justify-between items-start mb-12">
             <div>
-                <h1 id="tournamentTitle" class="text-4xl font-[900] italic uppercase tracking-tighter leading-[0.8]">Lade...</h1>
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-3">Live Scoreboard</p>
+                <h1 id="tournamentTitle" class="text-5xl italic uppercase leading-[0.8]">LADE...</h1>
+                <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mt-4">Live Scoreboard</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="location.reload()" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-lg">🔄</button>
-                <button id="lockBtn" onclick="toggleEditMode()" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-lg">🔒</button>
+                <button onclick="location.reload()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">🔄</button>
+                <button id="lockBtn" onclick="toggleEditMode()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-xl">🔒</button>
             </div>
         </div>
 
-        <div class="mb-10">
-            <label id="focusLabel" class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest text-center">Wer bist du?</label>
-            <div class="relative">
-                <select id="playerFocus" onchange="renderAll()" class="w-full p-4 bg-white border-2 border-slate-100 rounded-[1.5rem] font-bold outline-none shadow-sm focus:border-blue-500 transition-all text-center cursor-pointer">
-                    <option value="">-- Bitte wählen --</option>
-                </select>
-            </div>
+        <div class="mb-12">
+            <label id="focusLabel" class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-[0.2em] text-center">Wer bist du?</label>
+            <select id="playerFocus" onchange="renderAll()" class="w-full p-5 bg-white border-2 border-slate-100 rounded-3xl font-black outline-none shadow-xl shadow-slate-200/50 appearance-none text-center text-slate-700 focus:border-blue-500 transition-all">
+                <option value="">-- BITTE WÄHLEN --</option>
+            </select>
         </div>
 
-        <div id="scheduleArea" class="space-y-12"></div>
+        <div id="scheduleArea" class="space-y-16"></div>
 
-        <div class="mt-20">
-            <h2 class="text-2xl font-[900] italic uppercase text-slate-400 mb-6 tracking-tight text-center">🏆 Live Ranking</h2>
-            <div class="bg-white rounded-[2rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100">
+        <div class="mt-24">
+            <h2 class="text-3xl font-[900] italic uppercase text-slate-300 mb-8 tracking-tighter">🏆 Live Ranking</h2>
+            <div class="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
                 <table class="w-full text-left">
                     <thead>
-                        <tr class="bg-slate-900 text-white text-[9px] uppercase tracking-[0.2em]">
-                            <th class="p-5">Pos</th>
-                            <th class="p-5" id="rankingNameHeader">Teilnehmer</th>
-                            <th class="p-5 text-center">Pkt</th>
-                            <th class="p-5 text-center">Diff</th>
+                        <tr class="bg-black text-white text-[10px] uppercase tracking-[0.3em]">
+                            <th class="p-6">Pos</th>
+                            <th class="p-6">Teilnehmer</th>
+                            <th class="p-6 text-center">Pkt</th>
+                            <th class="p-6 text-center">Diff</th>
                         </tr>
                     </thead>
                     <tbody id="rankingTable" class="font-bold"></tbody>
@@ -61,22 +83,22 @@
             </div>
         </div>
 
-        <div class="mt-12 bot-card p-8 rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden">
+        <div class="mt-16 bot-card p-10 rounded-[3rem] shadow-2xl text-white relative overflow-hidden">
             <div class="relative z-10">
-                <div class="flex items-center gap-3 mb-6">
-                    <div class="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
-                    <h3 class="text-sm font-black uppercase tracking-[0.2em] text-blue-400 italic">Padel-Bot Analyse</h3>
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="h-2 w-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_10px_#3b82f6]"></div>
+                    <h3 class="text-xs font-black uppercase tracking-[0.3em] text-blue-400 italic">KI-Analyse</h3>
                 </div>
-                <p id="botText" class="text-lg font-medium leading-snug">Initialisiere Analyse-Modul...</p>
-                <div class="mt-8 flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
-                    <div class="text-3xl">🤖</div>
+                <p id="botText" class="text-xl font-bold leading-tight tracking-tight">Analysiere Matchdaten...</p>
+                <div class="mt-10 flex items-center gap-5 bg-white/5 p-5 rounded-3xl border border-white/10 backdrop-blur-md">
+                    <div class="text-4xl">🤖</div>
                     <div>
-                        <p class="text-[9px] font-black uppercase text-blue-400 tracking-widest">Trend & Prognose</p>
-                        <p class="text-xs font-bold text-slate-300" id="botStatus">Warte auf Daten</p>
+                        <p class="text-[10px] font-black uppercase text-blue-400 tracking-widest">Status</p>
+                        <p class="text-xs font-bold text-slate-300" id="botStatus">Berechnung läuft</p>
                     </div>
                 </div>
             </div>
-            <div class="absolute -right-10 -top-10 w-40 h-40 bg-blue-600/20 rounded-full blur-3xl"></div>
+            <div class="absolute -right-20 -top-20 w-60 h-60 bg-blue-600/20 rounded-full blur-[80px]"></div>
         </div>
     </div>
 
@@ -90,26 +112,23 @@
         let isEditing = false;
 
         async function init() {
-            if(!tournamentId) { document.getElementById('tournamentTitle').innerText = "ERROR"; return; }
+            if(!tournamentId) return;
             const { data } = await supabaseClient.from('tournaments').select('*').eq('id', tournamentId);
-            if (!data || data.length === 0) { document.getElementById('tournamentTitle').innerText = "NICHT GEFUNDEN"; return; }
+            if (!data || data.length === 0) return;
             
             tournamentData = data[0].data;
-            document.getElementById('tournamentTitle').innerText = data[0].id;
+            document.getElementById('tournamentTitle').innerText = data[0].id.toUpperCase();
             
             const isTeam = tournamentData.type === 'team';
             const focusSelect = document.getElementById('playerFocus');
-            document.getElementById('focusLabel').innerText = isTeam ? "Team Fokus" : "Spieler Fokus";
-            document.getElementById('rankingNameHeader').innerText = isTeam ? "Team" : "Spieler";
+            document.getElementById('focusLabel').innerText = isTeam ? "TEAM FOKUS" : "SPIELER FOKUS";
 
             if(isTeam) {
-                // Teams paarweise ins Dropdown
                 for(let i=0; i<tournamentData.p.length; i+=2) {
-                    let teamName = `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
-                    focusSelect.add(new Option(teamName, teamName));
+                    let tName = `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
+                    focusSelect.add(new Option(tName, tName));
                 }
             } else {
-                // Solo Spieler ins Dropdown
                 tournamentData.p.forEach(name => focusSelect.add(new Option(name, name)));
             }
             renderAll();
@@ -117,11 +136,11 @@
 
         function toggleEditMode() {
             if(!isEditing) {
-                const pw = prompt("Passwort:");
+                const pw = prompt("Admin Passwort:");
                 if(pw === tournamentData.pw) {
                     isEditing = true; document.getElementById('lockBtn').innerText = "🔓";
                     document.body.classList.add('is-editing'); renderAll();
-                } else { alert("Falsch!"); }
+                }
             } else {
                 isEditing = false; document.getElementById('lockBtn').innerText = "🔒";
                 document.body.classList.remove('is-editing'); renderAll();
@@ -137,47 +156,41 @@
         function renderAll() {
             const focusValue = document.getElementById('playerFocus').value;
             const area = document.getElementById('scheduleArea');
-            const isTeamMode = tournamentData.type === 'team';
             area.innerHTML = '';
 
             tournamentData.s_new.forEach((round, rIdx) => {
                 let html = `<div>
-                    <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-6 text-center">--- Runde ${round.id} / ${round.time} ---</h2>
-                    <div class="space-y-4">`;
+                    <h2 class="text-[11px] font-black text-slate-300 uppercase tracking-[0.5em] mb-8 text-center italic">/// Runde ${round.id} / ${round.time} ///</h2>
+                    <div class="space-y-6">`;
 
                 round.matches.forEach((m, mIdx) => {
                     let isFocus = false;
                     if(focusValue) {
-                        if(isTeamMode) {
-                            // Im Team-Modus prüfen, ob das gewählte Team (z.B. "A + B") in diesem Match spielt
-                            let t1Name = `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`;
-                            let t2Name = `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`;
-                            isFocus = (focusValue === t1Name || focusValue === t2Name);
+                        if(tournamentData.type === 'team') {
+                            isFocus = (focusValue === `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` || focusValue === `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`);
                         } else {
-                            // Im Solo-Modus wie gehabt
                             isFocus = [...m.team1, ...m.team2].map(i => tournamentData.p[i]).includes(focusValue);
                         }
                     }
 
                     html += `
-                    <div class="bg-white p-6 rounded-[2rem] border-2 ${isFocus ? 'border-blue-500 shadow-xl scale-[1.02]' : 'border-transparent shadow-sm'} transition-all duration-300">
+                    <div class="match-card bg-white p-8 border-2 ${isFocus ? 'match-focus border-blue-500' : 'border-transparent shadow-sm'}">
                         <div class="grid grid-cols-7 items-center">
-                            <div class="col-span-3 text-[11px] font-[900] space-y-1">
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team1[0]] ? 'text-blue-600' : ''}">${tournamentData.p[m.team1[0]]}</div>
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team1[1]] ? 'text-blue-600' : ''}">${tournamentData.p[m.team1[1]]}</div>
+                            <div class="col-span-3 text-xs font-black space-y-2 uppercase tracking-tight">
+                                <div class="${!isFocus ? 'text-slate-800' : 'text-blue-600'}">${tournamentData.p[m.team1[0]]}</div>
+                                <div class="${!isFocus ? 'text-slate-800' : 'text-blue-600'}">${tournamentData.p[m.team1[1]]}</div>
                             </div>
-                            <div class="col-span-1 flex flex-col items-center gap-2">
+                            <div class="col-span-1 flex flex-col items-center gap-3">
                                 <input type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} onchange="saveScore(${rIdx}, ${mIdx}, 0, this.value)" class="score-input">
                                 <input type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} onchange="saveScore(${rIdx}, ${mIdx}, 1, this.value)" class="score-input">
                             </div>
-                            <div class="col-span-3 text-[11px] font-[900] space-y-1 text-right">
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[0]] ? 'text-blue-600' : ''}">${tournamentData.p[m.team2[0]]}</div>
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[1]] ? 'text-blue-600' : ''}">${tournamentData.p[m.team2[1]]}</div>
+                            <div class="col-span-3 text-xs font-black space-y-2 text-right uppercase tracking-tight">
+                                <div class="${!isFocus ? 'text-slate-800' : 'text-blue-600'}">${tournamentData.p[m.team2[0]]}</div>
+                                <div class="${!isFocus ? 'text-slate-800' : 'text-blue-600'}">${tournamentData.p[m.team2[1]]}</div>
                             </div>
                         </div>
                     </div>`;
                 });
-                if(round.pause?.length) html += `<p class="text-[9px] font-bold text-slate-300 text-center mt-3 uppercase tracking-widest italic">Pause: ${round.pause.map(i => tournamentData.p[i]).join(', ')}</p>`;
                 area.innerHTML += html + `</div></div>`;
             });
             updateRanking();
@@ -187,15 +200,13 @@
             const isTeam = tournamentData.type === 'team';
             let stats = [];
             if(isTeam) {
-                for(let i=0; i<tournamentData.p.length; i+=2) {
-                    stats.push({ name: `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, ids:[i,i+1], points:0, diff:0, games:0 });
-                }
+                for(let i=0; i<tournamentData.p.length; i+=2) stats.push({ name: `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, ids:[i,i+1], points:0, diff:0, games:0 });
             } else {
                 stats = tournamentData.p.map((name, i) => ({ name, ids:[i], points:0, diff:0, games:0 }));
             }
 
             tournamentData.s_new.forEach(r => r.matches.forEach(m => {
-                if(m.score[0] !== "" && m.score[1] !== "" && m.score[0] !== null) {
+                if(m.score[0] !== "" && m.score[0] !== null) {
                     const s1 = parseInt(m.score[0]), s2 = parseInt(m.score[1]);
                     stats.forEach(e => {
                         if(e.ids.some(id => m.team1.includes(id))) { e.points += s1; e.diff += (s1-s2); e.games++; }
@@ -207,19 +218,18 @@
             stats.sort((a,b) => b.points - a.points || b.diff - a.diff);
             document.getElementById('rankingTable').innerHTML = stats.map((s, i) => `
                 <tr class="rank-${i} border-b border-slate-50 last:border-none">
-                    <td class="p-5 text-xs text-slate-400">0${i+1}</td>
-                    <td class="p-5 text-xs uppercase tracking-tight">${s.name}</td>
-                    <td class="p-5 text-center text-lg font-black">${s.points}</td>
-                    <td class="p-5 text-center text-xs ${s.diff>0?'text-green-600':s.diff<0?'text-red-600':''}">${s.diff>0?'+':''}${s.diff}</td>
+                    <td class="p-6 text-xs font-black">#${i+1}</td>
+                    <td class="p-6 text-xs uppercase font-black">${s.name}</td>
+                    <td class="p-6 text-center text-xl font-black">${s.points}</td>
+                    <td class="p-6 text-center text-xs ${s.diff>0?'text-green-600':s.diff<0?'text-red-600':''}">${s.diff>0?'+':''}${s.diff}</td>
                 </tr>`).join('');
             
             const botText = document.getElementById('botText');
             if(stats[0]?.games > 0) {
-                botText.innerText = `${stats[0].name} ${stats[0].diff > 5 ? 'dominiert' : 'führt'} aktuell das Turnier an. Prognose: Turniersieg sehr wahrscheinlich.`;
+                botText.innerText = `${stats[0].name.split(' + ')[0]} & Co. zeigen eine beeindruckende Leistung. Die statistische Dominanz liegt bei ${Math.min(100, 50 + stats[0].diff * 2)}%.`;
                 document.getElementById('botStatus').innerText = "Analyse stabil";
             }
         }
-
         init();
     </script>
 </body>
