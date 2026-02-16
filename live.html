@@ -3,241 +3,357 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Turnier - Live</title>
+    <title>Padel Setup Pro - Smart Mixing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
-        h1 { font-weight: 900; letter-spacing: -0.05em; color: #000; }
-        .score-input:disabled { background: transparent; border: none; color: #000; font-weight: 900; opacity: 1; font-size: 1.5rem; }
-        .score-input { width: 50px; height: 50px; text-align: center; border-radius: 12px; font-weight: 900; font-size: 1.5rem; background: #f1f5f9; border: 2px solid #e2e8f0; transition: all 0.2s; }
-        .is-editing .score-input:not(:disabled) { background: #fff; border-color: #3b82f6; box-shadow: 0 4px 15px rgba(59,130,246,0.2); }
-        .rank-row-0 { background: #facc15 !important; border: 3px solid #000 !important; color: #000; transform: scale(1.03); z-index: 10; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); }
-        .bot-card { background: #0f172a; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
-        .bot-glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .match-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
-        .match-focus { border: 3px solid #3b82f6 !important; box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25); transform: scale(1.02); z-index: 20; }
-        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
-        .save-overlay { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); z-index: 50; display: none; }
-        .text-focus-red { color: #ef4444 !important; font-weight: 900; }
+        .input-label { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .btn-action { transition: all 0.2s; text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; font-size: 11px; }
+        .partner-chip { font-size: 8px; background: #e2e8f0; padding: 1px 4px; border-radius: 4px; margin: 1px; display: inline-block; font-weight: bold; color: #475569; }
+        .double-occurrence { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; }
+        .opponent-chip { font-size: 8px; background: #f1f5f9; padding: 1px 4px; border-radius: 4px; margin: 1px; display: inline-block; color: #64748b; border: 1px solid #e2e8f0; }
+        .opt-card { transition: all 0.3s; border: 2px solid transparent; }
+        .opt-card:hover { border-color: #3b82f6; }
     </style>
 </head>
-<body class="pb-32 min-h-screen">
+<body class="bg-slate-100 p-4 max-w-4xl mx-auto text-slate-900 font-sans pb-20">
 
-    <div class="max-w-md mx-auto p-6">
-        <div class="flex justify-between items-start mb-10 pt-6">
+    <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
-                <h1 id="tournamentTitle" class="text-6xl italic uppercase leading-[0.8] tracking-tighter">LADE...</h1>
-                <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mt-4 pl-1">Live Scoreboard</p>
+                <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.9</p> 
             </div>
-            <div class="flex gap-3">
-                <button onclick="location.reload()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-xl">🔄</button>
-                <button id="lockBtn" onclick="toggleEditMode()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-xl">🔒</button>
-            </div>
-        </div>
-
-        <div class="mb-12 relative z-30">
-            <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em] text-center">Dein Fokus</label>
-            <select id="playerFocus" onchange="renderAll()" class="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black outline-none shadow-xl shadow-slate-200/40 appearance-none text-center text-slate-900 text-sm">
-                <option value="">-- Wähle deinen Namen / Team --</option>
-            </select>
-        </div>
-
-        <div id="scheduleArea" class="space-y-12"></div>
-
-        <div class="mt-24 pt-12 border-t-2 border-slate-100">
-            <h2 class="text-4xl font-[900] italic uppercase text-slate-300 mb-8">Ranking</h2>
-            <div class="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-                <table class="w-full text-left font-black">
-                    <thead>
-                        <tr class="bg-black text-white text-[10px] uppercase tracking-[0.25em]">
-                            <th class="p-5 pl-8">#</th>
-                            <th class="p-5">Teilnehmer</th>
-                            <th class="p-5 text-center">Pkt</th>
-                            <th class="p-5 text-center pr-8">Diff</th>
-                        </tr>
-                    </thead>
-                    <tbody id="rankingTable" class="text-sm"></tbody>
-                </table>
+            <div class="flex items-center gap-2">
+                <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-slate-50 p-2 rounded-2xl border font-bold text-sm outline-none cursor-pointer">
+                    <option value="new">+ Neues Turnier erstellen</option>
+                </select>
+                <button id="deleteBtn" onclick="deleteTournament()" class="hidden bg-red-100 text-red-600 p-3 rounded-2xl hover:bg-red-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
             </div>
         </div>
-
-        <div class="mt-20 bot-card p-10 rounded-[3rem] shadow-2xl text-white">
-            <div class="relative z-10">
-                <div class="flex items-center gap-3 mb-6">
-                    <div class="h-2 w-2 bg-blue-400 rounded-full animate-pulse shadow-[0_0_15px_#60a5fa]"></div>
-                    <h3 class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 italic">KI-Analyse</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-5">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="input-label">Turnier Name</label><input type="text" id="tName" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
+                    <div class="relative">
+                        <label class="input-label">Admin-Passwort</label>
+                        <input type="password" id="tPassword" placeholder="Optional" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all">
+                        <button id="eyeBtn" onclick="togglePw()" class="absolute right-3 top-9 text-xs opacity-30">👁️</button>
+                    </div>
                 </div>
-                <div id="botText" class="text-lg font-bold leading-snug text-white mb-8 space-y-4">Wähle Fokus für Analyse...</div>
-                <div class="bot-glass p-5 rounded-3xl flex items-center gap-5">
-                    <div class="text-4xl">🤖</div>
-                    <div><p class="text-[9px] font-black uppercase text-blue-300 tracking-widest mb-1 opacity-80">Live Status</p><p class="text-sm font-bold text-white" id="botStatus">Standby</p></div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="input-label">Spieler/Teams</label><input type="number" id="pCount" value="6" onchange="updatePlayerInputs(); checkConsistency();" class="w-full p-2 border rounded-lg font-bold"></div>
+                    <div><label class="input-label">Plätze</label><input type="number" id="cCount" value="1" onchange="checkConsistency()" class="w-full p-2 border rounded-lg font-bold"></div>
                 </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="input-label">Startzeit</label><input type="time" id="startTime" value="18:00" onchange="checkConsistency()" class="w-full p-2 border rounded-lg font-bold"></div>
+                    <div><label class="input-label">Dauer (Std)</label><input type="number" id="totalHours" value="2" onchange="checkConsistency()" class="w-full p-2 border rounded-lg font-bold"></div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="input-label">Aufwärmen (Min)</label><input type="number" id="warmup" value="10" onchange="checkConsistency()" class="w-full p-2 border rounded-lg font-bold"></div>
+                    <div><label class="input-label">Match-Zeit (Min)</label><input type="number" id="matchTime" value="15" onchange="checkConsistency()" class="w-full p-2 border rounded-lg font-bold"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="input-label">Spiel-Modus</label>
+                        <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border">
+                            <label class="flex items-center gap-2 font-bold text-[10px] cursor-pointer"><input type="radio" name="mode" value="time" checked onchange="toggleOptButton()"> ZEIT</label>
+                            <label class="flex items-center gap-2 font-bold text-[10px] cursor-pointer"><input type="radio" name="mode" value="points" onchange="toggleOptButton()"> 24 PKT</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="input-label">Team-Typ</label>
+                        <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border">
+                            <label class="flex items-center gap-2 font-bold text-[10px] cursor-pointer"><input type="radio" name="tType" value="solo" checked onchange="updatePlayerInputs(); checkConsistency();"> SOLO</label>
+                            <label class="flex items-center gap-2 font-bold text-[10px] cursor-pointer"><input type="radio" name="tType" value="team" onchange="updatePlayerInputs(); checkConsistency();"> FIXE 2er</label>
+                        </div>
+                    </div>
+                </div>
+                <div id="consistencyWarning" class="hidden p-3 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold rounded-xl italic"></div>
             </div>
+
+            <div class="bg-slate-50 p-5 rounded-3xl border border-slate-200 shadow-inner">
+                <label id="playerListLabel" class="input-label mb-3">Teilnehmer:innen</label>
+                <div id="playerList" class="grid grid-cols-1 gap-2 max-h-[380px] overflow-y-auto pr-2"></div>
+            </div>
+        </div>
+
+        <div id="optSection" class="mt-8 space-y-4">
+            <button id="btnShowOpt" onclick="showOptimalProposals()" class="w-full bg-blue-50 text-blue-600 border-2 border-dashed border-blue-200 p-4 rounded-2xl btn-action hover:bg-blue-100 shadow-sm italic">Faire Setup-Optionen anzeigen</button>
+            <div id="optDisplay" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+        </div>
+
+        <button onclick="runOptimization()" class="w-full mt-6 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg italic">Plan bestmöglich mischen</button>
+
+        <div id="previewArea" class="hidden mt-12 space-y-6 border-t pt-10">
+            <div id="previewList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            
+            <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 mt-8 space-y-8">
+                <div><h3 class="text-blue-600 font-black uppercase text-[10px] mb-3 tracking-widest italic">📊 Spiele & Pausen</h3><div id="fairnessStats" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div></div>
+                <div><h3 class="text-blue-600 font-black uppercase text-[10px] mb-3 tracking-widest italic">🤝 Partner & Gegner</h3><div id="partnerStats" class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white/50 p-4 rounded-2xl"></div></div>
+            </div>
+            
+            <button onclick="saveFinal()" class="w-full bg-green-600 text-white p-5 rounded-2xl btn-action shadow-xl hover:bg-green-700 mt-6">✅ Turnier final speichern</button>
         </div>
     </div>
+
+    <div id="lastActionTime" class="text-[9px] text-slate-400 font-bold uppercase mt-8 text-center tracking-widest"></div>
 
     <script>
         const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-        let tournamentId = decodeURIComponent(window.location.search.substring(1)).replace(/\/$/, "");
-        let tournamentData = null;
-        let isEditing = false;
+        let currentSchedule = [], players = [], tournamentsList = [];
 
         async function init() {
-            if(!tournamentId) return;
-            const { data } = await supabaseClient.from('tournaments').select('*').eq('id', tournamentId);
-            if (!data || data.length === 0) return;
-            tournamentData = data[0].data;
-            document.getElementById('tournamentTitle').innerText = data[0].id.toUpperCase();
-            if(sessionStorage.getItem('isAdmin') === 'true') {
-                isEditing = true; document.getElementById('lockBtn').innerText = "🔓"; document.body.classList.add('is-editing');
-            }
-            const focusSelect = document.getElementById('playerFocus');
-            if(tournamentData.type === 'team') {
-                for(let i=0; i<tournamentData.p.length; i+=2) focusSelect.add(new Option(`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`));
+            const { data } = await supabaseClient.from('tournaments').select('id, data');
+            tournamentsList = data || [];
+            const select = document.getElementById('tournamentSelect');
+            while (select.options.length > 1) select.remove(1);
+            tournamentsList.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => select.add(new Option(t.id, t.id)));
+            const urlParam = window.location.search.substring(1);
+            if(urlParam && tournamentsList.some(t => t.id === urlParam)) { select.value = urlParam; loadTournament(urlParam); } else { updatePlayerInputs(); }
+            toggleOptButton();
+        }
+
+        // --- PASSWORD VISIBILITY ---
+        function togglePw() {
+            const input = document.getElementById('tPassword');
+            const btn = document.getElementById('eyeBtn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerText = '🙈';
             } else {
-                tournamentData.p.forEach(name => focusSelect.add(new Option(name, name)));
-            }
-            renderAll();
-        }
-
-        function toggleEditMode() {
-            if(!isEditing) {
-                const pw = prompt("Admin Passwort:");
-                if(pw === tournamentData.pw) {
-                    isEditing = true; sessionStorage.setItem('isAdmin', 'true');
-                    document.getElementById('lockBtn').innerText = "🔓"; document.body.classList.add('is-editing'); renderAll();
-                }
-            } else {
-                isEditing = false; sessionStorage.removeItem('isAdmin');
-                document.getElementById('lockBtn').innerText = "🔒"; document.body.classList.remove('is-editing'); renderAll();
+                input.type = 'password';
+                btn.innerText = '👁️';
             }
         }
 
-        function showSaveButton(rIdx, mIdx) { document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'block'; }
-
-        async function saveScore(rIdx, mIdx) {
-            tournamentData.s_new[rIdx].matches[mIdx].score[0] = document.getElementById(`score-${rIdx}-${mIdx}-0`).value;
-            tournamentData.s_new[rIdx].matches[mIdx].score[1] = document.getElementById(`score-${rIdx}-${mIdx}-1`).value;
-            await supabaseClient.from('tournaments').update({ data: tournamentData }).eq('id', tournamentId);
-            document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'none';
-            updateRanking();
+        function toggleOptButton() {
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            document.getElementById('optSection').style.display = mode === 'time' ? 'block' : 'none';
         }
 
-        function renderAll() {
-            const focusValue = document.getElementById('playerFocus').value;
-            const area = document.getElementById('scheduleArea');
-            area.innerHTML = '';
+        function showOptimalProposals() {
+            const count = parseInt(document.getElementById('pCount').value);
+            const courts = parseInt(document.getElementById('cCount').value);
+            const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
+            const nettoZeit = totalMin - warmup;
+            
+            let html = '';
+            [4, 5, 6, 7, 8, 9].forEach(r => {
+                let matchTime = Math.floor(nettoZeit / r / 5) * 5; 
+                if (matchTime < 10) return;
 
-            tournamentData.s_new.forEach((round, rIdx) => {
-                let roundHtml = `<div class="space-y-6">`;
-                round.matches.forEach((m, mIdx) => {
-                    let team1Name = tournamentData.type === 'team' ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
-                    let team2Name = tournamentData.type === 'team' ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
-                    let isFocus = focusValue && (focusValue === team1Name || focusValue === team2Name);
-                    const checkRed = (pIdx) => focusValue && (tournamentData.p[pIdx] === focusValue || (tournamentData.type === 'team' && focusValue === team1Name && m.team1.includes(pIdx)) || (tournamentData.type === 'team' && focusValue === team2Name && m.team2.includes(pIdx)));
+                const totalSlots = r * courts * 4;
+                const playsPerPerson = totalSlots / count;
+                const isFair = Number.isInteger(playsPerPerson);
+                
+                const personalPlayTime = Math.floor(playsPerPerson * matchTime);
+                const buffer = totalMin - (matchTime * r + warmup);
 
-                    roundHtml += `
-                    <div class="match-card p-6 ${isFocus ? 'match-focus' : ''}">
-                        <div class="flex justify-between items-center mb-6 text-[10px] font-black text-slate-300 uppercase tracking-tighter">
-                            <span>${round.time}</span>
-                            <span class="text-slate-200">Runde ${round.id}</span>
-                            <span>Court ${m.court || (mIdx + 1)}</span>
+                let statusIdx = isFair ? "🏆 Finale inkl." : "⚖️ Ausgleich nötig";
+                let statusColor = isFair ? "text-amber-500" : "text-blue-500";
+
+                html += `
+                <div class="opt-card bg-white p-4 rounded-2xl border shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="text-[10px] font-black ${statusColor} uppercase mb-1">${statusIdx}</div>
+                        <div class="text-2xl font-black italic">${matchTime} Min.</div>
+                        <div class="space-y-1 mt-2">
+                            <div class="text-[10px] font-bold text-slate-500 italic">🎾 ${r} Runden auf ${courts} ${courts > 1 ? 'Plätzen' : 'Platz'}</div>
+                            <div class="text-[10px] font-bold text-blue-600 uppercase">🏃 ${personalPlayTime} Min. Spielzeit p.P.</div>
                         </div>
-                        <div class="flex justify-between items-center px-2">
-                            <div class="w-2/5 text-[13px] font-black uppercase leading-tight truncate">
-                                <div class="${checkRed(m.team1[0]) ? 'text-focus-red' : ''}">${tournamentData.p[m.team1[0]]}</div>
-                                <div class="${checkRed(m.team1[1]) ? 'text-focus-red' : ''}">${tournamentData.p[m.team1[1]]}</div>
-                            </div>
-                            <div class="w-1/5 flex justify-center items-center gap-2">
-                                <input id="score-${rIdx}-${mIdx}-0" type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input shadow-inner">
-                                <span class="text-slate-200 font-bold">-</span>
-                                <input id="score-${rIdx}-${mIdx}-1" type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input shadow-inner">
-                            </div>
-                            <div class="w-2/5 text-[13px] font-black uppercase leading-tight text-right truncate">
-                                <div class="${checkRed(m.team2[0]) ? 'text-focus-red' : ''}">${tournamentData.p[m.team2[0]]}</div>
-                                <div class="${checkRed(m.team2[1]) ? 'text-focus-red' : ''}">${tournamentData.p[m.team2[1]]}</div>
-                            </div>
+                        <div class="mt-3 text-[9px] bg-slate-50 p-2 rounded-lg font-bold border border-slate-100">
+                            Puffer: ${buffer} Min. ${buffer >= 15 ? '🔥 Perfekt!' : ''}
                         </div>
-                        <div id="save-${rIdx}-${mIdx}" class="save-overlay"><button onclick="saveScore(${rIdx}, ${mIdx})" class="bg-blue-600 text-white px-5 py-2 rounded-full font-black text-[10px] uppercase shadow-xl">Speichern</button></div>
-                    </div>`;
-                });
-                if(round.pause?.length > 0) {
-                     let pNames = round.pause.map(i => tournamentData.p[i]);
-                     let isPauseFocus = focusValue && (pNames.includes(focusValue) || (tournamentData.type === 'team' && focusValue === `${tournamentData.p[round.pause[0]]} + ${tournamentData.p[round.pause[1]]}`));
-                     let pDisp = tournamentData.type === 'team' ? `${tournamentData.p[round.pause[0]]} + ${tournamentData.p[round.pause[1]]}` : pNames.join(', ');
-                     roundHtml += `<div class="flex justify-center"><div class="bg-white px-6 py-2 rounded-full border border-slate-100 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">☕ Pause: <span class="${isPauseFocus ? 'text-focus-red' : 'text-slate-600'} not-italic text-sm">${pDisp}</span></p></div></div>`;
-                }
-                area.innerHTML += roundHtml + `</div>`;
+                    </div>
+                    <button onclick="applyOpt(${matchTime})" class="mt-4 w-full bg-slate-900 text-white p-2 rounded-xl text-[10px] font-black hover:bg-blue-600 transition-all shadow-md">WÄHLEN</button>
+                </div>`;
             });
-            updateRanking();
+
+            const display = document.getElementById('optDisplay');
+            display.innerHTML = html;
+            display.classList.remove('hidden');
         }
 
-        function updateRanking() {
-            const isTeam = tournamentData.type === 'team';
-            let stats = [];
-            if(isTeam) {
-                for(let i=0; i<tournamentData.p.length; i+=2) stats.push({ name: `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, ids:[i,i+1], points:0, diff:0, history:[] });
-            } else {
-                stats = tournamentData.p.map((name, i) => ({ name, ids:[i], points:0, diff:0, history:[] }));
-            }
-            tournamentData.s_new.forEach(r => r.matches.forEach(m => {
-                if(m.score[0] !== "" && m.score[0] !== null) {
-                    const s1 = parseInt(m.score[0]) || 0, s2 = parseInt(m.score[1]) || 0;
-                    const t1Name = isTeam ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
-                    const t2Name = isTeam ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
-                    stats.forEach(e => {
-                        if(e.ids.some(id => m.team1.includes(id))) { e.points += s1; e.diff += (s1-s2); e.history.push({opponent: t2Name, diff: s1-s2}); }
-                        if(e.ids.some(id => m.team2.includes(id))) { e.points += s2; e.diff += (s2-s1); e.history.push({opponent: t1Name, diff: s2-s1}); }
-                    });
+        function applyOpt(val) { document.getElementById('matchTime').value = val; checkConsistency(); document.getElementById('optDisplay').classList.add('hidden'); }
+
+        function checkConsistency() {
+            const count = parseInt(document.getElementById('pCount').value);
+            const courts = parseInt(document.getElementById('cCount').value);
+            const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+            const matchTime = parseInt(document.getElementById('matchTime').value);
+            const warnBox = document.getElementById('consistencyWarning');
+            const rounds = Math.floor((totalMin - (parseInt(document.getElementById('warmup').value)||0)) / matchTime);
+            if (rounds > 0 && (rounds * courts * 4) % count !== 0) {
+                warnBox.innerHTML = `⚠️ Achtung: Spielanzahl ungleich. Nutze "Setup-Optionen" für Fairness.`;
+                warnBox.classList.remove('hidden');
+            } else { warnBox.classList.add('hidden'); }
+        }
+
+        function updatePlayerInputs() {
+            const count = parseInt(document.getElementById('pCount').value);
+            let html = '';
+            for(let i=0; i<count; i++) html += `<input type="text" id="pIdx_${i}" value="Spieler ${i+1}" class="p-3 border rounded-xl font-bold text-sm bg-white shadow-sm">`;
+            document.getElementById('playerList').innerHTML = html;
+        }
+
+        async function runOptimization() {
+            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
+            const numCourts = parseInt(document.getElementById('cCount').value);
+            const mTime = parseInt(document.getElementById('matchTime').value);
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
+            const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+            let numRounds = Math.floor((totalMin - warmup) / mTime);
+            
+            const totalSlots = numRounds * numCourts * 4;
+            const isPerfectlyFair = (totalSlots % players.length === 0);
+
+            // NEUE LOGIK: DummyMode nur, wenn wir mehr als 1 Platz haben UND es dadurch fairer wird.
+            // Auf 1 Platz macht Ausgleich keinen Sinn -> dort immer Finale.
+            let canActuallyBalance = (numCourts * 4 >= (players.length - (totalSlots % players.length)));
+            let isDummyMode = !isPerfectlyFair && numCourts > 1 && canActuallyBalance;
+            let isFinalMode = isPerfectlyFair || (numCourts === 1);
+
+            let bestSchedule = null;
+            let lowestPenalty = Infinity;
+
+            for(let attempt = 0; attempt < 1000; attempt++) {
+                let res = generateVariant(numRounds, numCourts, isDummyMode);
+                if(res.penalty < lowestPenalty) {
+                    lowestPenalty = res.penalty;
+                    bestSchedule = res.schedule;
                 }
-            }));
-            stats.sort((a,b) => b.points - a.points || b.diff - a.diff);
-            document.getElementById('rankingTable').innerHTML = stats.map((s, i) => `<tr class="rank-row-${i} border-b border-slate-50 last:border-none rounded-xl"><td class="p-5 pl-8 font-black text-sm">#${i+1}</td><td class="p-5 text-xs font-bold uppercase truncate max-w-[140px]">${s.name}</td><td class="p-5 text-center font-black text-xl">${s.points}</td><td class="p-5 pr-8 text-center text-xs font-bold ${s.diff>0?'text-green-600':s.diff<0?'text-red-500':'text-slate-400'}">${s.diff>0?'+':''}${s.diff}</td></tr>`).join('');
+            }
+            currentSchedule = bestSchedule; 
+            renderPreview(isDummyMode, isFinalMode);
+        }
+
+        function generateVariant(numRounds, numCourts, isDummyMode) {
+            let schedule = [], penalty = 0;
+            let playCount = new Array(players.length).fill(0);
+            const mTime = parseInt(document.getElementById('matchTime').value);
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
+            const start = document.getElementById('startTime').value;
+            let [sH, sM] = start.split(':').map(Number);
+
+            for(let r = 1; r <= numRounds; r++) {
+                let pool = [...Array(players.length).keys()].sort((a,b) => playCount[a] - playCount[b] || Math.random() - 0.5);
+                let round = { id: r, time: "", pause: [], matches: [] };
+                let tMin = sH * 60 + sM + warmup + (r-1)*mTime;
+                round.time = `${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
+
+                let rem = [...pool];
+                for(let c = 1; c <= numCourts; c++) {
+                    let p1 = rem.shift(), p2 = rem.shift(), p3 = rem.shift(), p4 = rem.shift();
+                    [p1, p2, p3, p4].forEach(p => { if(p !== undefined) playCount[p]++; });
+                    round.matches.push({ court: c, team1: [p1, p2], team2: [p3, p4] });
+                }
+                round.pause = rem;
+                schedule.push(round);
+            }
+            return { schedule, penalty };
+        }
+
+        function renderPreview(isDummyMode, isFinalMode) {
+            document.getElementById('previewArea').classList.remove('hidden');
+            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
             
-            const focus = document.getElementById('playerFocus').value;
-            const botText = document.getElementById('botText');
-            if(!focus) { botText.innerText = "Wähle Fokus für Analyse..."; return; }
-            
-            let nextMatch = null, opponent = "";
-            for(let r of tournamentData.s_new) {
-                for(let m of r.matches) {
-                    if(m.score[0] === "" || m.score[0] === null) {
-                        const t1 = isTeam ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
-                        const t2 = isTeam ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
-                        if(t1 === focus) { nextMatch = m; opponent = t2; break; }
-                        if(t2 === focus) { nextMatch = m; opponent = t1; break; }
+            document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
+                const isLastRound = idx === currentSchedule.length - 1;
+                let roundLabel = `Runde ${r.id}`;
+                let roundClass = "bg-slate-50 border-slate-200";
+                let extraInfo = "";
+
+                if (isLastRound) {
+                    if (isFinalMode) {
+                        roundLabel = "🏆 Finale der besten 4";
+                        roundClass = "bg-amber-50 border-amber-200 ring-2 ring-amber-500 ring-inset";
+                        extraInfo = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Finale: Zählt nicht für Statistik</div>`;
+                    } else if (isDummyMode) {
+                        roundLabel = "⚖️ Ausgleichsspiel";
+                        roundClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
+                        extraInfo = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Ausgleich: Virtuelle Gegner aktiv</div>`;
                     }
                 }
-                if(nextMatch) break;
-            }
 
-            if(nextMatch) {
-                const myStats = stats.find(s => s.name === focus);
-                const myRankIdx = stats.findIndex(s => s.name === focus);
-                const oppStats = stats.find(s => s.name === opponent);
-                
-                let bridgeScore = 0;
-                myStats.history.forEach(h => { let common = oppStats.history.find(oh => oh.opponent === h.opponent); if(common) bridgeScore += (h.diff - common.diff); });
-                let winProb = Math.min(Math.max(50 + (myStats.diff - oppStats.diff) + (bridgeScore * 2), 5), 95);
-                
-                let goalText = "";
-                if(myRankIdx > 0) {
-                    const ahead = stats[myRankIdx-1];
-                    const gap = ahead.points - myStats.points;
-                    goalText = `🎯 <b>Ziel:</b> ${gap + 1} Pkt bis Platz #${myRankIdx}`;
-                } else { goalText = "👑 <b>Status:</b> Du bist aktuell Platz #1!"; }
+                return `
+                    <div class="p-4 rounded-2xl border ${roundClass}">
+                        <div class="flex justify-between items-center mb-3 text-[10px] font-black uppercase tracking-widest">
+                            <span>${roundLabel}</span>
+                            <span class="text-slate-500">${r.time} Uhr</span>
+                        </div>
+                        <div class="space-y-2">
+                            ${r.matches.map(m => {
+                                let p1, p2, p3, p4;
+                                if (isLastRound && isFinalMode && m.court === 1) {
+                                    p1 = "Platz 1"; p2 = "Platz 4"; p3 = "Platz 2"; p4 = "Platz 3";
+                                } else {
+                                    p1 = players[m.team1[0]] || 'Virtuell 1';
+                                    p2 = players[m.team1[1]] || 'Virtuell 2';
+                                    p3 = players[m.team2[0]] || 'Virtuell 1';
+                                    p4 = players[m.team2[1]] || 'Virtuell 2';
+                                }
+                                return `
+                                <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border shadow-sm">
+                                    <span class="bg-slate-100 px-2 py-1 rounded text-slate-400 font-black italic">C${m.court}</span>
+                                    <div class="flex-1 text-center font-bold">
+                                        <span class="${p1.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p1}</span> + 
+                                        <span class="${p2.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p2}</span>
+                                        <span class="text-blue-500 mx-2 text-[8px]">VS</span> 
+                                        <span class="${p3.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p3}</span> + 
+                                        <span class="${p4.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p4}</span>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                        <div class="mt-2 text-[8px] font-bold text-orange-500 italic text-center">
+                            Pause: ${ (isLastRound && isFinalMode) ? 'Restliche Spieler' : (r.pause.map(p => players[p]).filter(n => n).join(', ') || 'Keiner') }
+                        </div>
+                        ${extraInfo}
+                    </div>`;
+            }).join('');
+            updateStats(isDummyMode, isFinalMode);
+        }
 
-                botText.innerHTML = `
-                    <div class="mb-2 text-blue-300">⚔️ Nächstes Match: <b>${opponent}</b></div>
-                    <div class="mb-2">📊 Chance: <b>${Math.round(winProb)}%</b></div>
-                    <div class="text-sm border-t border-white/10 pt-2 mt-2 opacity-90">${goalText}</div>
-                `;
-                document.getElementById('botStatus').innerText = "Analyse aktiv";
-            } else { botText.innerText = "Alle Matches gespielt!"; }
+        function updateStats(isDummyMode, isFinalMode) {
+            let stats = players.map(name => ({ name, play: 0, pause: 0 }));
+            currentSchedule.forEach((r, idx) => {
+                const isLastRound = idx === currentSchedule.length - 1;
+                if (!isLastRound || isDummyMode) {
+                    r.matches.forEach(m => {
+                        [...m.team1, ...m.team2].forEach(pIdx => { if (players[pIdx]) stats[pIdx].play++; });
+                    });
+                    r.pause.forEach(pIdx => { if (players[pIdx]) stats[pIdx].pause++; });
+                }
+            });
+            document.getElementById('fairnessStats').innerHTML = stats.map(s => `
+                <div class="bg-white p-3 rounded-xl border border-blue-100 text-center shadow-sm">
+                    <div class="text-[9px] font-black uppercase text-slate-400 mb-1">${s.name}</div>
+                    <div class="text-xs font-black text-blue-600">${s.play} S / ${s.pause} P</div>
+                </div>`).join('');
+        }
+        
+        async function saveFinal() {
+            const name = document.getElementById('tName').value.trim();
+            if(!name) return alert("Namen eingeben");
+            const payload = { p: players, s_new: currentSchedule, courts: parseInt(document.getElementById('cCount').value), totalHours: parseFloat(document.getElementById('totalHours').value), t: { start: document.getElementById('startTime').value, warmup: parseInt(document.getElementById('warmup').value), match: parseInt(document.getElementById('matchTime').value) } };
+            await supabaseClient.from('tournaments').upsert({ id: name, data: payload });
+            alert("Turnier gespeichert!"); init();
+        }
+
+        async function deleteTournament() {
+            const id = document.getElementById('tournamentSelect').value;
+            if (confirm(`Wirklich löschen?`)) { await supabaseClient.from('tournaments').delete().eq('id', id); location.reload(); }
         }
         init();
     </script>
