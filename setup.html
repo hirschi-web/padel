@@ -22,7 +22,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.7</p> 
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.8</p> 
             </div>
             <div class="flex items-center gap-2">
                 <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-slate-50 p-2 rounded-2xl border font-bold text-sm outline-none cursor-pointer">
@@ -38,11 +38,13 @@
             <div class="space-y-5">
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="input-label">Turnier Name</label><input type="text" id="tName" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
-                    <div class="relative">
-                        <label class="input-label">Admin-Passwort</label>
-                        <input type="password" id="tPassword" placeholder="Optional" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all">
-                        <button onclick="togglePw()" class="absolute right-3 top-9 text-xs opacity-30">👁️</button>
-                    </div>
+        <div class="relative">
+    <input type="password" id="adminPassword" placeholder="Passwort eingeben..." 
+           class="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-bold">
+    <button onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-colors">
+        <span id="eyeIcon">👁️</span>
+    </button>
+</div></div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -365,6 +367,20 @@ function updateStats(isDummyMode, isFinalMode) {
             if (confirm(`Wirklich löschen?`)) { await supabaseClient.from('tournaments').delete().eq('id', id); location.reload(); }
         }
         init();
+
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('adminPassword');
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.innerText = '🙈'; // Icon ändert sich beim Anzeigen
+    } else {
+        passwordInput.type = 'password';
+        eyeIcon.innerText = '👁️'; // Icon ändert sich beim Verstecken
+    }
+}
+        
     </script>
 </body>
 </html>
