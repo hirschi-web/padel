@@ -253,30 +253,46 @@
             document.getElementById('playerList').innerHTML = html;
         }
 
-        function runOptimization() {
-            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-            const numCourts = parseInt(document.getElementById('cCount').value);
-            const mTime = parseInt(document.getElementById('matchTime').value);
-            const warmup = parseInt(document.getElementById('warmup').value) || 0;
-            const totalHours = parseFloat(document.getElementById('totalHours').value);
-            const numRounds = Math.floor((totalHours * 60 - warmup) / mTime);
-            const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
-            
-            let bestSchedule = null;
-            let lowestPenalty = Infinity;
+     function runOptimization() {
+    players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
+    const numCourts = parseInt(document.getElementById('cCount').value);
+    const mTime = parseInt(document.getElementById('matchTime').value);
+    const warmup = parseInt(document.getElementById('warmup').value) || 0;
+    const totalHours = parseFloat(document.getElementById('totalHours').value);
+    const numRounds = Math.floor((totalHours * 60 - warmup) / mTime);
+    const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
+    
+    let bestSchedule = null;
+    let lowestPenalty = Infinity;
 
-            for(let attempt = 0; attempt < 100; attempt++) {
-                let res = generateVariant(numRounds, numCourts, isTeamMode);
-                if(res.penalty < lowestPenalty) {
-                    lowestPenalty = res.penalty;
-                    bestSchedule = res.schedule;
-                }
-            }
-            
-            currentSchedule = bestSchedule;
-            renderPreview();
-            document.getElementById('lastActionTime').innerText = "Generiert am: " + new Date().toLocaleString('de-DE');
+    // Erhöht auf 1000 Simulationen für maximale Präzision
+    for(let attempt = 0; attempt < 1000; attempt++) {
+        let res = generateVariant(numRounds, numCourts, isTeamMode);
+        
+        // Zusätzliche Penalty-Prüfung für Pausen-Rhythmus direkt hier
+        let pausePenalty = 0;
+        let pauseTracker = Array.from({length: players.length}, () => []);
+        
+        res.schedule.forEach((r, rIdx) => {
+            r.pause.forEach(pIdx => {
+                // Wenn Spieler in der letzten Runde schon Pause hatte: Massive Penalty
+                if (pauseTracker[pIdx].includes(rIdx - 1)) pausePenalty += 5000;
+                pauseTracker[pIdx].push(rIdx);
+            });
+        });
+
+        let totalPenalty = res.penalty + pausePenalty;
+
+        if(totalPenalty < lowestPenalty) {
+            lowestPenalty = totalPenalty;
+            bestSchedule = res.schedule;
         }
+    }
+    
+    currentSchedule = bestSchedule;
+    renderPreview();
+    document.getElementById('lastActionTime').innerText = "Optimiert (1000 Iterationen) am: " + new Date().toLocaleString('de-DE');
+}
 
         function generateVariant(numRounds, numCourts, isTeamMode) {
             let schedule = [], penalty = 0;
