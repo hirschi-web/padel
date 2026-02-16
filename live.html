@@ -11,53 +11,32 @@
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
         
         /* --- DESIGN: LIVE_OLD STYLE --- */
-        
-        /* 1. Header: Massive schwarze Typografie */
         h1 { font-weight: 900; letter-spacing: -0.05em; color: #000; }
         
-        /* 2. Score Inputs: Groß & Fett */
         .score-input:disabled { background: transparent; border: none; color: #000; font-weight: 900; opacity: 1; font-size: 1.5rem; }
         .score-input { width: 55px; height: 55px; text-align: center; border-radius: 12px; font-weight: 900; font-size: 1.5rem; background: #f1f5f9; border: 2px solid #e2e8f0; transition: all 0.2s; }
         .is-editing .score-input:not(:disabled) { background: #fff; border-color: #3b82f6; box-shadow: 0 4px 15px rgba(59,130,246,0.2); }
         
-        /* 3. Ranking: Gelbes Highlight für #1 */
         .rank-row-0 { background: #facc15 !important; border: 3px solid #000 !important; color: #000; transform: scale(1.03); z-index: 10; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); }
         .rank-row-1 { background: #f1f5f9; border: 1px solid #cbd5e1; }
         .rank-row-2 { background: #ffedd5; border: 1px solid #fdba74; }
         
-        /* 4. Bot Sektion: Dark Mode & Glass */
-        .bot-card { 
-            background: #0f172a; 
-            position: relative; overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .bot-glass {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
+        .bot-card { background: #0f172a; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .bot-glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
 
-        /* 5. Match Karten: Clean & Wuchtig */
-        .match-card {
-            background: white;
-            border-radius: 1.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-            border: 1px solid #f1f5f9;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .match-focus {
-            border: 3px solid #3b82f6 !important;
-            box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25);
-            transform: scale(1.02);
-            z-index: 20;
-        }
+        .match-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
+        .match-focus { border: 3px solid #3b82f6 !important; box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25); transform: scale(1.02); z-index: 20; }
         
-        /* Dropdown Styling */
-        select { 
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 1rem center;
-            background-repeat: no-repeat;
-            background-size: 1.5em 1.5em;
+        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
+
+        /* --- NEU: Floating Save Button --- */
+        .save-overlay {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            display: none;
         }
     </style>
 </head>
@@ -112,9 +91,7 @@
                     <div class="h-2 w-2 bg-blue-400 rounded-full animate-pulse shadow-[0_0_15px_#60a5fa]"></div>
                     <h3 class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 italic">KI-Analyse</h3>
                 </div>
-                
                 <p id="botText" class="text-2xl font-bold leading-tight tracking-tight text-white mb-8">Lade Matchdaten...</p>
-                
                 <div class="bot-glass p-5 rounded-3xl flex items-center gap-5">
                     <div class="text-4xl filter drop-shadow-md">🤖</div>
                     <div>
@@ -150,7 +127,6 @@
             document.getElementById('focusLabel').innerText = isTeam ? "Team Fokus" : "Spieler Fokus";
             document.getElementById('rankingNameHeader').innerText = isTeam ? "Team" : "Spieler";
 
-            // Dropdown füllen
             if(isTeam) {
                 for(let i=0; i<tournamentData.p.length; i+=2) {
                     let teamName = `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
@@ -175,9 +151,21 @@
             }
         }
 
-        async function saveScore(rIdx, mIdx, tIdx, val) {
-            tournamentData.s_new[rIdx].matches[mIdx].score[tIdx] = val;
+        // --- Logik für Floating Save Button ---
+        function showSaveButton(rIdx, mIdx) {
+            document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'block';
+        }
+
+        async function saveScore(rIdx, mIdx) {
+            const s1 = document.getElementById(`score-${rIdx}-${mIdx}-0`).value;
+            const s2 = document.getElementById(`score-${rIdx}-${mIdx}-1`).value;
+            
+            tournamentData.s_new[rIdx].matches[mIdx].score[0] = s1;
+            tournamentData.s_new[rIdx].matches[mIdx].score[1] = s2;
+            
             await supabaseClient.from('tournaments').update({ data: tournamentData }).eq('id', tournamentId);
+            
+            document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'none';
             updateRanking();
         }
 
@@ -198,8 +186,6 @@
 
                 round.matches.forEach((m, mIdx) => {
                     let isFocus = false;
-                    
-                    // Focus Check Logic
                     if(focusValue) {
                         if(isTeamMode) {
                             let t1Name = `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`;
@@ -210,12 +196,10 @@
                         }
                     }
 
-                    // Platz / Court Anzeige
                     const courtName = m.court ? `Court ${m.court}` : `Match ${mIdx + 1}`;
 
                     html += `
                     <div class="match-card p-6 ${isFocus ? 'match-focus' : ''}">
-                        
                         <div class="text-center mb-5">
                             <span class="bg-slate-50 text-slate-300 text-[9px] font-black uppercase px-3 py-1 rounded-full tracking-widest border border-slate-100">${courtName}</span>
                         </div>
@@ -227,8 +211,8 @@
                             </div>
 
                             <div class="col-span-1 flex flex-col items-center gap-2">
-                                <input type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} onchange="saveScore(${rIdx}, ${mIdx}, 0, this.value)" class="score-input shadow-inner">
-                                <input type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} onchange="saveScore(${rIdx}, ${mIdx}, 1, this.value)" class="score-input shadow-inner">
+                                <input id="score-${rIdx}-${mIdx}-0" type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input shadow-inner">
+                                <input id="score-${rIdx}-${mIdx}-1" type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input shadow-inner">
                             </div>
 
                             <div class="col-span-3 text-[12px] font-[900] space-y-1 text-right uppercase tracking-tight leading-tight">
@@ -236,14 +220,16 @@
                                 <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[1]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team2[1]]}</div>
                             </div>
                         </div>
+
+                        <div id="save-${rIdx}-${mIdx}" class="save-overlay">
+                            <button onclick="saveScore(${rIdx}, ${mIdx})" class="bg-blue-600 text-white px-4 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-500/40 hover:bg-blue-700 transition-all">Speichern</button>
+                        </div>
                     </div>`;
                 });
 
-                // PAUSE LOGIC (Korrigiert für Teams)
                 if(round.pause && round.pause.length > 0) {
                      let pauseDisplay = "";
                      if(isTeamMode) {
-                        // Paare bilden für die Anzeige
                         let pauseTeams = [];
                         for(let i=0; i < round.pause.length; i+=2) {
                             let p1 = tournamentData.p[round.pause[i]];
@@ -304,17 +290,14 @@
                     <td class="p-5 pr-8 text-center text-xs font-bold ${s.diff>0?'text-green-600':s.diff<0?'text-red-500':'text-slate-400'}">${s.diff>0?'+':''}${s.diff}</td>
                 </tr>`).join('');
             
-            // Bot Update
             const botText = document.getElementById('botText');
             if(stats[0]?.games > 0) {
                 const leader = stats[0].name.split(' + ')[0]; 
                 const diff = stats[0].diff;
                 let text = "";
-                
                 if(diff > 15) text = `${leader} dominiert das Feld komplett! Unglaubliche Performance.`;
                 else if(diff > 5) text = `${leader} führt das Ranking an, aber es bleibt spannend.`;
                 else text = `Sehr enges Rennen an der Spitze! ${leader} hat aktuell die Nase vorn.`;
-
                 botText.innerText = text;
                 document.getElementById('botStatus').innerText = "Live Analyse";
             } else {
