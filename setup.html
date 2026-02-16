@@ -12,6 +12,8 @@
         .partner-chip { font-size: 8px; background: #e2e8f0; padding: 1px 4px; border-radius: 4px; margin: 1px; display: inline-block; font-weight: bold; color: #475569; }
         .double-occurrence { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; }
         .opponent-chip { font-size: 8px; background: #f1f5f9; padding: 1px 4px; border-radius: 4px; margin: 1px; display: inline-block; color: #64748b; border: 1px solid #e2e8f0; }
+        .opt-card { transition: all 0.3s; border: 2px solid transparent; }
+        .opt-card:hover { border-color: #3b82f6; }
     </style>
 </head>
 <body class="bg-slate-100 p-4 max-w-4xl mx-auto text-slate-900 font-sans pb-20">
@@ -54,7 +56,7 @@
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="input-label">Aufwärmen (Min)</label><input type="number" id="warmup" value="10" class="w-full p-2 border rounded-lg font-bold"></div>
+                    <div><label class="input-label">Aufwärmen (Min)</label><input type="number" id="warmup" value="10" onchange="checkConsistency()" class="w-full p-2 border rounded-lg font-bold"></div>
                     <div><label class="input-label">Match-Zeit (Min)</label><input type="number" id="matchTime" value="15" onchange="checkConsistency()" class="w-full p-2 border rounded-lg font-bold"></div>
                 </div>
 
@@ -62,8 +64,8 @@
                     <div>
                         <label class="input-label">Spiel-Modus</label>
                         <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border">
-                            <label class="flex items-center gap-2 font-bold text-[10px] cursor-pointer"><input type="radio" name="mode" value="time" checked> ZEIT</label>
-                            <label class="flex items-center gap-2 font-bold text-[10px] cursor-pointer"><input type="radio" name="mode" value="points"> 24 PKT</label>
+                            <label class="flex items-center gap-2 font-bold text-[10px] cursor-pointer"><input type="radio" name="mode" value="time" checked onchange="toggleOptButton()"> ZEIT</label>
+                            <label class="flex items-center gap-2 font-bold text-[10px] cursor-pointer"><input type="radio" name="mode" value="points" onchange="toggleOptButton()"> 24 PKT</label>
                         </div>
                     </div>
                     <div>
@@ -83,7 +85,12 @@
             </div>
         </div>
 
-        <button onclick="runOptimization()" class="w-full mt-10 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg italic">Plan bestmöglich mischen</button>
+        <div id="optSection" class="mt-8 space-y-4">
+            <button id="btnShowOpt" onclick="showOptimalProposals()" class="w-full bg-blue-50 text-blue-600 border-2 border-dashed border-blue-200 p-4 rounded-2xl btn-action hover:bg-blue-100 shadow-sm italic">Optimalen Vorschlag erstellen</button>
+            <div id="optDisplay" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+        </div>
+
+        <button onclick="runOptimization()" class="w-full mt-6 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg italic">Plan bestmöglich mischen</button>
 
         <div id="previewArea" class="hidden mt-12 space-y-6 border-t pt-10">
             <div class="flex justify-between items-center">
@@ -131,6 +138,65 @@
             } else {
                 updatePlayerInputs();
             }
+            toggleOptButton();
+        }
+
+        function toggleOptButton() {
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            document.getElementById('optSection').style.display = mode === 'time' ? 'block' : 'none';
+        }
+
+        function showOptimalProposals() {
+            const count = parseInt(document.getElementById('pCount').value);
+            const courts = parseInt(document.getElementById('cCount').value);
+            const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
+            const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
+            
+            const variants = [
+                { label: 'A (Lange Matches)', rounds: 4 },
+                { label: 'B (Der Favorit)', rounds: 8 },
+                { label: 'C (Viel Rotation)', rounds: 12 }
+            ];
+
+            let html = '';
+            variants.forEach(v => {
+                const matchTimeFull = Math.floor((totalMin - warmup) / v.rounds);
+                const matchTimeFixed = Math.floor(matchTimeFull / 5) * 5; 
+                const totalUsed = (matchTimeFixed * v.rounds) + warmup;
+                const buffer = totalMin - totalUsed;
+                
+                const units = isTeamMode ? count / 2 : count;
+                const slotsPerRound = courts * (isTeamMode ? 2 : 4);
+                const totalSlots = v.rounds * slotsPerRound;
+                const gamesPerUnit = Math.floor(totalSlots / units);
+                const pausePerUnit = v.rounds - gamesPerUnit;
+
+                html += `
+                <div class="opt-card bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <div class="text-[10px] font-black text-blue-600 uppercase mb-1">${v.label}</div>
+                        <div class="text-2xl font-black italic mb-2">${matchTimeFixed} Min.</div>
+                        <ul class="text-[10px] space-y-1 font-bold text-slate-500 uppercase">
+                            <li>🎾 ${v.rounds} Runden gesamt</li>
+                            <li>🏃 ${gamesPerUnit} Spiele p.P.</li>
+                            <li>☕ ${pausePerUnit} Pausen</li>
+                        </ul>
+                        <div class="mt-3 text-[9px] text-green-600 font-bold italic">⌛ ${buffer}min Puffer am Ende</div>
+                    </div>
+                    <button onclick="applyOpt(${matchTimeFixed})" class="mt-4 w-full bg-white border border-slate-300 p-2 rounded-xl text-[10px] font-black hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all">WÄHLEN</button>
+                </div>`;
+            });
+
+            const display = document.getElementById('optDisplay');
+            display.innerHTML = html;
+            display.classList.remove('hidden');
+        }
+
+        function applyOpt(val) {
+            document.getElementById('matchTime').value = val;
+            checkConsistency();
+            document.getElementById('optDisplay').classList.add('hidden');
         }
 
         function togglePw() {
@@ -149,7 +215,7 @@
             const totalMin = totalHours * 60;
             const rounds = Math.floor(totalMin / matchTime);
             const units = tType === 'team' ? count / 2 : count;
-            const slotsPerRound = courts * 4;
+            const slotsPerRound = courts * (tType === 'team' ? 2 : 4);
             const totalSlots = rounds * slotsPerRound;
 
             if (rounds > 0 && totalSlots % units !== 0) {
@@ -191,7 +257,7 @@
             players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
             const numCourts = parseInt(document.getElementById('cCount').value);
             const mTime = parseInt(document.getElementById('matchTime').value);
-            const warmup = parseInt(document.getElementById('warmup').value);
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
             const totalHours = parseFloat(document.getElementById('totalHours').value);
             const numRounds = Math.floor((totalHours * 60 - warmup) / mTime);
             const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
@@ -221,7 +287,7 @@
             const start = document.getElementById('startTime').value;
             let [sH, sM] = start.split(':').map(Number);
             const mTime = parseInt(document.getElementById('matchTime').value);
-            const warmup = parseInt(document.getElementById('warmup').value);
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
 
             for(let r=1; r<=numRounds; r++) {
                 let poolIndices = isTeamMode ? [...Array(players.length/2).keys()] : [...Array(players.length).keys()];
@@ -240,7 +306,7 @@
 
                 let rem = [...activeEntities].sort(() => Math.random() - 0.5);
                 for(let c=1; c<=numCourts; c++) {
-                    let courtNum = ((c + r - 2) % numCourts) + 1; // Court Rotation Logik
+                    let courtNum = ((c + r - 2) % numCourts) + 1;
                     if(isTeamMode && rem.length >= 2) {
                         let t1 = rem.shift(), t2 = rem.shift();
                         let p1 = t1*2, p2 = t1*2+1, p3 = t2*2, p4 = t2*2+1;
@@ -348,7 +414,10 @@
                 document.getElementById('pCount').value = d.p.length;
                 document.getElementById('cCount').value = d.courts || 3;
                 document.getElementById('startTime').value = d.t?.start || "18:00";
-                document.getElementById('warmup').value = d.t?.warmup || 10;
+                
+                // FIX: Explizite Prüfung auf undefined für 0-Minuten Support
+                document.getElementById('warmup').value = (d.t?.warmup !== undefined) ? d.t.warmup : 10;
+                
                 document.getElementById('matchTime').value = d.t?.match || 15;
                 document.getElementById('totalHours').value = d.totalHours || 3;
                 
@@ -367,6 +436,7 @@
                 currentSchedule = d.s_new || [];
                 checkConsistency();
                 renderPreview();
+                toggleOptButton();
             }
         }
 
