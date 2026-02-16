@@ -22,7 +22,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.8</p> 
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.9</p> 
             </div>
             <div class="flex items-center gap-2">
                 <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-slate-50 p-2 rounded-2xl border font-bold text-sm outline-none cursor-pointer">
@@ -38,13 +38,11 @@
             <div class="space-y-5">
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="input-label">Turnier Name</label><input type="text" id="tName" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
-        <div class="relative">
-    <input type="password" id="adminPassword" placeholder="Passwort eingeben..." 
-           class="w-full p-4 bg-slate-100 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 font-bold">
-    <button onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-colors">
-        <span id="eyeIcon">👁️</span>
-    </button>
-</div></div>
+                    <div class="relative">
+                        <label class="input-label">Admin-Passwort</label>
+                        <input type="password" id="tPassword" placeholder="Optional" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all">
+                        <button id="eyeBtn" onclick="togglePw()" class="absolute right-3 top-9 text-xs opacity-30">👁️</button>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -125,56 +123,68 @@
             toggleOptButton();
         }
 
+        // --- PASSWORD VISIBILITY ---
+        function togglePw() {
+            const input = document.getElementById('tPassword');
+            const btn = document.getElementById('eyeBtn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerText = '🙈';
+            } else {
+                input.type = 'password';
+                btn.innerText = '👁️';
+            }
+        }
+
         function toggleOptButton() {
             const mode = document.querySelector('input[name="mode"]:checked').value;
             document.getElementById('optSection').style.display = mode === 'time' ? 'block' : 'none';
         }
 
-      function showOptimalProposals() {
-    const count = parseInt(document.getElementById('pCount').value);
-    const courts = parseInt(document.getElementById('cCount').value);
-    const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
-    const warmup = parseInt(document.getElementById('warmup').value) || 0;
-    const nettoZeit = totalMin - warmup;
-    
-    let html = '';
-    // Wir prüfen verschiedene Runden-Szenarien
-    [4, 5, 6, 7, 8, 9].forEach(r => {
-        let matchTime = Math.floor(nettoZeit / r / 5) * 5; 
-        if (matchTime < 10) return;
+        function showOptimalProposals() {
+            const count = parseInt(document.getElementById('pCount').value);
+            const courts = parseInt(document.getElementById('cCount').value);
+            const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
+            const nettoZeit = totalMin - warmup;
+            
+            let html = '';
+            [4, 5, 6, 7, 8, 9].forEach(r => {
+                let matchTime = Math.floor(nettoZeit / r / 5) * 5; 
+                if (matchTime < 10) return;
 
-        const totalSlots = r * courts * 4;
-        const playsPerPerson = totalSlots / count;
-        const isFair = Number.isInteger(playsPerPerson);
-        
-        // Berechnung der Netto-Spielzeit pro Person
-        const personalPlayTime = Math.floor(playsPerPerson * matchTime);
-        const buffer = totalMin - (matchTime * r + warmup);
+                const totalSlots = r * courts * 4;
+                const playsPerPerson = totalSlots / count;
+                const isFair = Number.isInteger(playsPerPerson);
+                
+                const personalPlayTime = Math.floor(playsPerPerson * matchTime);
+                const buffer = totalMin - (matchTime * r + warmup);
 
-        let statusIdx = isFair ? "🏆 Finale inkl." : "⚖️ Ausgleich nötig";
-        let statusColor = isFair ? "text-amber-500" : "text-blue-500";
+                let statusIdx = isFair ? "🏆 Finale inkl." : "⚖️ Ausgleich nötig";
+                let statusColor = isFair ? "text-amber-500" : "text-blue-500";
 
-        html += `
-        <div class="opt-card bg-white p-4 rounded-2xl border shadow-sm flex flex-col justify-between">
-            <div>
-                <div class="text-[10px] font-black ${statusColor} uppercase mb-1">${statusIdx}</div>
-                <div class="text-2xl font-black italic">${matchTime} Min.</div>
-                <div class="space-y-1 mt-2">
-                    <div class="text-[10px] font-bold text-slate-500 italic">🎾 ${r} Runden auf ${courts} ${courts > 1 ? 'Plätzen' : 'Platz'}</div>
-                    <div class="text-[10px] font-bold text-blue-600 uppercase">🏃 ${personalPlayTime} Min. Spielzeit p.P.</div>
-                </div>
-                <div class="mt-3 text-[9px] bg-slate-50 p-2 rounded-lg font-bold border border-slate-100">
-                    Puffer: ${buffer} Min. ${buffer >= 15 ? '🔥 Perfekt!' : ''}
-                </div>
-            </div>
-            <button onclick="applyOpt(${matchTime})" class="mt-4 w-full bg-slate-900 text-white p-2 rounded-xl text-[10px] font-black hover:bg-blue-600 transition-all shadow-md">WÄHLEN</button>
-        </div>`;
-    });
+                html += `
+                <div class="opt-card bg-white p-4 rounded-2xl border shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="text-[10px] font-black ${statusColor} uppercase mb-1">${statusIdx}</div>
+                        <div class="text-2xl font-black italic">${matchTime} Min.</div>
+                        <div class="space-y-1 mt-2">
+                            <div class="text-[10px] font-bold text-slate-500 italic">🎾 ${r} Runden auf ${courts} ${courts > 1 ? 'Plätzen' : 'Platz'}</div>
+                            <div class="text-[10px] font-bold text-blue-600 uppercase">🏃 ${personalPlayTime} Min. Spielzeit p.P.</div>
+                        </div>
+                        <div class="mt-3 text-[9px] bg-slate-50 p-2 rounded-lg font-bold border border-slate-100">
+                            Puffer: ${buffer} Min. ${buffer >= 15 ? '🔥 Perfekt!' : ''}
+                        </div>
+                    </div>
+                    <button onclick="applyOpt(${matchTime})" class="mt-4 w-full bg-slate-900 text-white p-2 rounded-xl text-[10px] font-black hover:bg-blue-600 transition-all shadow-md">WÄHLEN</button>
+                </div>`;
+            });
 
-    const display = document.getElementById('optDisplay');
-    display.innerHTML = html;
-    display.classList.remove('hidden');
-}
+            const display = document.getElementById('optDisplay');
+            display.innerHTML = html;
+            display.classList.remove('hidden');
+        }
+
         function applyOpt(val) { document.getElementById('matchTime').value = val; checkConsistency(); document.getElementById('optDisplay').classList.add('hidden'); }
 
         function checkConsistency() {
@@ -192,167 +202,146 @@
 
         function updatePlayerInputs() {
             const count = parseInt(document.getElementById('pCount').value);
-            const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
             let html = '';
             for(let i=0; i<count; i++) html += `<input type="text" id="pIdx_${i}" value="Spieler ${i+1}" class="p-3 border rounded-xl font-bold text-sm bg-white shadow-sm">`;
             document.getElementById('playerList').innerHTML = html;
         }
 
-// --- 1. HAUPTFUNKTION: LOGIK-ENTSCHEIDUNG & SIMULATION ---
-function runOptimization() {
-    players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-    const numCourts = parseInt(document.getElementById('cCount').value);
-    const mTime = parseInt(document.getElementById('matchTime').value);
-    const warmup = parseInt(document.getElementById('warmup').value) || 0;
-    const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
-    let numRounds = Math.floor((totalMin - warmup) / mTime);
-    
-    const totalSlots = numRounds * numCourts * 4;
-    
-    // NEU: Ein Ausgleich macht nur Sinn, wenn (Slots + Dummys) durch Spieleranzahl 
-    // JEDEN auf den gleichen Stand bringt. 
-    // Bei 6 Spielern / 1 Platz / 7 Runden (28 Slots) fehlen 2 Slots auf 30 (5 Spiele p.P.).
-    // Da wir aber nur 1 Platz haben, können wir in Runde 7 keine 6 Leute unterbringen.
-    
-    let isPerfectlyFair = (totalSlots % players.length === 0);
-    
-    // DummyMode nur, wenn wir mehr als 1 Platz haben ODER 
-    // wenn die restlichen Spieler in die letzte Runde passen.
-    let canActuallyBalance = (numCourts * 4 >= (players.length - (totalSlots % players.length)));
-    let isDummyMode = !isPerfectlyFair && numCourts > 1 && canActuallyBalance;
-    
-    // Wenn wir nicht ausgleichen können, ist es ein Finale (oder normales Spiel)
-    let isFinalMode = isPerfectlyFair || (numCourts === 1);
+        async function runOptimization() {
+            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
+            const numCourts = parseInt(document.getElementById('cCount').value);
+            const mTime = parseInt(document.getElementById('matchTime').value);
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
+            const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+            let numRounds = Math.floor((totalMin - warmup) / mTime);
+            
+            const totalSlots = numRounds * numCourts * 4;
+            const isPerfectlyFair = (totalSlots % players.length === 0);
 
-    let bestSchedule = null;
-    let lowestPenalty = Infinity;
+            // NEUE LOGIK: DummyMode nur, wenn wir mehr als 1 Platz haben UND es dadurch fairer wird.
+            // Auf 1 Platz macht Ausgleich keinen Sinn -> dort immer Finale.
+            let canActuallyBalance = (numCourts * 4 >= (players.length - (totalSlots % players.length)));
+            let isDummyMode = !isPerfectlyFair && numCourts > 1 && canActuallyBalance;
+            let isFinalMode = isPerfectlyFair || (numCourts === 1);
 
-    for(let attempt = 0; attempt < 1000; attempt++) {
-        let res = generateVariant(numRounds, numCourts, isDummyMode);
-        if(res.penalty < lowestPenalty) {
-            lowestPenalty = res.penalty;
-            bestSchedule = res.schedule;
-        }
-    }
-    currentSchedule = bestSchedule; 
-    renderPreview(isDummyMode, isFinalMode);
-}
+            let bestSchedule = null;
+            let lowestPenalty = Infinity;
 
-// --- 2. GENERIERUNG: SPIELPLAN-VARIANTEN ---
-function generateVariant(numRounds, numCourts, isDummyMode) {
-    let schedule = [], penalty = 0;
-    let playCount = new Array(players.length).fill(0);
-    const mTime = parseInt(document.getElementById('matchTime').value);
-    const warmup = parseInt(document.getElementById('warmup').value) || 0;
-    const start = document.getElementById('startTime').value;
-    let [sH, sM] = start.split(':').map(Number);
-
-    for(let r = 1; r <= numRounds; r++) {
-        // Spieler mit wenigsten Spielen zuerst in den Pool
-        let pool = [...Array(players.length).keys()].sort((a,b) => playCount[a] - playCount[b] || Math.random() - 0.5);
-        
-        let round = { id: r, time: "", pause: [], matches: [] };
-        let tMin = sH * 60 + sM + warmup + (r-1)*mTime;
-        round.time = `${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
-
-        let rem = [...pool];
-        for(let c = 1; c <= numCourts; c++) {
-            let p1 = rem.shift(), p2 = rem.shift(), p3 = rem.shift(), p4 = rem.shift();
-            // Erhöhe Playcount (auch wenn p undefined ist für Virtuelle im Dummy-Mode)
-            [p1, p2, p3, p4].forEach(p => { if(p !== undefined) playCount[p]++; });
-            round.matches.push({ court: c, team1: [p1, p2], team2: [p3, p4] });
-        }
-        round.pause = rem;
-        schedule.push(round);
-    }
-    return { schedule, penalty };
-}
-
-// --- 3. ANZEIGE: VORSCHAU MIT DYNAMISCHEN LABELS ---
-function renderPreview(isDummyMode, isFinalMode) {
-    document.getElementById('previewArea').classList.remove('hidden');
-    players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-    
-    document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
-        const isLastRound = idx === currentSchedule.length - 1;
-        let roundLabel = `Runde ${r.id}`;
-        let roundClass = "bg-slate-50 border-slate-200";
-
-        if (isLastRound) {
-            if (isFinalMode) {
-                // Bei 6 Spielern/1 Platz wird das hier angezeigt
-                roundLabel = "🏆 Finale der besten 4";
-                roundClass = "bg-amber-50 border-amber-200 ring-2 ring-amber-500 ring-inset";
-            } else if (isDummyMode) {
-                roundLabel = "⚖️ Ausgleichsspiel";
-                roundClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
+            for(let attempt = 0; attempt < 1000; attempt++) {
+                let res = generateVariant(numRounds, numCourts, isDummyMode);
+                if(res.penalty < lowestPenalty) {
+                    lowestPenalty = res.penalty;
+                    bestSchedule = res.schedule;
+                }
             }
+            currentSchedule = bestSchedule; 
+            renderPreview(isDummyMode, isFinalMode);
         }
 
-        return `
-            <div class="p-4 rounded-2xl border ${roundClass}">
-                <div class="flex justify-between items-center mb-3 text-[10px] font-black uppercase">
-                    <span>${roundLabel}</span>
-                    <span class="text-slate-500">${r.time} Uhr</span>
-                </div>
-                <div class="space-y-2">
-                    ${r.matches.map(m => {
-                        let p1, p2, p3, p4;
-                        // Finale-Platzhalter nur, wenn es wirklich ein Finale ist
-                        if (isLastRound && isFinalMode) {
-                            p1 = "Platz 1"; p2 = "Platz 4"; p3 = "Platz 2"; p4 = "Platz 3";
-                        } else {
-                            p1 = players[m.team1[0]] || 'Virtuell 1';
-                            p2 = players[m.team1[1]] || 'Virtuell 2';
-                            p3 = players[m.team2[0]] || 'Virtuell 1';
-                            p4 = players[m.team2[1]] || 'Virtuell 2';
-                        }
-                        return `
-                        <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border shadow-sm">
-                            <span class="bg-slate-100 px-2 py-1 rounded text-slate-400 font-black italic">C${m.court}</span>
-                            <div class="flex-1 text-center font-bold">
-                                <span>${p1}</span> + <span>${p2}</span>
-                                <span class="text-blue-500 mx-2 text-[8px]">VS</span> 
-                                <span>${p3}</span> + <span>${p4}</span>
-                            </div>
-                        </div>`;
-                    }).join('')}
-                </div>
-                <div class="mt-2 text-[8px] font-bold text-orange-500 italic text-center">
-                    Pause: ${ (isLastRound && isFinalMode) ? 'Restliche Spieler' : (r.pause.map(p => players[p]).filter(n => n).join(', ') || 'Keiner') }
-                </div>
-            </div>`;
-    }).join('');
-    updateStats(isDummyMode, isFinalMode);
-}
-// --- 4. STATISTIK: SPIELE UND PAUSEN PRO PERSON ---
-function updateStats(isDummyMode, isFinalMode) {
-    let stats = players.map(name => ({ name, play: 0, pause: 0 }));
+        function generateVariant(numRounds, numCourts, isDummyMode) {
+            let schedule = [], penalty = 0;
+            let playCount = new Array(players.length).fill(0);
+            const mTime = parseInt(document.getElementById('matchTime').value);
+            const warmup = parseInt(document.getElementById('warmup').value) || 0;
+            const start = document.getElementById('startTime').value;
+            let [sH, sM] = start.split(':').map(Number);
 
-    currentSchedule.forEach((r, idx) => {
-        const isLastRound = idx === currentSchedule.length - 1;
-        
-        // Zähle die Runde NUR, wenn es KEIN Finale ist.
-        // Ausgleichsspiele (isDummyMode) werden gezählt, um Fairness anzuzeigen.
-        if (!isLastRound || isDummyMode) {
-            r.matches.forEach(m => {
-                [...m.team1, ...m.team2].forEach(pIdx => { 
-                    if (players[pIdx]) stats[pIdx].play++; 
-                });
-            });
-            r.pause.forEach(pIdx => { 
-                if (players[pIdx]) stats[pIdx].pause++; 
-            });
+            for(let r = 1; r <= numRounds; r++) {
+                let pool = [...Array(players.length).keys()].sort((a,b) => playCount[a] - playCount[b] || Math.random() - 0.5);
+                let round = { id: r, time: "", pause: [], matches: [] };
+                let tMin = sH * 60 + sM + warmup + (r-1)*mTime;
+                round.time = `${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
+
+                let rem = [...pool];
+                for(let c = 1; c <= numCourts; c++) {
+                    let p1 = rem.shift(), p2 = rem.shift(), p3 = rem.shift(), p4 = rem.shift();
+                    [p1, p2, p3, p4].forEach(p => { if(p !== undefined) playCount[p]++; });
+                    round.matches.push({ court: c, team1: [p1, p2], team2: [p3, p4] });
+                }
+                round.pause = rem;
+                schedule.push(round);
+            }
+            return { schedule, penalty };
         }
-    });
 
-    // Rendert die kleinen Statistik-Cards unter dem Plan
-    document.getElementById('fairnessStats').innerHTML = stats.map(s => `
-        <div class="bg-white p-3 rounded-xl border border-blue-100 text-center shadow-sm">
-            <div class="text-[9px] font-black uppercase text-slate-400 mb-1">${s.name}</div>
-            <div class="text-xs font-black text-blue-600">${s.play} S / ${s.pause} P</div>
-        </div>`).join('');
-}
+        function renderPreview(isDummyMode, isFinalMode) {
+            document.getElementById('previewArea').classList.remove('hidden');
+            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
+            
+            document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
+                const isLastRound = idx === currentSchedule.length - 1;
+                let roundLabel = `Runde ${r.id}`;
+                let roundClass = "bg-slate-50 border-slate-200";
+                let extraInfo = "";
+
+                if (isLastRound) {
+                    if (isFinalMode) {
+                        roundLabel = "🏆 Finale der besten 4";
+                        roundClass = "bg-amber-50 border-amber-200 ring-2 ring-amber-500 ring-inset";
+                        extraInfo = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Finale: Zählt nicht für Statistik</div>`;
+                    } else if (isDummyMode) {
+                        roundLabel = "⚖️ Ausgleichsspiel";
+                        roundClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
+                        extraInfo = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Ausgleich: Virtuelle Gegner aktiv</div>`;
+                    }
+                }
+
+                return `
+                    <div class="p-4 rounded-2xl border ${roundClass}">
+                        <div class="flex justify-between items-center mb-3 text-[10px] font-black uppercase tracking-widest">
+                            <span>${roundLabel}</span>
+                            <span class="text-slate-500">${r.time} Uhr</span>
+                        </div>
+                        <div class="space-y-2">
+                            ${r.matches.map(m => {
+                                let p1, p2, p3, p4;
+                                if (isLastRound && isFinalMode && m.court === 1) {
+                                    p1 = "Platz 1"; p2 = "Platz 4"; p3 = "Platz 2"; p4 = "Platz 3";
+                                } else {
+                                    p1 = players[m.team1[0]] || 'Virtuell 1';
+                                    p2 = players[m.team1[1]] || 'Virtuell 2';
+                                    p3 = players[m.team2[0]] || 'Virtuell 1';
+                                    p4 = players[m.team2[1]] || 'Virtuell 2';
+                                }
+                                return `
+                                <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border shadow-sm">
+                                    <span class="bg-slate-100 px-2 py-1 rounded text-slate-400 font-black italic">C${m.court}</span>
+                                    <div class="flex-1 text-center font-bold">
+                                        <span class="${p1.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p1}</span> + 
+                                        <span class="${p2.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p2}</span>
+                                        <span class="text-blue-500 mx-2 text-[8px]">VS</span> 
+                                        <span class="${p3.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p3}</span> + 
+                                        <span class="${p4.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p4}</span>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                        <div class="mt-2 text-[8px] font-bold text-orange-500 italic text-center">
+                            Pause: ${ (isLastRound && isFinalMode) ? 'Restliche Spieler' : (r.pause.map(p => players[p]).filter(n => n).join(', ') || 'Keiner') }
+                        </div>
+                        ${extraInfo}
+                    </div>`;
+            }).join('');
+            updateStats(isDummyMode, isFinalMode);
+        }
+
+        function updateStats(isDummyMode, isFinalMode) {
+            let stats = players.map(name => ({ name, play: 0, pause: 0 }));
+            currentSchedule.forEach((r, idx) => {
+                const isLastRound = idx === currentSchedule.length - 1;
+                if (!isLastRound || isDummyMode) {
+                    r.matches.forEach(m => {
+                        [...m.team1, ...m.team2].forEach(pIdx => { if (players[pIdx]) stats[pIdx].play++; });
+                    });
+                    r.pause.forEach(pIdx => { if (players[pIdx]) stats[pIdx].pause++; });
+                }
+            });
+            document.getElementById('fairnessStats').innerHTML = stats.map(s => `
+                <div class="bg-white p-3 rounded-xl border border-blue-100 text-center shadow-sm">
+                    <div class="text-[9px] font-black uppercase text-slate-400 mb-1">${s.name}</div>
+                    <div class="text-xs font-black text-blue-600">${s.play} S / ${s.pause} P</div>
+                </div>`).join('');
+        }
         
         async function saveFinal() {
             const name = document.getElementById('tName').value.trim();
@@ -367,20 +356,6 @@ function updateStats(isDummyMode, isFinalMode) {
             if (confirm(`Wirklich löschen?`)) { await supabaseClient.from('tournaments').delete().eq('id', id); location.reload(); }
         }
         init();
-
-function togglePasswordVisibility() {
-    const passwordInput = document.getElementById('adminPassword');
-    const eyeIcon = document.getElementById('eyeIcon');
-
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        eyeIcon.innerText = '🙈'; // Icon ändert sich beim Anzeigen
-    } else {
-        passwordInput.type = 'password';
-        eyeIcon.innerText = '👁️'; // Icon ändert sich beim Verstecken
-    }
-}
-        
     </script>
 </body>
 </html>
