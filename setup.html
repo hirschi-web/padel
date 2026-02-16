@@ -22,7 +22,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.0</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.1</p>
             </div>
             <div class="flex items-center gap-2">
                 <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-slate-50 p-2 rounded-2xl border font-bold text-sm outline-none cursor-pointer">
@@ -180,60 +180,92 @@
             document.getElementById('playerList').innerHTML = html;
         }
 
-        function runOptimization() {
-            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-            const numCourts = parseInt(document.getElementById('cCount').value);
-            const mTime = parseInt(document.getElementById('matchTime').value);
-            const warmup = parseInt(document.getElementById('warmup').value) || 0;
-            const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
-            let numRounds = Math.floor((totalMin - warmup) / mTime);
-            const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
-            
-            let bestSchedule = null, lowestPenalty = Infinity, isDummyMode = false;
-            const totalSlots = numRounds * numCourts * 4;
-            if (totalSlots % players.length !== 0 && (players.length - (totalSlots % players.length)) <= 2) isDummyMode = true;
+function runOptimization() {
+    players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
+    const numCourts = parseInt(document.getElementById('cCount').value);
+    const mTime = parseInt(document.getElementById('matchTime').value);
+    const warmup = parseInt(document.getElementById('warmup').value) || 0;
+    const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+    let numRounds = Math.floor((totalMin - warmup) / mTime);
+    const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
+    
+    // Check Fairness
+    const totalSlots = numRounds * numCourts * 4;
+    const remainder = totalSlots % players.length;
+    let isDummyMode = false;
+    let playersNeedingExtra = 0;
 
-            for(let attempt = 0; attempt < 1000; attempt++) {
-                let res = generateVariant(numRounds, numCourts, isTeamMode);
-                let playCounts = new Array(players.length).fill(0), pausePenalty = 0, pauseTracker = Array.from({length: players.length}, () => []);
-                res.schedule.forEach((r, rIdx) => {
-                    r.matches.forEach(m => { [...m.team1, ...m.team2].forEach(pIdx => { if(players[pIdx]) playCounts[pIdx]++; })});
-                    r.pause.forEach(pIdx => { if (pauseTracker[pIdx].includes(rIdx - 1)) pausePenalty += 10000; pauseTracker[pIdx].push(rIdx); });
-                });
-                const minPlays = Math.min(...playCounts), maxPlays = Math.max(...playCounts);
-                let totalPenalty = res.penalty + pausePenalty + ((maxPlays - minPlays) * 50000);
-                if(totalPenalty < lowestPenalty) { lowestPenalty = totalPenalty; bestSchedule = res.schedule; }
-            }
-            currentSchedule = bestSchedule; renderPreview(isDummyMode);
+    if (remainder !== 0) {
+        isDummyMode = true;
+        playersNeedingExtra = remainder; 
+        // Bei 6 Spielern und 7 Runden (28 Slots): 28 % 6 = 4 Spieler haben 5 Spiele, 2 haben 4.
+        // Das heißt, 2 Spieler brauchen ein Dummy-Match (Ausgleich).
+    }
+
+    let bestSchedule = null, lowestPenalty = Infinity;
+
+    for(let attempt = 0; attempt < 1000; attempt++) {
+        let res = generateVariant(numRounds, numCourts, isTeamMode, isDummyMode);
+        
+        let playCounts = new Array(players.length).fill(0);
+        res.schedule.forEach(r => {
+            r.matches.forEach(m => {
+                [...m.team1, ...m.team2].forEach(pIdx => { if(players[pIdx]) playCounts[pIdx]++; });
+            });
+        });
+
+        const maxP = Math.max(...playCounts);
+        const minP = Math.min(...playCounts);
+        let fairnessPenalty = (maxP - minP) * 100000; // Brutale Strafe für Ungleichheit
+
+        if(fairnessPenalty + res.penalty < lowestPenalty) {
+            lowestPenalty = fairnessPenalty + res.penalty;
+            bestSchedule = res.schedule;
         }
+    }
+    currentSchedule = bestSchedule; 
+    renderPreview(isDummyMode);
+}
 
-        function generateVariant(numRounds, numCourts, isTeamMode) {
-            let schedule = [], penalty = 0, playCount = new Array(players.length).fill(0);
-            let partners = Array.from({length: players.length}, () => new Array(players.length).fill(0));
-            let opponents = Array.from({length: players.length}, () => new Array(players.length).fill(0));
-            const start = document.getElementById('startTime').value;
-            let [sH, sM] = start.split(':').map(Number);
-            const mTime = parseInt(document.getElementById('matchTime').value);
-            const warmup = parseInt(document.getElementById('warmup').value) || 0;
+function generateVariant(numRounds, numCourts, isTeamMode, isDummyMode) {
+    let schedule = [], penalty = 0, playCount = new Array(players.length).fill(0);
+    const start = document.getElementById('startTime').value;
+    let [sH, sM] = start.split(':').map(Number);
+    const mTime = parseInt(document.getElementById('matchTime').value);
+    const warmup = parseInt(document.getElementById('warmup').value) || 0;
 
-            for(let r=1; r<=numRounds; r++) {
-                let pool = [...Array(players.length).keys()].sort((a,b) => playCount[a] - playCount[b] || Math.random() - 0.5);
-                let active = pool.slice(0, numCourts * 4);
-                let round = { id: r, time: "", pause: pool.slice(numCourts * 4), matches: [] };
-                let tMin = sH * 60 + sM + warmup + (r-1)*mTime;
-                round.time = `${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
-                let rem = [...active].sort(() => Math.random() - 0.5);
-                for(let c=1; c<=numCourts; c++) {
-                    if(rem.length >= 4 || (r === numRounds && rem.length >= 2)) {
-                        let p1 = rem.shift(), p2 = rem.shift(), p3 = rem.shift(), p4 = rem.shift();
-                        [p1,p2,p3,p4].forEach(i => { if(i!==undefined) playCount[i]++; });
-                        round.matches.push({ court: c, team1: [p1,p2], team2: [p3,p4] });
-                    }
-                }
-                schedule.push(round);
+    for(let r=1; r<=numRounds; r++) {
+        let isLast = (r === numRounds);
+        // Sortiere Spieler: Wer am wenigsten gespielt hat, kommt zuerst dran
+        let pool = [...Array(players.length).keys()].sort((a,b) => playCount[a] - playCount[b] || Math.random() - 0.5);
+        
+        let round = { id: r, time: "", pause: [], matches: [] };
+        let tMin = sH * 60 + sM + warmup + (r-1)*mTime;
+        round.time = `${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
+
+        if (isLast && isDummyMode) {
+            // Spezialfall: Nur die Spieler, die noch hinten liegen, spielen gegen Dummys
+            let needy = pool.filter(pIdx => playCount[pIdx] === Math.min(...playCount));
+            // Wir nehmen die ersten 2 (oder so viele wie nötig)
+            let p1 = needy[0], p2 = needy[1];
+            round.matches.push({ court: 1, team1: [p1, p2], team2: [undefined, undefined] });
+            round.pause = pool.filter(p => p !== p1 && p !== p2);
+            [p1, p2].forEach(p => { if(p !== undefined) playCount[p]++; });
+        } else {
+            // Normaler Modus
+            let active = pool.slice(0, numCourts * 4);
+            round.pause = pool.slice(numCourts * 4);
+            let rem = [...active].sort(() => Math.random() - 0.5);
+            for(let c=1; c<=numCourts; c++) {
+                let p1 = rem.shift(), p2 = rem.shift(), p3 = rem.shift(), p4 = rem.shift();
+                [p1,p2,p3,p4].forEach(p => { if(p !== undefined) playCount[p]++; });
+                round.matches.push({ court: c, team1: [p1,p2], team2: [p3,p4] });
             }
-            return { schedule, penalty };
         }
+        schedule.push(round);
+    }
+    return { schedule, penalty };
+}
 
         function renderPreview(isDummyMode = false) {
             document.getElementById('previewArea').classList.remove('hidden');
