@@ -61,7 +61,8 @@
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         
-        let tournamentId = window.location.search.substring(1);
+        // Verbesserte ID-Erkennung aus der URL
+        let tournamentId = decodeURIComponent(window.location.search.substring(1)).replace(/\/$/, "");
         let tournamentData = null;
         let isEditing = false;
 
@@ -70,17 +71,26 @@
                 document.getElementById('tournamentTitle').innerText = "Kein Turnier gewählt";
                 return;
             }
-            const { data, error } = await supabaseClient.from('tournaments').select('*').eq('id', tournamentId).single();
-            if (error || !data) {
-                alert("Turnier nicht gefunden!");
+
+            const { data, error } = await supabaseClient
+                .from('tournaments')
+                .select('*')
+                .eq('id', tournamentId);
+
+            if (error || !data || data.length === 0) {
+                document.getElementById('tournamentTitle').innerText = "Nicht gefunden";
+                console.error("Fehler beim Laden:", error);
                 return;
             }
-            tournamentData = data.data;
-            document.getElementById('tournamentTitle').innerText = data.id;
+
+            tournamentData = data[0].data;
+            document.getElementById('tournamentTitle').innerText = data[0].id;
             
             // Spieler-Dropdown füllen
             const focusSelect = document.getElementById('playerFocus');
-            tournamentData.p.forEach(name => focusSelect.add(new Option(name, name)));
+            if(tournamentData.p) {
+                tournamentData.p.forEach(name => focusSelect.add(new Option(name, name)));
+            }
             
             renderAll();
         }
@@ -163,7 +173,7 @@
             
             tournamentData.s_new.forEach(r => {
                 r.matches.forEach(m => {
-                    if(m.score[0] !== "" && m.score[1] !== "") {
+                    if(m.score[0] !== "" && m.score[1] !== "" && m.score[0] !== null && m.score[1] !== null) {
                         const s1 = parseInt(m.score[0]);
                         const s2 = parseInt(m.score[1]);
                         
