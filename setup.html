@@ -146,56 +146,49 @@
             document.getElementById('optSection').style.display = mode === 'time' ? 'block' : 'none';
         }
 
-       function showOptimalProposals() {
+    function showOptimalProposals() {
     const count = parseInt(document.getElementById('pCount').value);
     const courts = parseInt(document.getElementById('cCount').value);
     const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
     const warmup = parseInt(document.getElementById('warmup').value) || 0;
-    const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
-    
     const nettoZeit = totalMin - warmup;
     
-    // Wir schlagen verschiedene Runden-Anzahlen vor
-    const rundenOptionen = [
-        { label: 'Lange Matches', r: 4 },
-        { label: 'Ausgewogen', r: 6 },
-        { label: 'Viel Rotation', r: 8 }
-    ];
-
+    // Wir prüfen Rundenanzahlen von 4 bis 10
     let html = '';
-    rundenOptionen.forEach(v => {
-        // 1. Berechne theoretische Zeit: nettoZeit / Runden
-        let rawMatchTime = nettoZeit / v.r;
-        
-        // 2. Abrunden auf den nächsten 5er Schritt (z.B. 19 -> 15, 24 -> 20)
-        let matchTime = Math.floor(rawMatchTime / 5) * 5; 
-        
-        if (matchTime < 5) return;
+    [4, 5, 6, 7, 8, 9].forEach(r => {
+        let matchTime = Math.floor(nettoZeit / r / 5) * 5; 
+        if (matchTime < 10) return;
 
-        const totalUsed = (matchTime * v.r) + warmup;
-        const buffer = totalMin - totalUsed;
+        const totalSlots = r * courts * 4;
+        const remainder = totalSlots % count;
         
-        const units = isTeamMode ? count / 2 : count;
-        const slotsPerRound = courts * (isTeamMode ? 2 : 4);
-        const totalSlots = v.r * slotsPerRound;
-        const gamesPerUnit = Math.floor(totalSlots / units);
-        const pausePerUnit = v.r - gamesPerUnit;
+        let statusIdx = "";
+        let statusColor = "";
+        
+        if (remainder === 0) {
+            statusIdx = "💎 Perfekt Fair (Alle gleich)";
+            statusColor = "text-green-600";
+        } else if ((count - remainder) <= 2) {
+            statusIdx = "🤖 Dummy-Modus (Last Round)";
+            statusColor = "text-blue-600";
+        } else {
+            statusIdx = "⚠️ Unfair (Pausen ungleich)";
+            statusColor = "text-orange-500";
+        }
+
+        const buffer = totalMin - (matchTime * r + warmup);
 
         html += `
-        <div class="opt-card bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
+        <div class="opt-card bg-white p-4 rounded-2xl border shadow-sm flex flex-col justify-between">
             <div>
-                <div class="text-[10px] font-black text-blue-600 uppercase mb-1">${v.label}</div>
-                <div class="text-2xl font-black italic mb-2">${matchTime} Min.</div>
-                <ul class="text-[10px] space-y-1 font-bold text-slate-500 uppercase">
-                    <li>🎾 ${v.r} Runden gesamt</li>
-                    <li>🏃 ${gamesPerUnit} Spiele p.P.</li>
-                    <li>☕ ${pausePerUnit} Pausen</li>
-                </ul>
-                <div class="mt-3 text-[9px] text-slate-400 font-bold italic">
-                    ⌛ ${warmup}m Start + ${buffer}m Puffer/Ende
+                <div class="text-[10px] font-black ${statusColor} uppercase mb-1">${statusIdx}</div>
+                <div class="text-2xl font-black italic">${matchTime} Min.</div>
+                <div class="text-[10px] font-bold text-slate-500 mb-2">${r} Runden</div>
+                <div class="text-[9px] bg-slate-100 p-2 rounded-lg font-bold">
+                    Puffer am Ende: ${buffer} Min. ${buffer >= 15 ? '-> GENUG FÜR FINALE 🏆' : ''}
                 </div>
             </div>
-            <button onclick="applyOpt(${matchTime})" class="mt-4 w-full bg-white border border-slate-300 p-2 rounded-xl text-[10px] font-black hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all">WÄHLEN</button>
+            <button onclick="applyOpt(${matchTime})" class="mt-4 w-full bg-slate-900 text-white p-2 rounded-xl text-[10px] font-black hover:bg-blue-600 transition-all">WÄHLEN</button>
         </div>`;
     });
 
@@ -203,7 +196,6 @@
     display.innerHTML = html;
     display.classList.remove('hidden');
 }
-
         function applyOpt(val) {
             document.getElementById('matchTime').value = val;
             checkConsistency();
@@ -270,30 +262,51 @@
     const mTime = parseInt(document.getElementById('matchTime').value);
     const warmup = parseInt(document.getElementById('warmup').value) || 0;
     const totalHours = parseFloat(document.getElementById('totalHours').value);
-    const numRounds = Math.floor((totalHours * 60 - warmup) / mTime);
+    const totalNetto = totalHours * 60 - warmup;
+    let numRounds = Math.floor(totalNetto / mTime);
     const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
     
     let bestSchedule = null;
     let lowestPenalty = Infinity;
+    let isDummyMode = false;
 
-    // Erhöht auf 1000 Simulationen für maximale Präzision
+    // PRÜFUNG: Geht es glatt auf? (Slots = Runden * Plätze * 4)
+    const totalSlots = numRounds * numCourts * 4;
+    const remainder = totalSlots % players.length;
+
+    // Wenn 2 Spieler ein Spiel zu wenig hätten (bei 1 Platz), fügen wir Dummys hinzu
+    if (remainder !== 0 && (players.length - remainder) <= 2) {
+        isDummyMode = true;
+    }
+
     for(let attempt = 0; attempt < 1000; attempt++) {
         let res = generateVariant(numRounds, numCourts, isTeamMode);
-        
-        // Zusätzliche Penalty-Prüfung für Pausen-Rhythmus direkt hier
+        let playCounts = new Array(players.length).fill(0);
         let pausePenalty = 0;
         let pauseTracker = Array.from({length: players.length}, () => []);
         
+        // Dummy-Handhabung in der letzten Runde
+        if (isDummyMode && attempt === 0) {
+            // Wir markieren die Dummys in der letzten Runde visuell
+            let lastRound = res.schedule[res.schedule.length - 1];
+            // Die Logik hierfür wird in der Anzeige übernommen
+        }
+
         res.schedule.forEach((r, rIdx) => {
+            r.matches.forEach(m => {
+                [...m.team1, ...m.team2].forEach(pIdx => playCounts[pIdx]++);
+            });
             r.pause.forEach(pIdx => {
-                // Wenn Spieler in der letzten Runde schon Pause hatte: Massive Penalty
-                if (pauseTracker[pIdx].includes(rIdx - 1)) pausePenalty += 5000;
+                if (pauseTracker[pIdx].includes(rIdx - 1)) pausePenalty += 10000;
                 pauseTracker[pIdx].push(rIdx);
             });
         });
 
-        let totalPenalty = res.penalty + pausePenalty;
+        const minPlays = Math.min(...playCounts);
+        const maxPlays = Math.max(...playCounts);
+        let fairnessPenalty = (maxPlays - minPlays) * 50000;
 
+        let totalPenalty = res.penalty + pausePenalty + fairnessPenalty;
         if(totalPenalty < lowestPenalty) {
             lowestPenalty = totalPenalty;
             bestSchedule = res.schedule;
@@ -301,8 +314,7 @@
     }
     
     currentSchedule = bestSchedule;
-    renderPreview();
-    document.getElementById('lastActionTime').innerText = "Optimiert (1000 Iterationen) am: " + new Date().toLocaleString('de-DE');
+    renderPreview(isDummyMode); // Übergebe Dummy-Info an Anzeige
 }
 
         function generateVariant(numRounds, numCourts, isTeamMode) {
