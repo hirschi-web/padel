@@ -9,55 +9,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
-        
-        /* --- DESIGN: LIVE_OLD STYLE --- */
         h1 { font-weight: 900; letter-spacing: -0.05em; color: #000; }
-        
         .score-input:disabled { background: transparent; border: none; color: #000; font-weight: 900; opacity: 1; font-size: 1.5rem; }
         .score-input { width: 55px; height: 55px; text-align: center; border-radius: 12px; font-weight: 900; font-size: 1.5rem; background: #f1f5f9; border: 2px solid #e2e8f0; transition: all 0.2s; }
         .is-editing .score-input:not(:disabled) { background: #fff; border-color: #3b82f6; box-shadow: 0 4px 15px rgba(59,130,246,0.2); }
-        
         .rank-row-0 { background: #facc15 !important; border: 3px solid #000 !important; color: #000; transform: scale(1.03); z-index: 10; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); }
-        .rank-row-1 { background: #f1f5f9; border: 1px solid #cbd5e1; }
-        .rank-row-2 { background: #ffedd5; border: 1px solid #fdba74; }
-        
         .bot-card { background: #0f172a; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
         .bot-glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-
         .match-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
         .match-focus { border: 3px solid #3b82f6 !important; box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25); transform: scale(1.02); z-index: 20; }
-        
-        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
-
-        /* --- NEU: Floating Save Button --- */
-        .save-overlay {
-            position: absolute;
-            bottom: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 50;
-            display: none;
-        }
+        .save-overlay { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); z-index: 50; display: none; }
     </style>
 </head>
 <body class="pb-32 min-h-screen">
 
     <div class="max-w-md mx-auto p-6">
-        
         <div class="flex justify-between items-start mb-10 pt-6">
             <div>
                 <h1 id="tournamentTitle" class="text-6xl italic uppercase leading-[0.8] tracking-tighter">LADE...</h1>
                 <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mt-4 pl-1">Live Scoreboard</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="location.reload()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-xl hover:bg-slate-50 transition-colors active:scale-95">🔄</button>
-                <button id="lockBtn" onclick="toggleEditMode()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-xl hover:bg-slate-50 transition-colors active:scale-95">🔒</button>
+                <button onclick="location.reload()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-xl">🔄</button>
+                <button id="lockBtn" onclick="toggleEditMode()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-xl">🔒</button>
             </div>
         </div>
 
         <div class="mb-12 relative z-30">
-            <label id="focusLabel" class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em] text-center">Dein Fokus</label>
-            <select id="playerFocus" onchange="renderAll()" class="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black outline-none shadow-xl shadow-slate-200/40 appearance-none text-center text-slate-900 text-sm focus:border-blue-500 transition-all cursor-pointer">
+            <label id="focusLabel" class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em] text-center text-slate-400">Fokus</label>
+            <select id="playerFocus" onchange="renderAll()" class="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black outline-none shadow-xl shadow-slate-200/40 appearance-none text-center text-slate-900 text-sm">
                 <option value="">-- Wähle deinen Namen / Team --</option>
             </select>
         </div>
@@ -65,15 +45,11 @@
         <div id="scheduleArea" class="space-y-16"></div>
 
         <div class="mt-24 pt-12 border-t-2 border-slate-100">
-            <div class="flex items-center gap-4 mb-8">
-                <h2 class="text-4xl font-[900] italic uppercase text-slate-300 tracking-tighter">Ranking</h2>
-                <div class="h-[2px] flex-1 bg-slate-100"></div>
-            </div>
-            
+            <h2 class="text-4xl font-[900] italic uppercase text-slate-300 mb-8">Ranking</h2>
             <div class="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-                <table class="w-full text-left">
+                <table class="w-full text-left font-black">
                     <thead>
-                        <tr class="bg-black text-white text-[10px] uppercase tracking-[0.25em]">
+                        <tr class="bg-black text-white text-[10px] uppercase tracking-widest">
                             <th class="p-5 pl-8">#</th>
                             <th class="p-5" id="rankingNameHeader">Teilnehmer</th>
                             <th class="p-5 text-center">Pkt</th>
@@ -89,19 +65,17 @@
             <div class="relative z-10">
                 <div class="flex items-center gap-3 mb-6">
                     <div class="h-2 w-2 bg-blue-400 rounded-full animate-pulse shadow-[0_0_15px_#60a5fa]"></div>
-                    <h3 class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 italic">KI-Analyse</h3>
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 italic">KI-PROGNOSE</h3>
                 </div>
-                <p id="botText" class="text-2xl font-bold leading-tight tracking-tight text-white mb-8">Lade Matchdaten...</p>
+                <p id="botText" class="text-xl font-bold leading-tight text-white mb-8">Wähle einen Fokus für Match-Analyse...</p>
                 <div class="bot-glass p-5 rounded-3xl flex items-center gap-5">
-                    <div class="text-4xl filter drop-shadow-md">🤖</div>
+                    <div class="text-4xl">🤖</div>
                     <div>
-                        <p class="text-[9px] font-black uppercase text-blue-300 tracking-widest mb-1 opacity-80">Live Status</p>
-                        <p class="text-sm font-bold text-white" id="botStatus">Warte auf Eingabe</p>
+                        <p class="text-[9px] font-black uppercase text-blue-300 mb-1">Status</p>
+                        <p class="text-xs font-bold text-white" id="botStatus">Standby</p>
                     </div>
                 </div>
             </div>
-            <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-600/30 rounded-full blur-[80px]"></div>
-            <div class="absolute -left-12 bottom-0 w-40 h-40 bg-indigo-600/20 rounded-full blur-[50px]"></div>
         </div>
     </div>
 
@@ -115,19 +89,22 @@
         let isEditing = false;
 
         async function init() {
-            if(!tournamentId) { document.getElementById('tournamentTitle').innerText = "ERROR"; return; }
+            if(!tournamentId) return;
             const { data } = await supabaseClient.from('tournaments').select('*').eq('id', tournamentId);
-            if (!data || data.length === 0) { document.getElementById('tournamentTitle').innerText = "404"; return; }
+            if (!data || data.length === 0) return;
             
             tournamentData = data[0].data;
             document.getElementById('tournamentTitle').innerText = data[0].id.toUpperCase();
             
-            const isTeam = tournamentData.type === 'team';
-            const focusSelect = document.getElementById('playerFocus');
-            document.getElementById('focusLabel').innerText = isTeam ? "Team Fokus" : "Spieler Fokus";
-            document.getElementById('rankingNameHeader').innerText = isTeam ? "Team" : "Spieler";
+            // --- PASSWORT CACHE CHECK ---
+            if(sessionStorage.getItem('isAdmin') === 'true') {
+                isEditing = true;
+                document.getElementById('lockBtn').innerText = "🔓";
+                document.body.classList.add('is-editing');
+            }
 
-            if(isTeam) {
+            const focusSelect = document.getElementById('playerFocus');
+            if(tournamentData.type === 'team') {
                 for(let i=0; i<tournamentData.p.length; i+=2) {
                     let teamName = `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
                     focusSelect.add(new Option(teamName, teamName));
@@ -142,16 +119,21 @@
             if(!isEditing) {
                 const pw = prompt("Admin Passwort:");
                 if(pw === tournamentData.pw) {
-                    isEditing = true; document.getElementById('lockBtn').innerText = "🔓";
-                    document.body.classList.add('is-editing'); renderAll();
-                } else { alert("Falsches Passwort!"); }
+                    isEditing = true;
+                    sessionStorage.setItem('isAdmin', 'true');
+                    document.getElementById('lockBtn').innerText = "🔓";
+                    document.body.classList.add('is-editing');
+                    renderAll();
+                }
             } else {
-                isEditing = false; document.getElementById('lockBtn').innerText = "🔒";
-                document.body.classList.remove('is-editing'); renderAll();
+                isEditing = false;
+                sessionStorage.removeItem('isAdmin');
+                document.getElementById('lockBtn').innerText = "🔒";
+                document.body.classList.remove('is-editing');
+                renderAll();
             }
         }
 
-        // --- Logik für Floating Save Button ---
         function showSaveButton(rIdx, mIdx) {
             document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'block';
         }
@@ -159,12 +141,9 @@
         async function saveScore(rIdx, mIdx) {
             const s1 = document.getElementById(`score-${rIdx}-${mIdx}-0`).value;
             const s2 = document.getElementById(`score-${rIdx}-${mIdx}-1`).value;
-            
             tournamentData.s_new[rIdx].matches[mIdx].score[0] = s1;
             tournamentData.s_new[rIdx].matches[mIdx].score[1] = s2;
-            
             await supabaseClient.from('tournaments').update({ data: tournamentData }).eq('id', tournamentId);
-            
             document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'none';
             updateRanking();
         }
@@ -172,88 +151,42 @@
         function renderAll() {
             const focusValue = document.getElementById('playerFocus').value;
             const area = document.getElementById('scheduleArea');
-            const isTeamMode = tournamentData.type === 'team';
             area.innerHTML = '';
 
             tournamentData.s_new.forEach((round, rIdx) => {
-                let html = `<div>
-                    <div class="flex items-center justify-center mb-8">
-                        <div class="h-[2px] w-6 bg-slate-200"></div>
-                        <h2 class="mx-4 text-[13px] font-black text-slate-300 uppercase tracking-[0.3em] italic">Runde ${round.id} <span class="text-slate-200 mx-1">/</span> ${round.time}</h2>
-                        <div class="h-[2px] w-6 bg-slate-200"></div>
-                    </div>
-                    <div class="space-y-6">`;
-
+                let html = `<div><h2 class="text-center text-[11px] font-black text-slate-300 uppercase tracking-widest italic mb-6">Runde ${round.id} / ${round.time}</h2><div class="space-y-6">`;
                 round.matches.forEach((m, mIdx) => {
-                    let isFocus = false;
-                    if(focusValue) {
-                        if(isTeamMode) {
-                            let t1Name = `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`;
-                            let t2Name = `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`;
-                            isFocus = (focusValue === t1Name || focusValue === t2Name);
-                        } else {
-                            isFocus = [...m.team1, ...m.team2].map(i => tournamentData.p[i]).includes(focusValue);
-                        }
-                    }
-
-                    const courtName = m.court ? `Court ${m.court}` : `Match ${mIdx + 1}`;
+                    let names = [...m.team1, ...m.team2].map(i => tournamentData.p[i]);
+                    let isFocus = focusValue && (tournamentData.type === 'team' ? 
+                        (focusValue === `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` || focusValue === `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`) : 
+                        names.includes(focusValue));
 
                     html += `
                     <div class="match-card p-6 ${isFocus ? 'match-focus' : ''}">
-                        <div class="text-center mb-5">
-                            <span class="bg-slate-50 text-slate-300 text-[9px] font-black uppercase px-3 py-1 rounded-full tracking-widest border border-slate-100">${courtName}</span>
-                        </div>
-
+                        <div class="text-center mb-4 text-[9px] font-black text-slate-300 uppercase">Court ${m.court || (mIdx+1)}</div>
                         <div class="grid grid-cols-7 items-center">
-                            <div class="col-span-3 text-[12px] font-[900] space-y-1 uppercase tracking-tight leading-tight">
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team1[0]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team1[0]]}</div>
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team1[1]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team1[1]]}</div>
+                            <div class="col-span-3 text-[12px] font-black uppercase leading-tight">
+                                <div>${tournamentData.p[m.team1[0]]}</div><div>${tournamentData.p[m.team1[1]]}</div>
                             </div>
-
-                            <div class="col-span-1 flex flex-col items-center gap-2">
-                                <input id="score-${rIdx}-${mIdx}-0" type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input shadow-inner">
-                                <input id="score-${rIdx}-${mIdx}-1" type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input shadow-inner">
+                            <div class="col-span-1 flex flex-col items-center gap-1">
+                                <input id="score-${rIdx}-${mIdx}-0" type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input">
+                                <input id="score-${rIdx}-${mIdx}-1" type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input">
                             </div>
-
-                            <div class="col-span-3 text-[12px] font-[900] space-y-1 text-right uppercase tracking-tight leading-tight">
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[0]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team2[0]]}</div>
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[1]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team2[1]]}</div>
+                            <div class="col-span-3 text-[12px] font-black uppercase leading-tight text-right">
+                                <div>${tournamentData.p[m.team2[0]]}</div><div>${tournamentData.p[m.team2[1]]}</div>
                             </div>
                         </div>
-
-                        <div id="save-${rIdx}-${mIdx}" class="save-overlay">
-                            <button onclick="saveScore(${rIdx}, ${mIdx})" class="bg-blue-600 text-white px-4 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-500/40 hover:bg-blue-700 transition-all">Speichern</button>
-                        </div>
+                        <div id="save-${rIdx}-${mIdx}" class="save-overlay"><button onclick="saveScore(${rIdx}, ${mIdx})" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-[10px] uppercase shadow-lg">Speichern</button></div>
                     </div>`;
                 });
 
-                if(round.pause && round.pause.length > 0) {
-                     let pauseDisplay = "";
-                     if(isTeamMode) {
-                        let pauseTeams = [];
-                        for(let i=0; i < round.pause.length; i+=2) {
-                            let p1 = tournamentData.p[round.pause[i]];
-                            let p2 = tournamentData.p[round.pause[i+1]];
-                            pauseTeams.push(`${p1} + ${p2}`);
-                        }
-                        pauseDisplay = pauseTeams.join(' <span class="text-slate-300 mx-2">|</span> ');
-                     } else {
-                        pauseDisplay = round.pause.map(i => tournamentData.p[i]).join(', ');
-                     }
-
-                     html += `
-                     <div class="flex justify-center mt-6">
-                        <div class="bg-white px-6 py-3 rounded-full border border-slate-100 shadow-sm">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic text-center">
-                                ☕ Pause <br>
-                                <span class="text-slate-700 not-italic mt-1 block">${pauseDisplay}</span>
-                            </p>
-                        </div>
-                     </div>`;
+                if(round.pause?.length > 0) {
+                    let pNames = tournamentData.type === 'team' ? 
+                        [`${tournamentData.p[round.pause[0]]} + ${tournamentData.p[round.pause[1]]}`] : 
+                        round.pause.map(i => tournamentData.p[i]);
+                    html += `<p class="text-center text-[9px] font-bold text-slate-400 uppercase mt-4">Pause: ${pNames.join(', ')}</p>`;
                 }
-
-                html += `</div></div>`;
-                area.innerHTML += html;
+                area.innerHTML += html + `</div></div>`;
             });
             updateRanking();
         }
@@ -261,49 +194,106 @@
         function updateRanking() {
             const isTeam = tournamentData.type === 'team';
             let stats = [];
-
             if(isTeam) {
-                for(let i=0; i<tournamentData.p.length; i+=2) {
-                    stats.push({ name: `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, ids:[i,i+1], points:0, diff:0, games:0 });
-                }
+                for(let i=0; i<tournamentData.p.length; i+=2) stats.push({ name: `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, ids:[i,i+1], points:0, diff:0, games:0, history:[] });
             } else {
-                stats = tournamentData.p.map((name, i) => ({ name, ids:[i], points:0, diff:0, games:0 }));
+                stats = tournamentData.p.map((name, i) => ({ name, ids:[i], points:0, diff:0, games:0, history:[] }));
             }
 
             tournamentData.s_new.forEach(r => r.matches.forEach(m => {
                 if(m.score[0] !== "" && m.score[0] !== null) {
-                    const s1 = parseInt(m.score[0]) || 0, s2 = parseInt(m.score[1]) || 0;
+                    const s1 = parseInt(m.score[0]), s2 = parseInt(m.score[1]);
+                    const t1Name = isTeam ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
+                    const t2Name = isTeam ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
+                    
                     stats.forEach(e => {
-                        if(e.ids.some(id => m.team1.includes(id))) { e.points += s1; e.diff += (s1-s2); e.games++; }
-                        if(e.ids.some(id => m.team2.includes(id))) { e.points += s2; e.diff += (s2-s1); e.games++; }
+                        if(e.ids.some(id => m.team1.includes(id))) { 
+                            e.points += s1; e.diff += (s1-s2); e.games++; 
+                            e.history.push({ opponent: t2Name, score: [s1, s2], diff: s1-s2 });
+                        }
+                        if(e.ids.some(id => m.team2.includes(id))) { 
+                            e.points += s2; e.diff += (s2-s1); e.games++; 
+                            e.history.push({ opponent: t1Name, score: [s2, s1], diff: s2-s1 });
+                        }
                     });
                 }
             }));
 
             stats.sort((a,b) => b.points - a.points || b.diff - a.diff);
-            
             document.getElementById('rankingTable').innerHTML = stats.map((s, i) => `
-                <tr class="rank-row-${i} border-b border-slate-50 last:border-none rounded-xl transition-all">
-                    <td class="p-5 pl-8 font-black text-sm ${i===0 ? 'text-black' : 'text-slate-400'}">#${i+1}</td>
-                    <td class="p-5 text-xs font-bold uppercase tracking-tight truncate max-w-[140px]">${s.name}</td>
+                <tr class="rank-row-${i} border-b border-slate-50">
+                    <td class="p-5 pl-8 font-black text-sm">#${i+1}</td>
+                    <td class="p-5 text-xs font-bold uppercase truncate max-w-[120px]">${s.name}</td>
                     <td class="p-5 text-center font-black text-xl">${s.points}</td>
                     <td class="p-5 pr-8 text-center text-xs font-bold ${s.diff>0?'text-green-600':s.diff<0?'text-red-500':'text-slate-400'}">${s.diff>0?'+':''}${s.diff}</td>
                 </tr>`).join('');
             
+            runAIPrediction(stats);
+        }
+
+        function runAIPrediction(stats) {
+            const focus = document.getElementById('playerFocus').value;
             const botText = document.getElementById('botText');
-            if(stats[0]?.games > 0) {
-                const leader = stats[0].name.split(' + ')[0]; 
-                const diff = stats[0].diff;
-                let text = "";
-                if(diff > 15) text = `${leader} dominiert das Feld komplett! Unglaubliche Performance.`;
-                else if(diff > 5) text = `${leader} führt das Ranking an, aber es bleibt spannend.`;
-                else text = `Sehr enges Rennen an der Spitze! ${leader} hat aktuell die Nase vorn.`;
-                botText.innerText = text;
-                document.getElementById('botStatus').innerText = "Live Analyse";
-            } else {
-                botText.innerText = "Warte auf erste Match-Ergebnisse...";
-                document.getElementById('botStatus').innerText = "Standby";
+            const botStatus = document.getElementById('botStatus');
+
+            if(!focus) {
+                botText.innerText = "Wähle einen Fokus oben aus, um deine nächste Match-Analyse zu sehen.";
+                botStatus.innerText = "Standby";
+                return;
             }
+
+            // Finde das nächste Match des Fokus-Spielers
+            let nextMatch = null;
+            let opponentName = "";
+            for(let r of tournamentData.s_new) {
+                for(let m of r.matches) {
+                    if(m.score[0] === "" || m.score[0] === null) {
+                        const t1 = tournamentData.type === 'team' ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
+                        const t2 = tournamentData.type === 'team' ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
+                        if(t1 === focus) { nextMatch = m; opponentName = t2; break; }
+                        if(t2 === focus) { nextMatch = m; opponentName = t1; break; }
+                    }
+                }
+                if(nextMatch) break;
+            }
+
+            if(!nextMatch) {
+                botText.innerText = "Keine ausstehenden Matches für dich gefunden.";
+                return;
+            }
+
+            // --- KI LOGIK ---
+            const myStats = stats.find(s => s.name === focus);
+            const oppStats = stats.find(s => s.name === opponentName);
+            
+            // 1. Gemeinsame Gegner Analyse
+            let bridgeScore = 0;
+            let bridgesFound = 0;
+            myStats.history.forEach(h => {
+                const oppHistoryWithSame = oppStats.history.find(oh => oh.opponent === h.opponent);
+                if(oppHistoryWithSame) {
+                    bridgeScore += (h.diff - oppHistoryWithSame.diff);
+                    bridgesFound++;
+                }
+            });
+
+            // 2. Trend (Letztes Spiel)
+            const myTrend = myStats.history.length > 0 ? myStats.history[myStats.history.length-1].diff : 0;
+            const oppTrend = oppStats.history.length > 0 ? oppStats.history[oppStats.history.length-1].diff : 0;
+
+            // 3. Siegchance Kalkulation
+            let winProb = 50 + (myStats.diff - oppStats.diff) + (bridgeScore * 2);
+            winProb = Math.min(Math.max(winProb, 5), 95); // Range 5-95%
+
+            let analysis = `Nächstes Match gegen **${opponentName}**.<br><br>`;
+            if(bridgesFound > 0) {
+                analysis += `Indirekter Vergleich: Ihr habt gegen die gleichen Gegner insgesamt ${bridgeScore > 0 ? 'besser' : 'schlechter'} abgeschnitten.<br>`;
+            }
+            analysis += `Trend: ${myTrend > oppTrend ? 'Vorteil bei dir' : 'Gegner ist aktuell stärker'}.<br>`;
+            analysis += `Voraussichtliche Siegchance: **${Math.round(winProb)}%**`;
+
+            botText.innerHTML = analysis;
+            botStatus.innerText = "Match-Matrix aktiv";
         }
 
         init();
