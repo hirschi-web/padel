@@ -35,7 +35,7 @@
             <div class="space-y-5">
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="input-label">Turnier Name</label><input type="text" id="tName" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
-                    <div><label class="input-label">Admin-Passwort</label><input type="password" id="tPassword" placeholder="Geheim" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
+                    <div><label class="input-label">Admin-Passwort</label><input type="password" id="tPassword" placeholder="Passwort vergeben" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -117,7 +117,6 @@
             while (select.options.length > 1) select.remove(1);
             tournamentsList.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => select.add(new Option(t.id, t.id)));
             
-            // URL Check: ?name
             const urlParam = window.location.search.substring(1);
             if(urlParam && tournamentsList.some(t => t.id === urlParam)) {
                 select.value = urlParam;
@@ -300,7 +299,10 @@
                 document.getElementById('startTime').value = d.t?.start || "18:00";
                 document.getElementById('warmup').value = d.t?.warmup || 10;
                 document.getElementById('matchTime').value = d.t?.match || 15;
-                if(d.type) document.querySelector(`input[name="tType"][value="${d.type}"]`).checked = true;
+                if(d.type) {
+                    const typeInput = document.querySelector(`input[name="tType"][value="${d.type}"]`);
+                    if(typeInput) typeInput.checked = true;
+                }
                 document.getElementById('deleteBtn').classList.remove('hidden');
                 updatePlayerInputs();
                 d.p.forEach((n, i) => { if(document.getElementById(`pIdx_${i}`)) document.getElementById(`pIdx_${i}`).value = n; });
