@@ -22,7 +22,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.6</p> 
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.7</p> 
             </div>
             <div class="flex items-center gap-2">
                 <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-slate-50 p-2 rounded-2xl border font-bold text-sm outline-none cursor-pointer">
@@ -197,7 +197,7 @@
         }
 
 // --- 1. HAUPTFUNKTION: LOGIK-ENTSCHEIDUNG & SIMULATION ---
-async function runOptimization() {
+function runOptimization() {
     players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
     const numCourts = parseInt(document.getElementById('cCount').value);
     const mTime = parseInt(document.getElementById('matchTime').value);
@@ -206,21 +206,27 @@ async function runOptimization() {
     let numRounds = Math.floor((totalMin - warmup) / mTime);
     
     const totalSlots = numRounds * numCourts * 4;
-    const isPerfectlyFair = (totalSlots % players.length === 0);
-
-    // Finale nur, wenn es mathematisch ohne Dummys aufgeht.
-    // Ansonsten Ausgleichsmodus mit Virtuellen.
-    let isDummyMode = !isPerfectlyFair;
-    let isFinalMode = isPerfectlyFair;
+    
+    // NEU: Ein Ausgleich macht nur Sinn, wenn (Slots + Dummys) durch Spieleranzahl 
+    // JEDEN auf den gleichen Stand bringt. 
+    // Bei 6 Spielern / 1 Platz / 7 Runden (28 Slots) fehlen 2 Slots auf 30 (5 Spiele p.P.).
+    // Da wir aber nur 1 Platz haben, können wir in Runde 7 keine 6 Leute unterbringen.
+    
+    let isPerfectlyFair = (totalSlots % players.length === 0);
+    
+    // DummyMode nur, wenn wir mehr als 1 Platz haben ODER 
+    // wenn die restlichen Spieler in die letzte Runde passen.
+    let canActuallyBalance = (numCourts * 4 >= (players.length - (totalSlots % players.length)));
+    let isDummyMode = !isPerfectlyFair && numCourts > 1 && canActuallyBalance;
+    
+    // Wenn wir nicht ausgleichen können, ist es ein Finale (oder normales Spiel)
+    let isFinalMode = isPerfectlyFair || (numCourts === 1);
 
     let bestSchedule = null;
     let lowestPenalty = Infinity;
 
-    // 1000 Iterationen für optimale Durchmischung
     for(let attempt = 0; attempt < 1000; attempt++) {
         let res = generateVariant(numRounds, numCourts, isDummyMode);
-        
-        // Strafe für doppelte Partner/Gegner und unfaire Pausen
         if(res.penalty < lowestPenalty) {
             lowestPenalty = res.penalty;
             bestSchedule = res.schedule;
@@ -269,30 +275,29 @@ function renderPreview(isDummyMode, isFinalMode) {
         const isLastRound = idx === currentSchedule.length - 1;
         let roundLabel = `Runde ${r.id}`;
         let roundClass = "bg-slate-50 border-slate-200";
-        let extraInfo = "";
 
         if (isLastRound) {
             if (isFinalMode) {
+                // Bei 6 Spielern/1 Platz wird das hier angezeigt
                 roundLabel = "🏆 Finale der besten 4";
                 roundClass = "bg-amber-50 border-amber-200 ring-2 ring-amber-500 ring-inset";
-                extraInfo = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic text-blue-800">Finale wird nicht für Statistik gewertet</div>`;
             } else if (isDummyMode) {
                 roundLabel = "⚖️ Ausgleichsspiel";
                 roundClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
-                extraInfo = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Ausgleich: Virtuelle Gegner aktiv (gezählt)</div>`;
             }
         }
 
         return `
             <div class="p-4 rounded-2xl border ${roundClass}">
-                <div class="flex justify-between items-center mb-3 text-[10px] font-black uppercase tracking-widest">
+                <div class="flex justify-between items-center mb-3 text-[10px] font-black uppercase">
                     <span>${roundLabel}</span>
                     <span class="text-slate-500">${r.time} Uhr</span>
                 </div>
                 <div class="space-y-2">
                     ${r.matches.map(m => {
                         let p1, p2, p3, p4;
-                        if (isLastRound && isFinalMode && m.court === 1) {
+                        // Finale-Platzhalter nur, wenn es wirklich ein Finale ist
+                        if (isLastRound && isFinalMode) {
                             p1 = "Platz 1"; p2 = "Platz 4"; p3 = "Platz 2"; p4 = "Platz 3";
                         } else {
                             p1 = players[m.team1[0]] || 'Virtuell 1';
@@ -300,16 +305,13 @@ function renderPreview(isDummyMode, isFinalMode) {
                             p3 = players[m.team2[0]] || 'Virtuell 1';
                             p4 = players[m.team2[1]] || 'Virtuell 2';
                         }
-                        
                         return `
                         <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border shadow-sm">
                             <span class="bg-slate-100 px-2 py-1 rounded text-slate-400 font-black italic">C${m.court}</span>
                             <div class="flex-1 text-center font-bold">
-                                <span class="${p1.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p1}</span> + 
-                                <span class="${p2.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p2}</span>
+                                <span>${p1}</span> + <span>${p2}</span>
                                 <span class="text-blue-500 mx-2 text-[8px]">VS</span> 
-                                <span class="${p3.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p3}</span> + 
-                                <span class="${p4.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p4}</span>
+                                <span>${p3}</span> + <span>${p4}</span>
                             </div>
                         </div>`;
                     }).join('')}
@@ -317,12 +319,10 @@ function renderPreview(isDummyMode, isFinalMode) {
                 <div class="mt-2 text-[8px] font-bold text-orange-500 italic text-center">
                     Pause: ${ (isLastRound && isFinalMode) ? 'Restliche Spieler' : (r.pause.map(p => players[p]).filter(n => n).join(', ') || 'Keiner') }
                 </div>
-                ${extraInfo}
             </div>`;
     }).join('');
     updateStats(isDummyMode, isFinalMode);
 }
-
 // --- 4. STATISTIK: SPIELE UND PAUSEN PRO PERSON ---
 function updateStats(isDummyMode, isFinalMode) {
     let stats = players.map(name => ({ name, play: 0, pause: 0 }));
