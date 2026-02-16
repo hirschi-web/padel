@@ -371,7 +371,7 @@
             return { schedule, penalty };
         }
 
-        function renderPreview(isDummyMode = false) {
+function renderPreview(isDummyMode = false) {
     document.getElementById('previewArea').classList.remove('hidden');
     players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
     
@@ -387,50 +387,44 @@
         let roundClass = "bg-slate-50 border-slate-200";
         let extraInfo = "";
 
-        // FALL A: Dummy-Modus (Fairness-Ausgleich)
+        // Logik-Check: Was macht mehr Sinn?
         if (isLastRound && isDummyMode) {
-            roundLabel = "⚖️ Ausgleichsspiel (Fairness)";
+            roundLabel = "⚖️ Ausgleichsspiel";
             roundClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
-            extraInfo = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg border border-blue-100">
-                            ⚠️ HINWEIS: Dieses Spiel dient dem Fairness-Ausgleich. 
-                            <br>Gegen "Virtuelle Gegner" werden keine Punkte gewertet!
+            extraInfo = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg border border-blue-100 uppercase italic text-center">
+                            Gegner bekommt keine Punkte!
                          </div>`;
-        } 
-        
-        // FALL B: Optionales Finale (Genug Zeitpuffer)
-        const isFinalCandidate = isLastRound && !isDummyMode && buffer >= 15;
-        if (isFinalCandidate) {
-            roundLabel = "🏆 Letzte Runde & Optionales Finale";
+        } else if (isLastRound && buffer >= 15) {
+            roundLabel = "🏆 Optionales Finale";
             roundClass = "bg-amber-50 border-amber-200 ring-2 ring-amber-500 ring-inset";
-            extraInfo = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg border border-amber-100 italic">
-                            Anschließend: Optionales Finale der Top-Spieler möglich! 
-                            <br>(Noch ${buffer} Min. Restzeit im Slot)
+            extraInfo = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg border border-amber-100 text-center uppercase">
+                            Genug Puffer (${buffer} Min) für Finale der Besten!
                          </div>`;
         }
 
         return `
-            <div class="p-4 rounded-2xl border ${roundClass} transition-all">
+            <div class="p-4 rounded-2xl border ${roundClass}">
                 <div class="flex justify-between items-center mb-3 text-[10px] font-black uppercase">
-                    <span class="${isLastRound ? 'text-slate-900' : 'text-blue-600'}">${roundLabel}</span>
+                    <span>${roundLabel}</span>
                     <span class="text-slate-500">${r.time} Uhr</span>
                 </div>
                 <div class="space-y-2">
-                    ${r.matches.sort((a,b)=>a.court-b.court).map(m => {
-                        // Namen prüfen und Dummys durch "Virtuelle Gegner" ersetzen
-                        const p1 = players[m.team1[0]] || 'Virtueller Gegner 1';
-                        const p2 = players[m.team1[1]] || 'Virtueller Gegner 2';
-                        const p3 = players[m.team2[0]] || 'Virtueller Gegner 1';
-                        const p4 = players[m.team2[1]] || 'Virtueller Gegner 2';
+                    ${r.matches.map(m => {
+                        // Virtuelle Gegner Benennung
+                        const p1 = players[m.team1[0]] || 'Virtuell 1';
+                        const p2 = players[m.team1[1]] || 'Virtuell 2';
+                        const p3 = players[m.team2[0]] || 'Virtuell 1';
+                        const p4 = players[m.team2[1]] || 'Virtuell 2';
                         
                         return `
                         <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border shadow-sm">
                             <span class="bg-slate-100 px-2 py-1 rounded text-slate-500 font-black">C${m.court}</span>
                             <div class="flex-1 text-center font-bold">
-                                <span class="${p1.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p1}</span> + 
-                                <span class="${p2.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p2}</span>
-                                <span class="text-blue-500 mx-2 text-[8px] uppercase">vs</span> 
-                                <span class="${p3.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p3}</span> + 
-                                <span class="${p4.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p4}</span>
+                                <span class="${p1.includes('Virtuell') ? 'text-blue-400' : ''}">${p1}</span> + 
+                                <span class="${p2.includes('Virtuell') ? 'text-blue-400' : ''}">${p2}</span>
+                                <span class="text-blue-500 mx-2 text-[8px]">VS</span> 
+                                <span class="${p3.includes('Virtuell') ? 'text-blue-400' : ''}">${p3}</span> + 
+                                <span class="${p4.includes('Virtuell') ? 'text-blue-400' : ''}">${p4}</span>
                             </div>
                         </div>`;
                     }).join('')}
@@ -440,55 +434,82 @@
             </div>
         `;
     }).join('');
-    updateStats();
+    
+    updateStats(); // Hier werden die Spiele/Pausen gezählt
 }
 
-        function updateStats() {
-            let stats = players.map(name => ({ name, play: 0, pause: 0, partners: {}, opponents: {} }));
-            const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
+function updateStats() {
+    // 1. Initialisierung: Nur für echte Spieler
+    let stats = players.map(name => ({ 
+        name, 
+        play: 0, 
+        pause: 0, 
+        partners: {}, 
+        opponents: {} 
+    }));
 
-            currentSchedule.forEach(r => {
-                r.matches.forEach(m => {
-                    [...m.team1, ...m.team2].forEach(idx => stats[idx].play++);
-                    const addP = (p1, p2) => { stats[p1].partners[players[p2]] = (stats[p1].partners[players[p2]] || 0) + 1; };
-                    const addO = (p, o1, o2) => { 
-                        stats[p].opponents[players[o1]] = (stats[p].opponents[players[o1]] || 0) + 1;
-                        stats[p].opponents[players[o2]] = (stats[p].opponents[players[o2]] || 0) + 1;
-                    };
-                    addP(m.team1[0], m.team1[1]); addP(m.team1[1], m.team1[0]);
-                    addP(m.team2[0], m.team2[1]); addP(m.team2[1], m.team2[0]);
-                    addO(m.team1[0], m.team2[0], m.team2[1]); addO(m.team1[1], m.team2[0], m.team2[1]);
-                    addO(m.team2[0], m.team1[0], m.team1[1]); addO(m.team2[1], m.team1[0], m.team1[1]);
-                });
-                r.pause.forEach(idx => stats[idx].pause++);
+    currentSchedule.forEach(r => {
+        r.matches.forEach(m => {
+            // Spiele zählen (nur wenn Spieler existiert)
+            [...m.team1, ...m.team2].forEach(idx => {
+                if (players[idx]) stats[idx].play++;
             });
 
-            document.getElementById('fairnessStats').innerHTML = stats.map(s => `
-                <div class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm text-center">
-                    <div class="text-[9px] font-black uppercase text-slate-400 truncate">${s.name}</div>
-                    <div class="text-xs font-black text-blue-600 mt-1">${s.play} S / ${s.pause} P</div>
-                </div>
-            `).join('');
+            // Partner & Gegner Logik (nur tracken, wenn beide Seiten echte Spieler sind)
+            const trackRel = (p1, p2, isPartner) => {
+                if (players[p1] && players[p2]) {
+                    const target = isPartner ? stats[p1].partners : stats[p1].opponents;
+                    target[players[p2]] = (target[players[p2]] || 0) + 1;
+                }
+            };
 
-            document.getElementById('partnerStats').innerHTML = stats.map(s => `
-                <div class="text-[9px] border-b border-slate-100 pb-2">
-                    <span class="font-black text-slate-500 uppercase">${s.name}:</span>
-                    <div class="flex flex-wrap mt-1">
-                        <span class="mr-2 text-blue-600 font-bold underline">Partner:</span>
-                        ${Object.entries(s.partners).map(([pName, count]) => `
-                            <span class="partner-chip ${!isTeamMode && count > 1 ? 'double-occurrence' : ''}">${pName}${count > 1 ? ' (x'+count+')' : ''}</span>
-                        `).join('') || '<span class="text-slate-300">keine</span>'}
-                    </div>
-                    <div class="flex flex-wrap mt-1">
-                        <span class="mr-2 text-slate-400 font-bold">Gegner:</span>
-                        ${Object.entries(s.opponents).map(([oName, count]) => `
-                            <span class="opponent-chip ${count > 1 ? 'bg-orange-50' : ''}">${oName}${count > 1 ? ' (x'+count+')' : ''}</span>
-                        `).join('') || '<span class="text-slate-300">keine</span>'}
-                    </div>
-                </div>
-            `).join('');
-        }
+            // Partner-Beziehungen
+            trackRel(m.team1[0], m.team1[1], true); trackRel(m.team1[1], m.team1[0], true);
+            trackRel(m.team2[0], m.team2[1], true); trackRel(m.team2[1], m.team2[0], true);
 
+            // Gegner-Beziehungen
+            [m.team1[0], m.team1[1]].forEach(p1 => {
+                [m.team2[0], m.team2[1]].forEach(p2 => {
+                    trackRel(p1, p2, false); trackRel(p2, p1, false);
+                });
+            });
+        });
+
+        // Pausen zählen
+        r.pause.forEach(idx => {
+            if (players[idx]) stats[idx].pause++;
+        });
+    });
+
+    // 2. UI Rendering: Spiele & Pausen
+    document.getElementById('fairnessStats').innerHTML = stats.map(s => `
+        <div class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm text-center">
+            <div class="text-[9px] font-black uppercase text-slate-400 truncate">${s.name}</div>
+            <div class="text-xs font-black text-blue-600 mt-1">${s.play} S / ${s.pause} P</div>
+        </div>
+    `).join('');
+
+    // 3. UI Rendering: Partner & Gegner (die Chips)
+    const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
+    document.getElementById('partnerStats').innerHTML = stats.map(s => `
+        <div class="text-[9px] border-b border-slate-100 pb-2">
+            <span class="font-black text-slate-500 uppercase">${s.name}:</span>
+            <div class="flex flex-wrap mt-1">
+                <span class="mr-2 text-blue-600 font-bold underline">Partner:</span>
+                ${Object.entries(s.partners).map(([pName, count]) => `
+                    <span class="partner-chip ${!isTeamMode && count > 1 ? 'double-occurrence' : ''}">${pName}${count > 1 ? ' (x'+count+')' : ''}</span>
+                `).join('') || '<span class="text-slate-300">keine</span>'}
+            </div>
+            <div class="flex flex-wrap mt-1">
+                <span class="mr-2 text-slate-400 font-bold">Gegner:</span>
+                ${Object.entries(s.opponents).map(([oName, count]) => `
+                    <span class="opponent-chip ${count > 1 ? 'bg-orange-50' : ''}">${oName}${count > 1 ? ' (x'+count+')' : ''}</span>
+                `).join('') || '<span class="text-slate-300">keine</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+        
         async function loadTournament(id) {
             if (id === "new") return location.reload();
             const t = tournamentsList.find(x => x.id === id);
