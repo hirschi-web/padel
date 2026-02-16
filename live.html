@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padel Live Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .score-input:disabled { background: transparent; border: none; color: #1e293b; font-weight: 800; -webkit-appearance: none; opacity: 1; }
+        .score-input { width: 35px; text-align: center; border-radius: 8px; font-weight: 800; padding: 4px; }
+        .is-editing .score-input { background: #f1f5f9; border: 1px solid #cbd5e1; }
+        .rank-gold { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #f59e0b; }
+        .rank-silver { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px solid #94a3b8; }
+        .rank-bronze { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #d97706; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans pb-20">
+
+    <div class="max-w-md mx-auto p-4">
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h1 id="tournamentTitle" class="text-2xl font-black italic uppercase tracking-tighter text-blue-600">Lade Turnier...</h1>
+                <p id="tournamentSub" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Scoreboard</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="location.reload()" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">🔄</button>
+                <button id="lockBtn" onclick="toggleEditMode()" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">🔒</button>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-3xl shadow-md border border-slate-100 mb-6">
+            <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Spieler Fokus</label>
+            <select id="playerFocus" onchange="renderAll()" class="w-full p-3 bg-slate-50 border rounded-2xl font-bold outline-none">
+                <option value="">-- Wer bist du? --</option>
+            </select>
+        </div>
+
+        <div id="scheduleArea" class="space-y-4"></div>
+
+        <div class="mt-10 pt-10 border-t border-slate-200">
+            <h2 class="text-xl font-black italic uppercase text-slate-400 mb-6">🏆 Live Ranking</h2>
+            <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900 text-white text-[10px] uppercase tracking-widest">
+                            <th class="p-4">Pos</th>
+                            <th class="p-4">Spieler</th>
+                            <th class="p-4 text-center">Pkt</th>
+                            <th class="p-4 text-center">Diff</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+        
+        let tournamentId = window.location.search.substring(1);
+        let tournamentData = null;
+        let isEditing = false;
+
+        async function init() {
+            if(!tournamentId) {
+                document.getElementById('tournamentTitle').innerText = "Kein Turnier gewählt";
+                return;
+            }
+            const { data, error } = await supabaseClient.from('tournaments').select('*').eq('id', tournamentId).single();
+            if (error || !data) {
+                alert("Turnier nicht gefunden!");
+                return;
+            }
+            tournamentData = data.data;
+            document.getElementById('tournamentTitle').innerText = data.id;
+            
+            // Spieler-Dropdown füllen
+            const focusSelect = document.getElementById('playerFocus');
+            tournamentData.p.forEach(name => focusSelect.add(new Option(name, name)));
+            
+            renderAll();
+        }
+
+        function toggleEditMode() {
+            if(!isEditing) {
+                const pw = prompt("Admin-Passwort eingeben:");
+                if(pw === tournamentData.pw) {
+                    isEditing = true;
+                    document.getElementById('lockBtn').innerText = "🔓";
+                    document.body.classList.add('is-editing');
+                    renderAll();
+                } else {
+                    alert("Falsches Passwort!");
+                }
+            } else {
+                isEditing = false;
+                document.getElementById('lockBtn').innerText = "🔒";
+                document.body.classList.remove('is-editing');
+                renderAll();
+            }
+        }
+
+        async function saveScore(roundIdx, matchIdx, teamIdx, val) {
+            tournamentData.s_new[roundIdx].matches[matchIdx].score[teamIdx] = val;
+            await supabaseClient.from('tournaments').update({ data: tournamentData }).eq('id', tournamentId);
+            updateRanking();
+        }
+
+        function renderAll() {
+            const focus = document.getElementById('playerFocus').value;
+            const area = document.getElementById('scheduleArea');
+            area.innerHTML = '';
+
+            tournamentData.s_new.forEach((round, rIdx) => {
+                let roundHtml = `
+                    <div class="mb-8">
+                        <div class="flex justify-between items-center mb-3">
+                            <h2 class="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Runde ${round.id} • ${round.time}</h2>
+                        </div>
+                        <div class="space-y-2">`;
+
+                round.matches.forEach((m, mIdx) => {
+                    const isFocus = focus && [...m.team1, ...m.team2].map(i => tournamentData.p[i]).includes(focus);
+                    roundHtml += `
+                        <div class="p-3 bg-white rounded-2xl shadow-sm border ${isFocus ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100'}">
+                            <div class="grid grid-cols-7 items-center gap-2">
+                                <div class="col-span-3 text-[11px] font-bold">
+                                    <div class="${focus && tournamentData.p[m.team1[0]] === focus ? 'text-blue-600' : ''}">${tournamentData.p[m.team1[0]]}</div>
+                                    <div class="${focus && tournamentData.p[m.team1[1]] === focus ? 'text-blue-600' : ''}">${tournamentData.p[m.team1[1]]}</div>
+                                </div>
+                                <div class="col-span-1 flex flex-col items-center gap-1">
+                                    <input type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} 
+                                        onchange="saveScore(${rIdx}, ${mIdx}, 0, this.value)" class="score-input">
+                                    <div class="text-[8px] font-black text-slate-300">VS</div>
+                                    <input type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} 
+                                        onchange="saveScore(${rIdx}, ${mIdx}, 1, this.value)" class="score-input">
+                                </div>
+                                <div class="col-span-3 text-[11px] font-bold text-right">
+                                    <div class="${focus && tournamentData.p[m.team2[0]] === focus ? 'text-blue-600' : ''}">${tournamentData.p[m.team2[0]]}</div>
+                                    <div class="${focus && tournamentData.p[m.team2[1]] === focus ? 'text-blue-600' : ''}">${tournamentData.p[m.team2[1]]}</div>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+
+                if(round.pause && round.pause.length > 0) {
+                    const pauseNames = round.pause.map(i => tournamentData.p[i]).join(', ');
+                    roundHtml += `<div class="text-[9px] font-bold text-slate-400 mt-2 px-2">☕ Pause: ${pauseNames}</div>`;
+                }
+
+                roundHtml += `</div></div>`;
+                area.innerHTML += roundHtml;
+            });
+            updateRanking();
+        }
+
+        function updateRanking() {
+            let stats = tournamentData.p.map(name => ({ name, points: 0, diff: 0, games: 0 }));
+            
+            tournamentData.s_new.forEach(r => {
+                r.matches.forEach(m => {
+                    if(m.score[0] !== "" && m.score[1] !== "") {
+                        const s1 = parseInt(m.score[0]);
+                        const s2 = parseInt(m.score[1]);
+                        
+                        m.team1.forEach(idx => {
+                            stats[idx].points += s1;
+                            stats[idx].diff += (s1 - s2);
+                            stats[idx].games++;
+                        });
+                        m.team2.forEach(idx => {
+                            stats[idx].points += s2;
+                            stats[idx].diff += (s2 - s1);
+                            stats[idx].games++;
+                        });
+                    }
+                });
+            });
+
+            stats.sort((a,b) => b.points - a.points || b.diff - a.diff);
+            
+            const table = document.getElementById('rankingTable');
+            table.innerHTML = stats.map((s, i) => {
+                let rankClass = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+                return `
+                    <tr class="${rankClass}">
+                        <td class="p-4 font-black text-xs">${i+1}.</td>
+                        <td class="p-4 font-bold text-xs">${s.name}</td>
+                        <td class="p-4 text-center font-black">${s.points}</td>
+                        <td class="p-4 text-center font-bold text-xs ${s.diff > 0 ? 'text-green-600' : s.diff < 0 ? 'text-red-600' : ''}">${s.diff > 0 ? '+' : ''}${s.diff}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        init();
+    </script>
+</body>
+</html>
