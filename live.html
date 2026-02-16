@@ -11,14 +11,18 @@
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
         h1 { font-weight: 900; letter-spacing: -0.05em; color: #000; }
         .score-input:disabled { background: transparent; border: none; color: #000; font-weight: 900; opacity: 1; font-size: 1.5rem; }
-        .score-input { width: 55px; height: 55px; text-align: center; border-radius: 12px; font-weight: 900; font-size: 1.5rem; background: #f1f5f9; border: 2px solid #e2e8f0; transition: all 0.2s; }
+        .score-input { width: 50px; height: 50px; text-align: center; border-radius: 12px; font-weight: 900; font-size: 1.5rem; background: #f1f5f9; border: 2px solid #e2e8f0; transition: all 0.2s; }
         .is-editing .score-input:not(:disabled) { background: #fff; border-color: #3b82f6; box-shadow: 0 4px 15px rgba(59,130,246,0.2); }
         .rank-row-0 { background: #facc15 !important; border: 3px solid #000 !important; color: #000; transform: scale(1.03); z-index: 10; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); }
         .bot-card { background: #0f172a; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
         .bot-glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .match-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
         .match-focus { border: 3px solid #3b82f6 !important; box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25); transform: scale(1.02); z-index: 20; }
+        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
         .save-overlay { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); z-index: 50; display: none; }
+        
+        /* NEU: Rote Hervorhebung für den Fokus-Namen */
+        .text-focus-red { color: #ef4444 !important; font-weight: 900; }
     </style>
 </head>
 <body class="pb-32 min-h-screen">
@@ -36,22 +40,22 @@
         </div>
 
         <div class="mb-12 relative z-30">
-            <label id="focusLabel" class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em] text-center text-slate-400">Fokus</label>
+            <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em] text-center">Dein Fokus</label>
             <select id="playerFocus" onchange="renderAll()" class="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black outline-none shadow-xl shadow-slate-200/40 appearance-none text-center text-slate-900 text-sm">
                 <option value="">-- Wähle deinen Namen / Team --</option>
             </select>
         </div>
 
-        <div id="scheduleArea" class="space-y-16"></div>
+        <div id="scheduleArea" class="space-y-12"></div>
 
         <div class="mt-24 pt-12 border-t-2 border-slate-100">
             <h2 class="text-4xl font-[900] italic uppercase text-slate-300 mb-8">Ranking</h2>
             <div class="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
                 <table class="w-full text-left font-black">
                     <thead>
-                        <tr class="bg-black text-white text-[10px] uppercase tracking-widest">
+                        <tr class="bg-black text-white text-[10px] uppercase tracking-[0.25em]">
                             <th class="p-5 pl-8">#</th>
-                            <th class="p-5" id="rankingNameHeader">Teilnehmer</th>
+                            <th class="p-5">Teilnehmer</th>
                             <th class="p-5 text-center">Pkt</th>
                             <th class="p-5 text-center pr-8">Diff</th>
                         </tr>
@@ -65,15 +69,12 @@
             <div class="relative z-10">
                 <div class="flex items-center gap-3 mb-6">
                     <div class="h-2 w-2 bg-blue-400 rounded-full animate-pulse shadow-[0_0_15px_#60a5fa]"></div>
-                    <h3 class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 italic">KI-PROGNOSE</h3>
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 italic">KI-Analyse</h3>
                 </div>
-                <p id="botText" class="text-xl font-bold leading-tight text-white mb-8">Wähle einen Fokus für Match-Analyse...</p>
+                <p id="botText" class="text-xl font-bold leading-tight text-white mb-8">Wähle Fokus für Analyse...</p>
                 <div class="bot-glass p-5 rounded-3xl flex items-center gap-5">
                     <div class="text-4xl">🤖</div>
-                    <div>
-                        <p class="text-[9px] font-black uppercase text-blue-300 mb-1">Status</p>
-                        <p class="text-xs font-bold text-white" id="botStatus">Standby</p>
-                    </div>
+                    <div><p class="text-[9px] font-black uppercase text-blue-300 tracking-widest mb-1 opacity-80">Live Status</p><p class="text-sm font-bold text-white" id="botStatus">Standby</p></div>
                 </div>
             </div>
         </div>
@@ -83,7 +84,6 @@
         const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-        
         let tournamentId = decodeURIComponent(window.location.search.substring(1)).replace(/\/$/, "");
         let tournamentData = null;
         let isEditing = false;
@@ -92,23 +92,14 @@
             if(!tournamentId) return;
             const { data } = await supabaseClient.from('tournaments').select('*').eq('id', tournamentId);
             if (!data || data.length === 0) return;
-            
             tournamentData = data[0].data;
             document.getElementById('tournamentTitle').innerText = data[0].id.toUpperCase();
-            
-            // --- PASSWORT CACHE CHECK ---
             if(sessionStorage.getItem('isAdmin') === 'true') {
-                isEditing = true;
-                document.getElementById('lockBtn').innerText = "🔓";
-                document.body.classList.add('is-editing');
+                isEditing = true; document.getElementById('lockBtn').innerText = "🔓"; document.body.classList.add('is-editing');
             }
-
             const focusSelect = document.getElementById('playerFocus');
             if(tournamentData.type === 'team') {
-                for(let i=0; i<tournamentData.p.length; i+=2) {
-                    let teamName = `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
-                    focusSelect.add(new Option(teamName, teamName));
-                }
+                for(let i=0; i<tournamentData.p.length; i+=2) focusSelect.add(new Option(`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`));
             } else {
                 tournamentData.p.forEach(name => focusSelect.add(new Option(name, name)));
             }
@@ -119,30 +110,20 @@
             if(!isEditing) {
                 const pw = prompt("Admin Passwort:");
                 if(pw === tournamentData.pw) {
-                    isEditing = true;
-                    sessionStorage.setItem('isAdmin', 'true');
-                    document.getElementById('lockBtn').innerText = "🔓";
-                    document.body.classList.add('is-editing');
-                    renderAll();
+                    isEditing = true; sessionStorage.setItem('isAdmin', 'true');
+                    document.getElementById('lockBtn').innerText = "🔓"; document.body.classList.add('is-editing'); renderAll();
                 }
             } else {
-                isEditing = false;
-                sessionStorage.removeItem('isAdmin');
-                document.getElementById('lockBtn').innerText = "🔒";
-                document.body.classList.remove('is-editing');
-                renderAll();
+                isEditing = false; sessionStorage.removeItem('isAdmin');
+                document.getElementById('lockBtn').innerText = "🔒"; document.body.classList.remove('is-editing'); renderAll();
             }
         }
 
-        function showSaveButton(rIdx, mIdx) {
-            document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'block';
-        }
+        function showSaveButton(rIdx, mIdx) { document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'block'; }
 
         async function saveScore(rIdx, mIdx) {
-            const s1 = document.getElementById(`score-${rIdx}-${mIdx}-0`).value;
-            const s2 = document.getElementById(`score-${rIdx}-${mIdx}-1`).value;
-            tournamentData.s_new[rIdx].matches[mIdx].score[0] = s1;
-            tournamentData.s_new[rIdx].matches[mIdx].score[1] = s2;
+            tournamentData.s_new[rIdx].matches[mIdx].score[0] = document.getElementById(`score-${rIdx}-${mIdx}-0`).value;
+            tournamentData.s_new[rIdx].matches[mIdx].score[1] = document.getElementById(`score-${rIdx}-${mIdx}-1`).value;
             await supabaseClient.from('tournaments').update({ data: tournamentData }).eq('id', tournamentId);
             document.getElementById(`save-${rIdx}-${mIdx}`).style.display = 'none';
             updateRanking();
@@ -154,39 +135,53 @@
             area.innerHTML = '';
 
             tournamentData.s_new.forEach((round, rIdx) => {
-                let html = `<div><h2 class="text-center text-[11px] font-black text-slate-300 uppercase tracking-widest italic mb-6">Runde ${round.id} / ${round.time}</h2><div class="space-y-6">`;
+                let roundHtml = `<div class="space-y-6">`;
                 round.matches.forEach((m, mIdx) => {
-                    let names = [...m.team1, ...m.team2].map(i => tournamentData.p[i]);
-                    let isFocus = focusValue && (tournamentData.type === 'team' ? 
-                        (focusValue === `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` || focusValue === `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`) : 
-                        names.includes(focusValue));
+                    let team1Name = tournamentData.type === 'team' ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
+                    let team2Name = tournamentData.type === 'team' ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
+                    
+                    let isFocus = focusValue && (focusValue === team1Name || focusValue === team2Name);
+                    
+                    // Namens-Check für rote Farbe (Einzelspieler-Basis)
+                    const checkRed = (pIdx) => focusValue && (tournamentData.p[pIdx] === focusValue || (tournamentData.type === 'team' && focusValue === `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` && m.team1.includes(pIdx)) || (tournamentData.type === 'team' && focusValue === `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` && m.team2.includes(pIdx)));
 
-                    html += `
+                    roundHtml += `
                     <div class="match-card p-6 ${isFocus ? 'match-focus' : ''}">
-                        <div class="text-center mb-4 text-[9px] font-black text-slate-300 uppercase">Court ${m.court || (mIdx+1)}</div>
-                        <div class="grid grid-cols-7 items-center">
-                            <div class="col-span-3 text-[12px] font-black uppercase leading-tight">
-                                <div>${tournamentData.p[m.team1[0]]}</div><div>${tournamentData.p[m.team1[1]]}</div>
-                            </div>
-                            <div class="col-span-1 flex flex-col items-center gap-1">
-                                <input id="score-${rIdx}-${mIdx}-0" type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input">
-                                <input id="score-${rIdx}-${mIdx}-1" type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input">
-                            </div>
-                            <div class="col-span-3 text-[12px] font-black uppercase leading-tight text-right">
-                                <div>${tournamentData.p[m.team2[0]]}</div><div>${tournamentData.p[m.team2[1]]}</div>
+                        <div class="flex justify-between items-center mb-6 text-[10px] font-black text-slate-300 uppercase tracking-tighter">
+                            <span>${round.time}</span>
+                            <span class="text-slate-200">Runde ${round.id}</span>
+                            <span>Court ${m.court || (mIdx + 1)}</span>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center px-2">
+                                <div class="w-2/5 text-[13px] font-black uppercase leading-tight truncate">
+                                    <div class="${checkRed(m.team1[0]) ? 'text-focus-red' : ''}">${tournamentData.p[m.team1[0]]}</div>
+                                    <div class="${checkRed(m.team1[1]) ? 'text-focus-red' : ''}">${tournamentData.p[m.team1[1]]}</div>
+                                </div>
+                                <div class="w-1/5 flex justify-center items-center gap-2">
+                                    <input id="score-${rIdx}-${mIdx}-0" type="number" value="${m.score[0]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input shadow-inner">
+                                    <span class="text-slate-200 font-bold">-</span>
+                                    <input id="score-${rIdx}-${mIdx}-1" type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} oninput="showSaveButton(${rIdx}, ${mIdx})" class="score-input shadow-inner">
+                                </div>
+                                <div class="w-2/5 text-[13px] font-black uppercase leading-tight text-right truncate">
+                                    <div class="${checkRed(m.team2[0]) ? 'text-focus-red' : ''}">${tournamentData.p[m.team2[0]]}</div>
+                                    <div class="${checkRed(m.team2[1]) ? 'text-focus-red' : ''}">${tournamentData.p[m.team2[1]]}</div>
+                                </div>
                             </div>
                         </div>
-                        <div id="save-${rIdx}-${mIdx}" class="save-overlay"><button onclick="saveScore(${rIdx}, ${mIdx})" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-[10px] uppercase shadow-lg">Speichern</button></div>
+                        <div id="save-${rIdx}-${mIdx}" class="save-overlay"><button onclick="saveScore(${rIdx}, ${mIdx})" class="bg-blue-600 text-white px-5 py-2 rounded-full font-black text-[10px] uppercase shadow-xl">Speichern</button></div>
                     </div>`;
                 });
-
+                
                 if(round.pause?.length > 0) {
-                    let pNames = tournamentData.type === 'team' ? 
-                        [`${tournamentData.p[round.pause[0]]} + ${tournamentData.p[round.pause[1]]}`] : 
-                        round.pause.map(i => tournamentData.p[i]);
-                    html += `<p class="text-center text-[9px] font-bold text-slate-400 uppercase mt-4">Pause: ${pNames.join(', ')}</p>`;
+                     let pNames = round.pause.map(i => tournamentData.p[i]);
+                     let isPauseFocus = focusValue && (pNames.includes(focusValue) || (tournamentData.type === 'team' && focusValue === `${tournamentData.p[round.pause[0]]} + ${tournamentData.p[round.pause[1]]}`));
+                     
+                     let pDisp = tournamentData.type === 'team' ? `${tournamentData.p[round.pause[0]]} + ${tournamentData.p[round.pause[1]]}` : pNames.join(', ');
+                     
+                     roundHtml += `<div class="flex justify-center"><div class="bg-white px-8 py-4 rounded-full border border-slate-100 shadow-md"><p class="text-[12px] font-black text-slate-400 uppercase tracking-widest italic">☕ Pause: <span class="${isPauseFocus ? 'text-focus-red' : 'text-slate-800'} not-italic text-lg">${pDisp}</span></p></div></div>`;
                 }
-                area.innerHTML += html + `</div></div>`;
+                area.innerHTML += roundHtml + `</div>`;
             });
             updateRanking();
         }
@@ -195,107 +190,49 @@
             const isTeam = tournamentData.type === 'team';
             let stats = [];
             if(isTeam) {
-                for(let i=0; i<tournamentData.p.length; i+=2) stats.push({ name: `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, ids:[i,i+1], points:0, diff:0, games:0, history:[] });
+                for(let i=0; i<tournamentData.p.length; i+=2) stats.push({ name: `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`, ids:[i,i+1], points:0, diff:0, history:[] });
             } else {
-                stats = tournamentData.p.map((name, i) => ({ name, ids:[i], points:0, diff:0, games:0, history:[] }));
+                stats = tournamentData.p.map((name, i) => ({ name, ids:[i], points:0, diff:0, history:[] }));
             }
-
             tournamentData.s_new.forEach(r => r.matches.forEach(m => {
                 if(m.score[0] !== "" && m.score[0] !== null) {
-                    const s1 = parseInt(m.score[0]), s2 = parseInt(m.score[1]);
+                    const s1 = parseInt(m.score[0]) || 0, s2 = parseInt(m.score[1]) || 0;
                     const t1Name = isTeam ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
                     const t2Name = isTeam ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
-                    
                     stats.forEach(e => {
-                        if(e.ids.some(id => m.team1.includes(id))) { 
-                            e.points += s1; e.diff += (s1-s2); e.games++; 
-                            e.history.push({ opponent: t2Name, score: [s1, s2], diff: s1-s2 });
-                        }
-                        if(e.ids.some(id => m.team2.includes(id))) { 
-                            e.points += s2; e.diff += (s2-s1); e.games++; 
-                            e.history.push({ opponent: t1Name, score: [s2, s1], diff: s2-s1 });
-                        }
+                        if(e.ids.some(id => m.team1.includes(id))) { e.points += s1; e.diff += (s1-s2); e.history.push({opponent: t2Name, diff: s1-s2}); }
+                        if(e.ids.some(id => m.team2.includes(id))) { e.points += s2; e.diff += (s2-s1); e.history.push({opponent: t1Name, diff: s2-s1}); }
                     });
                 }
             }));
-
             stats.sort((a,b) => b.points - a.points || b.diff - a.diff);
-            document.getElementById('rankingTable').innerHTML = stats.map((s, i) => `
-                <tr class="rank-row-${i} border-b border-slate-50">
-                    <td class="p-5 pl-8 font-black text-sm">#${i+1}</td>
-                    <td class="p-5 text-xs font-bold uppercase truncate max-w-[120px]">${s.name}</td>
-                    <td class="p-5 text-center font-black text-xl">${s.points}</td>
-                    <td class="p-5 pr-8 text-center text-xs font-bold ${s.diff>0?'text-green-600':s.diff<0?'text-red-500':'text-slate-400'}">${s.diff>0?'+':''}${s.diff}</td>
-                </tr>`).join('');
+            document.getElementById('rankingTable').innerHTML = stats.map((s, i) => `<tr class="rank-row-${i} border-b border-slate-50 last:border-none rounded-xl"><td class="p-5 pl-8 font-black text-sm">#${i+1}</td><td class="p-5 text-xs font-bold uppercase truncate max-w-[140px]">${s.name}</td><td class="p-5 text-center font-black text-xl">${s.points}</td><td class="p-5 pr-8 text-center text-xs font-bold ${s.diff>0?'text-green-600':s.diff<0?'text-red-500':'text-slate-400'}">${s.diff>0?'+':''}${s.diff}</td></tr>`).join('');
             
-            runAIPrediction(stats);
-        }
-
-        function runAIPrediction(stats) {
             const focus = document.getElementById('playerFocus').value;
             const botText = document.getElementById('botText');
-            const botStatus = document.getElementById('botStatus');
-
-            if(!focus) {
-                botText.innerText = "Wähle einen Fokus oben aus, um deine nächste Match-Analyse zu sehen.";
-                botStatus.innerText = "Standby";
-                return;
-            }
-
-            // Finde das nächste Match des Fokus-Spielers
-            let nextMatch = null;
-            let opponentName = "";
+            if(!focus) { botText.innerText = "Wähle Fokus für Analyse..."; return; }
+            let nextMatch = null, opponent = "";
             for(let r of tournamentData.s_new) {
                 for(let m of r.matches) {
                     if(m.score[0] === "" || m.score[0] === null) {
-                        const t1 = tournamentData.type === 'team' ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
-                        const t2 = tournamentData.type === 'team' ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
-                        if(t1 === focus) { nextMatch = m; opponentName = t2; break; }
-                        if(t2 === focus) { nextMatch = m; opponentName = t1; break; }
+                        const t1 = isTeam ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
+                        const t2 = isTeam ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
+                        if(t1 === focus) { nextMatch = m; opponent = t2; break; }
+                        if(t2 === focus) { nextMatch = m; opponent = t1; break; }
                     }
                 }
                 if(nextMatch) break;
             }
-
-            if(!nextMatch) {
-                botText.innerText = "Keine ausstehenden Matches für dich gefunden.";
-                return;
-            }
-
-            // --- KI LOGIK ---
-            const myStats = stats.find(s => s.name === focus);
-            const oppStats = stats.find(s => s.name === opponentName);
-            
-            // 1. Gemeinsame Gegner Analyse
-            let bridgeScore = 0;
-            let bridgesFound = 0;
-            myStats.history.forEach(h => {
-                const oppHistoryWithSame = oppStats.history.find(oh => oh.opponent === h.opponent);
-                if(oppHistoryWithSame) {
-                    bridgeScore += (h.diff - oppHistoryWithSame.diff);
-                    bridgesFound++;
-                }
-            });
-
-            // 2. Trend (Letztes Spiel)
-            const myTrend = myStats.history.length > 0 ? myStats.history[myStats.history.length-1].diff : 0;
-            const oppTrend = oppStats.history.length > 0 ? oppStats.history[oppStats.history.length-1].diff : 0;
-
-            // 3. Siegchance Kalkulation
-            let winProb = 50 + (myStats.diff - oppStats.diff) + (bridgeScore * 2);
-            winProb = Math.min(Math.max(winProb, 5), 95); // Range 5-95%
-
-            let analysis = `Nächstes Match gegen **${opponentName}**.<br><br>`;
-            if(bridgesFound > 0) {
-                analysis += `Indirekter Vergleich: Ihr habt gegen die gleichen Gegner insgesamt ${bridgeScore > 0 ? 'besser' : 'schlechter'} abgeschnitten.<br>`;
-            }
-            analysis += `Trend: ${myTrend > oppTrend ? 'Vorteil bei dir' : 'Gegner ist aktuell stärker'}.<br>`;
-            analysis += `Voraussichtliche Siegchance: **${Math.round(winProb)}%**`;
-
-            botText.innerHTML = analysis;
-            botStatus.innerText = "Match-Matrix aktiv";
+            if(nextMatch) {
+                const myStats = stats.find(s => s.name === focus);
+                const oppStats = stats.find(s => s.name === opponent);
+                let bridgeScore = 0;
+                myStats.history.forEach(h => { let common = oppStats.history.find(oh => oh.opponent === h.opponent); if(common) bridgeScore += (h.diff - common.diff); });
+                let winProb = Math.min(Math.max(50 + (myStats.diff - oppStats.diff) + (bridgeScore * 2), 5), 95);
+                botText.innerHTML = `Nächstes Match vs. <b>${opponent}</b>.<br>Matrix Analyse: <b>${Math.round(winProb)}%</b> Siegchance.`;
+                document.getElementById('botStatus').innerText = "Analyse aktiv";
+            } else { botText.innerText = "Alle Matches gespielt!"; }
         }
-
         init();
     </script>
 </body>
