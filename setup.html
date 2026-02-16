@@ -11,6 +11,7 @@
         .btn-action { transition: all 0.2s; text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; font-size: 11px; }
         .partner-chip { font-size: 8px; background: #e2e8f0; padding: 1px 4px; border-radius: 4px; margin: 1px; display: inline-block; font-weight: bold; color: #475569; }
         .double-occurrence { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; }
+        .opponent-chip { font-size: 8px; background: #f1f5f9; padding: 1px 4px; border-radius: 4px; margin: 1px; display: inline-block; color: #64748b; border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body class="bg-slate-100 p-4 max-w-4xl mx-auto text-slate-900 font-sans pb-20">
@@ -35,7 +36,7 @@
             <div class="space-y-5">
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="input-label">Turnier Name</label><input type="text" id="tName" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
-                    <div><label class="input-label">Admin-Passwort</label><input type="password" id="tPassword" placeholder="Passwort vergeben" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
+                    <div><label class="input-label">Admin-Passwort</label><input type="password" id="tPassword" placeholder="Optional" class="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:ring-2 ring-blue-500 transition-all"></div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -77,28 +78,29 @@
             </div>
         </div>
 
-        <button onclick="runOptimization()" class="w-full mt-10 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg">Plan bestmöglich mischen</button>
+        <button onclick="runOptimization()" class="w-full mt-10 bg-slate-900 text-white p-4 rounded-2xl btn-action hover:bg-slate-800 shadow-lg italic">Plan bestmöglich mischen</button>
 
         <div id="previewArea" class="hidden mt-12 space-y-6 border-t pt-10">
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-black uppercase italic text-slate-400">Vorschau</h2>
+                <h2 class="text-xl font-black uppercase italic text-slate-400">Vorschau & Fairness</h2>
                 <button onclick="runOptimization()" class="bg-orange-500 text-white px-5 py-2 rounded-xl btn-action hover:bg-orange-600 shadow-lg">🔀 Neu berechnen</button>
             </div>
             
             <div id="previewList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
-            <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 mt-8 space-y-6">
+            <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 mt-8 space-y-8">
                 <div>
-                    <h3 class="text-blue-600 font-black uppercase text-[10px] mb-3 tracking-widest italic">📊 Fairness & Pausen</h3>
+                    <h3 class="text-blue-600 font-black uppercase text-[10px] mb-3 tracking-widest italic">📊 Spiele & Pausen</h3>
                     <div id="fairnessStats" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
                 </div>
-                <div id="partnerCheckSection">
-                    <h3 class="text-blue-600 font-black uppercase text-[10px] mb-3 tracking-widest italic">🤝 Partner-Check (Rot = Doppelt)</h3>
+                
+                <div>
+                    <h3 class="text-blue-600 font-black uppercase text-[10px] mb-3 tracking-widest italic">🤝 Partner & Gegner (Rot = Dopplung)</h3>
                     <div id="partnerStats" class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white/50 p-4 rounded-2xl"></div>
                 </div>
             </div>
             
-            <button onclick="saveFinal()" class="w-full bg-green-600 text-white p-5 rounded-2xl btn-action shadow-xl hover:bg-green-700 mt-6">✅ Turnier speichern</button>
+            <button onclick="saveFinal()" class="w-full bg-green-600 text-white p-5 rounded-2xl btn-action shadow-xl hover:bg-green-700 mt-6">✅ Turnier final speichern</button>
         </div>
     </div>
 
@@ -171,13 +173,11 @@
             
             currentSchedule = bestSchedule;
             renderPreview();
-            document.getElementById('partnerCheckSection').style.display = isTeamMode ? 'none' : 'block';
-            document.getElementById('lastActionTime').innerText = "Script Stand: " + new Date().toLocaleString('de-DE') + " (Optimiert aus 100 Simulationen)";
+            document.getElementById('lastActionTime').innerText = "Generiert am: " + new Date().toLocaleString('de-DE');
         }
 
         function generateVariant(numRounds, numCourts, isTeamMode) {
-            let schedule = [];
-            let penalty = 0;
+            let schedule = [], penalty = 0;
             let playCount = new Array(players.length).fill(0);
             let partners = Array.from({length: players.length}, () => new Array(players.length).fill(0));
             let opponents = Array.from({length: players.length}, () => new Array(players.length).fill(0));
@@ -252,7 +252,9 @@
                             <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border">
                                 <span class="text-slate-300 font-bold">C${m.court}</span>
                                 <div class="flex-1 text-center font-bold">
-                                    ${players[m.team1[0]]}+${players[m.team1[1]]} <span class="text-blue-500">vs</span> ${players[m.team2[0]]}+${players[m.team2[1]]}
+                                    ${players[m.team1[0]]} + ${players[m.team1[1]]} 
+                                    <span class="text-blue-500 mx-2">vs</span> 
+                                    ${players[m.team2[0]]} + ${players[m.team2[1]]}
                                 </div>
                             </div>
                         `).join('')}
@@ -264,26 +266,50 @@
         }
 
         function updateStats() {
-            let stats = players.map(name => ({ name, play: 0, pause: 0, partners: {} }));
+            let stats = players.map(name => ({ name, play: 0, pause: 0, partners: {}, opponents: {} }));
+            const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
+
             currentSchedule.forEach(r => {
                 r.matches.forEach(m => {
                     [...m.team1, ...m.team2].forEach(idx => stats[idx].play++);
-                    const addPartner = (p1, p2) => { stats[p1].partners[players[p2]] = (stats[p1].partners[players[p2]] || 0) + 1; };
-                    addPartner(m.team1[0], m.team1[1]); addPartner(m.team1[1], m.team1[0]);
-                    addPartner(m.team2[0], m.team2[1]); addPartner(m.team2[1], m.team2[0]);
+                    
+                    const addP = (p1, p2) => { stats[p1].partners[players[p2]] = (stats[p1].partners[players[p2]] || 0) + 1; };
+                    const addO = (p, o1, o2) => { 
+                        stats[p].opponents[players[o1]] = (stats[p].opponents[players[o1]] || 0) + 1;
+                        stats[p].opponents[players[o2]] = (stats[p].opponents[players[o2]] || 0) + 1;
+                    };
+
+                    addP(m.team1[0], m.team1[1]); addP(m.team1[1], m.team1[0]);
+                    addP(m.team2[0], m.team2[1]); addP(m.team2[1], m.team2[0]);
+                    
+                    addO(m.team1[0], m.team2[0], m.team2[1]); addO(m.team1[1], m.team2[0], m.team2[1]);
+                    addO(m.team2[0], m.team1[0], m.team1[1]); addO(m.team2[1], m.team1[0], m.team1[1]);
                 });
                 r.pause.forEach(idx => stats[idx].pause++);
             });
+
             document.getElementById('fairnessStats').innerHTML = stats.map(s => `
                 <div class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm text-center">
                     <div class="text-[9px] font-black uppercase text-slate-400 truncate">${s.name}</div>
                     <div class="text-xs font-black text-blue-600 mt-1">${s.play} S / ${s.pause} P</div>
                 </div>
             `).join('');
+
             document.getElementById('partnerStats').innerHTML = stats.map(s => `
-                <div class="text-[9px]">
+                <div class="text-[9px] border-b border-slate-100 pb-2">
                     <span class="font-black text-slate-500 uppercase">${s.name}:</span>
-                    <div class="flex flex-wrap mt-1">${Object.entries(s.partners).map(([pName, count]) => `<span class="partner-chip ${count > 1 ? 'double-occurrence' : ''}">${pName}${count > 1 ? ' (x'+count+')' : ''}</span>`).join('')}</div>
+                    <div class="flex flex-wrap mt-1">
+                        <span class="mr-2 text-blue-600 font-bold underline">Partner:</span>
+                        ${Object.entries(s.partners).map(([pName, count]) => `
+                            <span class="partner-chip ${!isTeamMode && count > 1 ? 'double-occurrence' : ''}">${pName}${count > 1 ? ' (x'+count+')' : ''}</span>
+                        `).join('') || '<span class="text-slate-300">keine</span>'}
+                    </div>
+                    <div class="flex flex-wrap mt-1">
+                        <span class="mr-2 text-slate-400 font-bold">Gegner:</span>
+                        ${Object.entries(s.opponents).map(([oName, count]) => `
+                            <span class="opponent-chip ${count > 1 ? 'bg-orange-50' : ''}">${oName}${count > 1 ? ' (x'+count+')' : ''}</span>
+                        `).join('') || '<span class="text-slate-300">keine</span>'}
+                    </div>
                 </div>
             `).join('');
         }
