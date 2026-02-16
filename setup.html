@@ -22,7 +22,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.3</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.4</p>
             </div>
             <div class="flex items-center gap-2">
                 <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-slate-50 p-2 rounded-2xl border font-bold text-sm outline-none cursor-pointer">
@@ -198,6 +198,8 @@
 
 // --- KERN-LOGIK: GENERIERUNG & OPTIMIERUNG ---
 
+// --- KERN-LOGIK: GENERIERUNG & OPTIMIERUNG ---
+
 function runOptimization() {
     players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
     const numCourts = parseInt(document.getElementById('cCount').value);
@@ -209,31 +211,23 @@ function runOptimization() {
     const totalSlots = numRounds * numCourts * 4;
     const remainder = totalSlots % players.length;
     
-    // NEUE LOGIK: Dummy-Modus nur, wenn wir MEHR als einen Platz haben
-    // oder wenn die Spieleranzahl so klein ist, dass Dummys zwingend sind (z.B. 3 Spieler).
-    // Bei 6 Spielern und 1 Platz -> IMMER Finale.
-    let isDummyMode = false;
-    if (numCourts > 1 && remainder !== 0) {
-        isDummyMode = true; 
-    }
+    // Logik: Ausgleich nur bei mehreren Plätzen und Rest. Sonst Finale.
+    let isDummyMode = (numCourts > 1 && remainder !== 0);
 
     let bestSchedule = null;
     let lowestPenalty = Infinity;
 
     for(let attempt = 0; attempt < 1000; attempt++) {
         let res = generateVariant(numRounds, numCourts, false, isDummyMode);
-        
         let playCounts = new Array(players.length).fill(0);
         res.schedule.forEach(r => {
             r.matches.forEach(m => {
                 [...m.team1, ...m.team2].forEach(pIdx => { if(players[pIdx]) playCounts[pIdx]++; });
             });
         });
-
-        // Wir akzeptieren bei 6 Spielern/1 Platz, dass 2 Leute ein Spiel weniger haben
         const maxP = Math.max(...playCounts);
         const minP = Math.min(...playCounts);
-        let fairnessPenalty = (maxP - minP) * 500; // Kleine Penalty, damit es trotzdem versucht wird zu mischen
+        let fairnessPenalty = (maxP - minP) * 10000; 
 
         if(fairnessPenalty + res.penalty < lowestPenalty) {
             lowestPenalty = fairnessPenalty + res.penalty;
@@ -253,9 +247,7 @@ function generateVariant(numRounds, numCourts, isTeamMode, isDummyMode) {
 
     for(let r = 1; r <= numRounds; r++) {
         let isLast = (r === numRounds);
-        // Priorität für Spieler mit wenigsten Einsätzen
         let pool = [...Array(players.length).keys()].sort((a,b) => playCount[a] - playCount[b] || Math.random() - 0.5);
-        
         let round = { id: r, time: "", pause: [], matches: [] };
         let tMin = sH * 60 + sM + warmup + (r-1)*mTime;
         round.time = `${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
@@ -263,8 +255,6 @@ function generateVariant(numRounds, numCourts, isTeamMode, isDummyMode) {
         let rem = [...pool];
         for(let c = 1; c <= numCourts; c++) {
             let p1 = rem.shift(), p2 = rem.shift(), p3 = rem.shift(), p4 = rem.shift();
-            
-            // In der letzten Runde werden fehlende Spieler zu 'undefined' -> Virtuelle Gegner
             [p1, p2, p3, p4].forEach(p => { if(p !== undefined) playCount[p]++; });
             round.matches.push({ court: c, team1: [p1, p2], team2: [p3, p4] });
         }
@@ -274,17 +264,12 @@ function generateVariant(numRounds, numCourts, isTeamMode, isDummyMode) {
     return { schedule, penalty };
 }
 
-// --- ANZEIGE-LOGIK: VORSCHAU & LABELS ---
+// --- ANZEIGE-LOGIK ---
 
 function renderPreview(isDummyMode = false) {
     document.getElementById('previewArea').classList.remove('hidden');
     players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
     
-    const mTime = parseInt(document.getElementById('matchTime').value);
-    const warmup = parseInt(document.getElementById('warmup').value) || 0;
-    const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
-    const buffer = totalMin - (currentSchedule.length * mTime + warmup);
-
     document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
         const isLastRound = idx === currentSchedule.length - 1;
         let roundLabel = `Runde ${r.id}`;
@@ -295,11 +280,11 @@ function renderPreview(isDummyMode = false) {
             if (isDummyMode) {
                 roundLabel = "⚖️ Ausgleichsspiel";
                 roundClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
-                extraInfo = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Ausgleich: Gegner bekommt keine Punkte!</div>`;
+                extraInfo = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Ausgleichsrunde: Gezählt für Statistik</div>`;
             } else {
                 roundLabel = "🏆 Finale der besten 4";
                 roundClass = "bg-amber-50 border-amber-200 ring-2 ring-amber-500 ring-inset";
-                extraInfo = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Modus: 1&4 vs. 2&3 (Puffer: ${buffer} Min)</div>`;
+                extraInfo = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Finale: Nicht gewertet für Statistik</div>`;
             }
         }
 
@@ -311,10 +296,18 @@ function renderPreview(isDummyMode = false) {
                 </div>
                 <div class="space-y-2">
                     ${r.matches.map(m => {
-                        const p1 = players[m.team1[0]] || 'Virtuell 1';
-                        const p2 = players[m.team1[1]] || 'Virtuell 2';
-                        const p3 = players[m.team2[0]] || 'Virtuell 1';
-                        const p4 = players[m.team2[1]] || 'Virtuell 2';
+                        let p1, p2, p3, p4;
+                        
+                        // FALLS FINALE: Platzhalter anzeigen statt Namen
+                        if (isLastRound && !isDummyMode) {
+                            p1 = "Platz 1"; p2 = "Platz 4"; p3 = "Platz 2"; p4 = "Platz 3";
+                        } else {
+                            p1 = players[m.team1[0]] || 'Virtuell 1';
+                            p2 = players[m.team1[1]] || 'Virtuell 2';
+                            p3 = players[m.team2[0]] || 'Virtuell 1';
+                            p4 = players[m.team2[1]] || 'Virtuell 2';
+                        }
+                        
                         return `
                         <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border shadow-sm">
                             <span class="bg-slate-100 px-2 py-1 rounded text-slate-400 font-black italic">C${m.court}</span>
@@ -328,48 +321,38 @@ function renderPreview(isDummyMode = false) {
                         </div>`;
                     }).join('')}
                 </div>
-                <div class="mt-2 text-[8px] font-bold text-orange-500 italic text-center">Pause: ${r.pause.map(p => players[p]).filter(n => n).join(', ') || 'Keiner'}</div>
+                <div class="mt-2 text-[8px] font-bold text-orange-500 italic text-center">
+                    Pause: ${ (isLastRound && !isDummyMode) ? 'Restliche Spieler' : (r.pause.map(p => players[p]).filter(n => n).join(', ') || 'Keiner') }
+                </div>
                 ${extraInfo}
             </div>`;
     }).join('');
-    updateStats();
+    updateStats(isDummyMode);
 }
 
-// --- STATISTIK-LOGIK: FAIRNESS-PRÜFUNG ---
+// --- STATISTIK: MIT BEDINGTER WERTUNG ---
 
-function updateStats() {
-    let stats = players.map(name => ({ name, play: 0, pause: 0, partners: {}, opponents: {} }));
+function updateStats(isDummyMode) {
+    let stats = players.map(name => ({ name, play: 0, pause: 0 }));
 
-    currentSchedule.forEach(r => {
-        r.matches.forEach(m => {
-            [...m.team1, ...m.team2].forEach(idx => { if (players[idx]) stats[idx].play++; });
-            
-            const track = (p1, p2, isP) => {
-                if (players[p1] && players[p2]) {
-                    const t = isP ? stats[p1].partners : stats[p1].opponents;
-                    t[players[p2]] = (t[players[p2]] || 0) + 1;
-                }
-            };
-            // Partner
-            track(m.team1[0], m.team1[1], true); track(m.team1[1], m.team1[0], true);
-            track(m.team2[0], m.team2[1], true); track(m.team2[1], m.team2[0], true);
-            // Gegner
-            [m.team1[0], m.team1[1]].forEach(pa => {
-                [m.team2[0], m.team2[1]].forEach(pb => { track(pa, pb, false); track(pb, pa, false); });
+    currentSchedule.forEach((r, idx) => {
+        const isLastRound = idx === currentSchedule.length - 1;
+        
+        // Zähle nur, wenn es nicht die Finalrunde ist ODER wenn es ein Ausgleich ist
+        if (!isLastRound || isDummyMode) {
+            r.matches.forEach(m => {
+                [...m.team1, ...m.team2].forEach(pIdx => { if (players[pIdx]) stats[pIdx].play++; });
             });
-        });
-        r.pause.forEach(idx => { if (players[idx]) stats[idx].pause++; });
+            r.pause.forEach(pIdx => { if (players[pIdx]) stats[pIdx].pause++; });
+        }
     });
 
-    // Anzeige der Spiele/Pausen
     document.getElementById('fairnessStats').innerHTML = stats.map(s => `
         <div class="bg-white p-3 rounded-xl border border-blue-100 text-center">
             <div class="text-[9px] font-black uppercase text-slate-400">${s.name}</div>
             <div class="text-xs font-black text-blue-600">${s.play} S / ${s.pause} P</div>
         </div>`).join('');
-}
-
-        async function loadTournament(id) {
+}        async function loadTournament(id) {
             if (id === "new") return location.reload();
             const t = tournamentsList.find(x => x.id === id);
             if (t) {
