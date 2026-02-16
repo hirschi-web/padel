@@ -22,7 +22,7 @@
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
             <div>
                 <h1 class="text-2xl font-black text-blue-600 uppercase italic tracking-tighter">Turnier Setup</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.2</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Smart-Mix Engine v1.3</p>
             </div>
             <div class="flex items-center gap-2">
                 <select id="tournamentSelect" onchange="loadTournament(this.value)" class="bg-slate-50 p-2 rounded-2xl border font-bold text-sm outline-none cursor-pointer">
@@ -196,30 +196,28 @@
             document.getElementById('playerList').innerHTML = html;
         }
 
+// --- KERN-LOGIK: GENERIERUNG & OPTIMIERUNG ---
+
 function runOptimization() {
     players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-    const numCourts = parseInt(document.getElementById('cCount').value);
+    const numCourts = parseInt(document.getElementById('cCount').value); // Fixer Wert
     const mTime = parseInt(document.getElementById('matchTime').value);
     const warmup = parseInt(document.getElementById('warmup').value) || 0;
     const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+    
+    // Berechne Runden basierend auf FIXER Zeit und FIXEN Plätzen
     let numRounds = Math.floor((totalMin - warmup) / mTime);
     const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
     
-    // Check Fairness
+    // Fairness-Check: Geht die Gesamtzahl der Slots glatt durch die Spieleranzahl?
     const totalSlots = numRounds * numCourts * 4;
     const remainder = totalSlots % players.length;
-    let isDummyMode = false;
-    let playersNeedingExtra = 0;
+    let isDummyMode = (remainder !== 0);
 
-    if (remainder !== 0) {
-        isDummyMode = true;
-        playersNeedingExtra = remainder; 
-        // Bei 6 Spielern und 7 Runden (28 Slots): 28 % 6 = 4 Spieler haben 5 Spiele, 2 haben 4.
-        // Das heißt, 2 Spieler brauchen ein Dummy-Match (Ausgleich).
-    }
+    let bestSchedule = null;
+    let lowestPenalty = Infinity;
 
-    let bestSchedule = null, lowestPenalty = Infinity;
-
+    // 1000 Simulationen für beste Durchmischung
     for(let attempt = 0; attempt < 1000; attempt++) {
         let res = generateVariant(numRounds, numCourts, isTeamMode, isDummyMode);
         
@@ -232,7 +230,7 @@ function runOptimization() {
 
         const maxP = Math.max(...playCounts);
         const minP = Math.min(...playCounts);
-        let fairnessPenalty = (maxP - minP) * 100000; // Brutale Strafe für Ungleichheit
+        let fairnessPenalty = (maxP - minP) * 100000; // Harte Strafe für Ungleichheit
 
         if(fairnessPenalty + res.penalty < lowestPenalty) {
             lowestPenalty = fairnessPenalty + res.penalty;
@@ -245,81 +243,128 @@ function runOptimization() {
 
 function generateVariant(numRounds, numCourts, isTeamMode, isDummyMode) {
     let schedule = [], penalty = 0, playCount = new Array(players.length).fill(0);
-    const start = document.getElementById('startTime').value;
-    let [sH, sM] = start.split(':').map(Number);
     const mTime = parseInt(document.getElementById('matchTime').value);
     const warmup = parseInt(document.getElementById('warmup').value) || 0;
+    const start = document.getElementById('startTime').value;
+    let [sH, sM] = start.split(':').map(Number);
 
-    for(let r=1; r<=numRounds; r++) {
+    for(let r = 1; r <= numRounds; r++) {
         let isLast = (r === numRounds);
-        // Sortiere Spieler: Wer am wenigsten gespielt hat, kommt zuerst dran
+        // Priorität für Spieler mit wenigsten Einsätzen
         let pool = [...Array(players.length).keys()].sort((a,b) => playCount[a] - playCount[b] || Math.random() - 0.5);
         
         let round = { id: r, time: "", pause: [], matches: [] };
         let tMin = sH * 60 + sM + warmup + (r-1)*mTime;
         round.time = `${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
 
-        if (isLast && isDummyMode) {
-            // Spezialfall: Nur die Spieler, die noch hinten liegen, spielen gegen Dummys
-            let needy = pool.filter(pIdx => playCount[pIdx] === Math.min(...playCount));
-            // Wir nehmen die ersten 2 (oder so viele wie nötig)
-            let p1 = needy[0], p2 = needy[1];
-            round.matches.push({ court: 1, team1: [p1, p2], team2: [undefined, undefined] });
-            round.pause = pool.filter(p => p !== p1 && p !== p2);
-            [p1, p2].forEach(p => { if(p !== undefined) playCount[p]++; });
-        } else {
-            // Normaler Modus
-            let active = pool.slice(0, numCourts * 4);
-            round.pause = pool.slice(numCourts * 4);
-            let rem = [...active].sort(() => Math.random() - 0.5);
-            for(let c=1; c<=numCourts; c++) {
-                let p1 = rem.shift(), p2 = rem.shift(), p3 = rem.shift(), p4 = rem.shift();
-                [p1,p2,p3,p4].forEach(p => { if(p !== undefined) playCount[p]++; });
-                round.matches.push({ court: c, team1: [p1,p2], team2: [p3,p4] });
-            }
+        let rem = [...pool];
+        for(let c = 1; c <= numCourts; c++) {
+            let p1 = rem.shift(), p2 = rem.shift(), p3 = rem.shift(), p4 = rem.shift();
+            
+            // In der letzten Runde werden fehlende Spieler zu 'undefined' -> Virtuelle Gegner
+            [p1, p2, p3, p4].forEach(p => { if(p !== undefined) playCount[p]++; });
+            round.matches.push({ court: c, team1: [p1, p2], team2: [p3, p4] });
         }
+        round.pause = rem;
         schedule.push(round);
     }
     return { schedule, penalty };
 }
 
-        function renderPreview(isDummyMode = false) {
-            document.getElementById('previewArea').classList.remove('hidden');
-            players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-            const mTime = parseInt(document.getElementById('matchTime').value), warmup = parseInt(document.getElementById('warmup').value) || 0;
-            const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
-            const buffer = totalMin - (currentSchedule.length * mTime + warmup);
+// --- ANZEIGE-LOGIK: VORSCHAU & LABELS ---
 
-            document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
-                const isLast = idx === currentSchedule.length - 1;
-                let label = `Runde ${r.id}`, cls = "bg-slate-50 border-slate-200", info = "";
-                if (isLast && isDummyMode) { label = "⚖️ Ausgleichsspiel"; cls = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset"; info = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Gegner bekommt keine Punkte!</div>`; }
-                else if (isLast && buffer >= 15) { label = "🏆 Optionales Finale"; cls = "bg-amber-50 border-amber-200 ring-2 ring-amber-500 ring-inset"; info = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase">Puffer (${buffer}m) für Finale!</div>`; }
-                return `<div class="p-4 rounded-2xl border ${cls}"><div class="flex justify-between items-center mb-3 text-[10px] font-black uppercase"><span>${label}</span><span>${r.time}</span></div>
-                    <div class="space-y-2">${r.matches.map(m => {
-                        const p1 = players[m.team1[0]] || 'Virtuell 1', p2 = players[m.team1[1]] || 'Virtuell 2', p3 = players[m.team2[0]] || 'Virtuell 1', p4 = players[m.team2[1]] || 'Virtuell 2';
-                        return `<div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border shadow-sm"><span class="bg-slate-100 px-2 py-1 rounded text-slate-400 font-black">C${m.court}</span>
-                        <div class="flex-1 text-center font-bold text-slate-800"><span class="${p1.includes('Virtuell') ? 'text-blue-400' : ''}">${p1}</span> + <span class="${p2.includes('Virtuell') ? 'text-blue-400' : ''}">${p2}</span> <span class="text-blue-500 mx-1">VS</span> <span class="${p3.includes('Virtuell') ? 'text-blue-400' : ''}">${p3}</span> + <span class="${p4.includes('Virtuell') ? 'text-blue-400' : ''}">${p4}</span></div></div>`;
-                    }).join('')}</div><div class="mt-2 text-[8px] font-bold text-orange-500 italic">Pause: ${r.pause.map(p => players[p]).filter(n => n).join(', ')}</div>${info}</div>`;
-            }).join('');
-            updateStats();
+function renderPreview(isDummyMode = false) {
+    document.getElementById('previewArea').classList.remove('hidden');
+    players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
+    
+    const mTime = parseInt(document.getElementById('matchTime').value);
+    const warmup = parseInt(document.getElementById('warmup').value) || 0;
+    const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
+    const buffer = totalMin - (currentSchedule.length * mTime + warmup);
+
+    document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
+        const isLastRound = idx === currentSchedule.length - 1;
+        let roundLabel = `Runde ${r.id}`;
+        let roundClass = "bg-slate-50 border-slate-200";
+        let extraInfo = "";
+
+        if (isLastRound) {
+            if (isDummyMode) {
+                roundLabel = "⚖️ Ausgleichsspiel";
+                roundClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
+                extraInfo = `<div class="text-[9px] text-blue-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Ausgleich: Gegner bekommt keine Punkte!</div>`;
+            } else {
+                roundLabel = "🏆 Finale der besten 4";
+                roundClass = "bg-amber-50 border-amber-200 ring-2 ring-amber-500 ring-inset";
+                extraInfo = `<div class="text-[9px] text-amber-700 font-bold mt-2 bg-white/50 p-2 rounded-lg text-center uppercase italic">Modus: 1&4 vs. 2&3 (Puffer: ${buffer} Min)</div>`;
+            }
         }
 
-        function updateStats() {
-            let stats = players.map(name => ({ name, play: 0, pause: 0, partners: {}, opponents: {} }));
-            currentSchedule.forEach(r => {
-                r.matches.forEach(m => {
-                    [...m.team1, ...m.team2].forEach(idx => { if (players[idx]) stats[idx].play++; });
-                    const track = (p1, p2, isP) => { if (players[p1] && players[p2]) { const t = isP ? stats[p1].partners : stats[p1].opponents; t[players[p2]] = (t[players[p2]] || 0) + 1; } };
-                    track(m.team1[0], m.team1[1], true); track(m.team1[1], m.team1[0], true);
-                    track(m.team2[0], m.team2[1], true); track(m.team2[1], m.team2[0], true);
-                    [m.team1[0], m.team1[1]].forEach(p1 => [m.team2[0], m.team2[1]].forEach(p2 => { track(p1, p2, false); track(p2, p1, false); }));
-                });
-                r.pause.forEach(idx => { if (players[idx]) stats[idx].pause++; });
+        return `
+            <div class="p-4 rounded-2xl border ${roundClass}">
+                <div class="flex justify-between items-center mb-3 text-[10px] font-black uppercase">
+                    <span>${roundLabel}</span>
+                    <span class="text-slate-500">${r.time}</span>
+                </div>
+                <div class="space-y-2">
+                    ${r.matches.map(m => {
+                        const p1 = players[m.team1[0]] || 'Virtuell 1';
+                        const p2 = players[m.team1[1]] || 'Virtuell 2';
+                        const p3 = players[m.team2[0]] || 'Virtuell 1';
+                        const p4 = players[m.team2[1]] || 'Virtuell 2';
+                        return `
+                        <div class="bg-white p-2 rounded-lg text-[10px] flex justify-between items-center border shadow-sm">
+                            <span class="bg-slate-100 px-2 py-1 rounded text-slate-400 font-black italic">C${m.court}</span>
+                            <div class="flex-1 text-center font-bold">
+                                <span class="${p1.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p1}</span> + 
+                                <span class="${p2.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p2}</span>
+                                <span class="text-blue-500 mx-1 text-[8px]">VS</span> 
+                                <span class="${p3.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p3}</span> + 
+                                <span class="${p4.includes('Virtuell') ? 'text-blue-400 italic' : ''}">${p4}</span>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div class="mt-2 text-[8px] font-bold text-orange-500 italic text-center">Pause: ${r.pause.map(p => players[p]).filter(n => n).join(', ') || 'Keiner'}</div>
+                ${extraInfo}
+            </div>`;
+    }).join('');
+    updateStats();
+}
+
+// --- STATISTIK-LOGIK: FAIRNESS-PRÜFUNG ---
+
+function updateStats() {
+    let stats = players.map(name => ({ name, play: 0, pause: 0, partners: {}, opponents: {} }));
+
+    currentSchedule.forEach(r => {
+        r.matches.forEach(m => {
+            [...m.team1, ...m.team2].forEach(idx => { if (players[idx]) stats[idx].play++; });
+            
+            const track = (p1, p2, isP) => {
+                if (players[p1] && players[p2]) {
+                    const t = isP ? stats[p1].partners : stats[p1].opponents;
+                    t[players[p2]] = (t[players[p2]] || 0) + 1;
+                }
+            };
+            // Partner
+            track(m.team1[0], m.team1[1], true); track(m.team1[1], m.team1[0], true);
+            track(m.team2[0], m.team2[1], true); track(m.team2[1], m.team2[0], true);
+            // Gegner
+            [m.team1[0], m.team1[1]].forEach(pa => {
+                [m.team2[0], m.team2[1]].forEach(pb => { track(pa, pb, false); track(pb, pa, false); });
             });
-            document.getElementById('fairnessStats').innerHTML = stats.map(s => `<div class="bg-white p-3 rounded-xl border border-blue-100 text-center"><div class="text-[9px] font-black uppercase text-slate-400">${s.name}</div><div class="text-xs font-black text-blue-600">${s.play} S / ${s.pause} P</div></div>`).join('');
-            document.getElementById('partnerStats').innerHTML = stats.map(s => `<div class="text-[9px] border-b pb-2 mb-2"><span class="font-black text-slate-500 uppercase">${s.name}:</span><div class="flex flex-wrap mt-1"><span class="mr-2 text-blue-600 font-bold underline">P:</span>${Object.entries(s.partners).map(([n, c]) => `<span class="partner-chip ${c>1?'double-occurrence':''}">${n}${c>1?' x'+c:''}</span>`).join('')||' - '}</div><div class="flex flex-wrap mt-1"><span class="mr-2 text-slate-400 font-bold">G:</span>${Object.entries(s.opponents).map(([n, c]) => `<span class="opponent-chip">${n}${c>1?' x'+c:''}</span>`).join('')||' - '}</div></div>`).join('');
-        }
+        });
+        r.pause.forEach(idx => { if (players[idx]) stats[idx].pause++; });
+    });
+
+    // Anzeige der Spiele/Pausen
+    document.getElementById('fairnessStats').innerHTML = stats.map(s => `
+        <div class="bg-white p-3 rounded-xl border border-blue-100 text-center">
+            <div class="text-[9px] font-black uppercase text-slate-400">${s.name}</div>
+            <div class="text-xs font-black text-blue-600">${s.play} S / ${s.pause} P</div>
+        </div>`).join('');
+}
 
         async function loadTournament(id) {
             if (id === "new") return location.reload();
