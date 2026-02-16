@@ -8,87 +8,97 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
         
-        /* --- DESIGN WIE IN LIVE_OLD --- */
+        /* --- DESIGN: LIVE_OLD STYLE --- */
         
-        /* 1. Header: Tiefschwarz & Wuchtig */
-        h1 { font-weight: 900; letter-spacing: -0.05em; color: #0f172a; }
+        /* 1. Header: Massive schwarze Typografie */
+        h1 { font-weight: 900; letter-spacing: -0.05em; color: #000; }
         
-        /* 2. Inputs */
-        .score-input:disabled { background: transparent; border: none; color: #0f172a; font-weight: 900; opacity: 1; font-size: 1.25rem; }
-        .score-input { width: 50px; height: 50px; text-align: center; border-radius: 12px; font-weight: 900; font-size: 1.25rem; background: #f1f5f9; border: 2px solid #e2e8f0; transition: all 0.2s; }
-        .is-editing .score-input:not(:disabled) { background: #fff; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59,130,246,0.15); }
+        /* 2. Score Inputs: Groß & Fett */
+        .score-input:disabled { background: transparent; border: none; color: #000; font-weight: 900; opacity: 1; font-size: 1.5rem; }
+        .score-input { width: 55px; height: 55px; text-align: center; border-radius: 12px; font-weight: 900; font-size: 1.5rem; background: #f1f5f9; border: 2px solid #e2e8f0; transition: all 0.2s; }
+        .is-editing .score-input:not(:disabled) { background: #fff; border-color: #3b82f6; box-shadow: 0 4px 15px rgba(59,130,246,0.2); }
         
-        /* 3. Ranking Highlights (Knallgelb für Platz 1) */
-        .rank-row-0 { background: #fef08a !important; border: 2px solid #facc15 !important; color: #000; transform: scale(1.02); z-index: 10; position: relative; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        /* 3. Ranking: Gelbes Highlight für #1 */
+        .rank-row-0 { background: #facc15 !important; border: 3px solid #000 !important; color: #000; transform: scale(1.03); z-index: 10; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); }
         .rank-row-1 { background: #f1f5f9; border: 1px solid #cbd5e1; }
         .rank-row-2 { background: #ffedd5; border: 1px solid #fdba74; }
         
-        /* 4. Bot Sektion (Glassmorphism & Dark) */
+        /* 4. Bot Sektion: Dark Mode & Glass */
         .bot-card { 
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); 
+            background: #0f172a; 
             position: relative; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .bot-glass {
             background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* 5. Match Karten */
+        /* 5. Match Karten: Clean & Wuchtig */
         .match-card {
             background: white;
             border-radius: 1.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
             border: 1px solid #f1f5f9;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .match-focus {
-            border: 2px solid #3b82f6 !important;
-            box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.15), 0 8px 10px -6px rgba(59, 130, 246, 0.1);
+            border: 3px solid #3b82f6 !important;
+            box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25);
             transform: scale(1.02);
             z-index: 20;
         }
+        
+        /* Dropdown Styling */
+        select { 
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 1rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
     </style>
 </head>
-<body class="pb-24 text-slate-900">
+<body class="pb-32 min-h-screen">
 
-    <div class="max-w-md mx-auto p-5">
+    <div class="max-w-md mx-auto p-6">
         
-        <div class="flex justify-between items-start mb-8 pt-4">
+        <div class="flex justify-between items-start mb-10 pt-6">
             <div>
-                <h1 id="tournamentTitle" class="text-5xl italic uppercase leading-[0.85] tracking-tighter">LADE...</h1>
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-3 pl-1">Live Center</p>
+                <h1 id="tournamentTitle" class="text-6xl italic uppercase leading-[0.8] tracking-tighter">LADE...</h1>
+                <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mt-4 pl-1">Live Scoreboard</p>
             </div>
-            <div class="flex gap-2">
-                <button onclick="location.reload()" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-xl hover:bg-slate-50 transition-colors">🔄</button>
-                <button id="lockBtn" onclick="toggleEditMode()" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-xl hover:bg-slate-50 transition-colors">🔒</button>
-            </div>
-        </div>
-
-        <div class="mb-10 relative z-30">
-            <label id="focusLabel" class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-[0.2em] text-center">Dein Fokus</label>
-            <div class="relative">
-                <select id="playerFocus" onchange="renderAll()" class="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none shadow-lg shadow-slate-200/50 appearance-none text-center text-slate-800 text-sm focus:border-blue-500 transition-all cursor-pointer">
-                    <option value="">-- Wähle deinen Namen / dein Team --</option>
-                </select>
-                <div class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">▼</div>
+            <div class="flex gap-3">
+                <button onclick="location.reload()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-xl hover:bg-slate-50 transition-colors active:scale-95">🔄</button>
+                <button id="lockBtn" onclick="toggleEditMode()" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-xl hover:bg-slate-50 transition-colors active:scale-95">🔒</button>
             </div>
         </div>
 
-        <div id="scheduleArea" class="space-y-12"></div>
+        <div class="mb-12 relative z-30">
+            <label id="focusLabel" class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em] text-center">Dein Fokus</label>
+            <select id="playerFocus" onchange="renderAll()" class="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black outline-none shadow-xl shadow-slate-200/40 appearance-none text-center text-slate-900 text-sm focus:border-blue-500 transition-all cursor-pointer">
+                <option value="">-- Wähle deinen Namen / Team --</option>
+            </select>
+        </div>
 
-        <div class="mt-20 pt-10 border-t border-slate-200">
-            <h2 class="text-3xl font-[900] italic uppercase text-slate-300 mb-6 tracking-tighter">🏆 Ranking</h2>
-            <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-slate-100">
+        <div id="scheduleArea" class="space-y-16"></div>
+
+        <div class="mt-24 pt-12 border-t-2 border-slate-100">
+            <div class="flex items-center gap-4 mb-8">
+                <h2 class="text-4xl font-[900] italic uppercase text-slate-300 tracking-tighter">Ranking</h2>
+                <div class="h-[2px] flex-1 bg-slate-100"></div>
+            </div>
+            
+            <div class="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
                 <table class="w-full text-left">
                     <thead>
-                        <tr class="bg-slate-900 text-white text-[9px] uppercase tracking-[0.2em]">
-                            <th class="p-4 pl-6">#</th>
-                            <th class="p-4" id="rankingNameHeader">Teilnehmer</th>
-                            <th class="p-4 text-center">Pkt</th>
-                            <th class="p-4 text-center pr-6">Diff</th>
+                        <tr class="bg-black text-white text-[10px] uppercase tracking-[0.25em]">
+                            <th class="p-5 pl-8">#</th>
+                            <th class="p-5" id="rankingNameHeader">Teilnehmer</th>
+                            <th class="p-5 text-center">Pkt</th>
+                            <th class="p-5 text-center pr-8">Diff</th>
                         </tr>
                     </thead>
                     <tbody id="rankingTable" class="text-sm"></tbody>
@@ -96,24 +106,25 @@
             </div>
         </div>
 
-        <div class="mt-12 bot-card p-8 rounded-[2.5rem] shadow-2xl text-white">
+        <div class="mt-20 bot-card p-10 rounded-[3rem] shadow-2xl text-white">
             <div class="relative z-10">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="h-2 w-2 bg-blue-400 rounded-full animate-pulse shadow-[0_0_10px_#60a5fa]"></div>
-                    <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-300 italic">Padel-Bot 3000</h3>
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="h-2 w-2 bg-blue-400 rounded-full animate-pulse shadow-[0_0_15px_#60a5fa]"></div>
+                    <h3 class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 italic">KI-Analyse</h3>
                 </div>
-                <p id="botText" class="text-lg font-bold leading-snug tracking-tight text-slate-100">Lade Matchdaten...</p>
                 
-                <div class="mt-6 bot-glass p-4 rounded-2xl flex items-center gap-4">
-                    <div class="text-3xl filter drop-shadow-lg">🤖</div>
+                <p id="botText" class="text-2xl font-bold leading-tight tracking-tight text-white mb-8">Lade Matchdaten...</p>
+                
+                <div class="bot-glass p-5 rounded-3xl flex items-center gap-5">
+                    <div class="text-4xl filter drop-shadow-md">🤖</div>
                     <div>
-                        <p class="text-[9px] font-black uppercase text-blue-400 tracking-widest mb-0.5">Live Status</p>
-                        <p class="text-xs font-bold text-slate-300" id="botStatus">Warte auf Eingabe</p>
+                        <p class="text-[9px] font-black uppercase text-blue-300 tracking-widest mb-1 opacity-80">Live Status</p>
+                        <p class="text-sm font-bold text-white" id="botStatus">Warte auf Eingabe</p>
                     </div>
                 </div>
             </div>
-            <div class="absolute -right-16 -top-16 w-48 h-48 bg-blue-600/30 rounded-full blur-[60px]"></div>
-            <div class="absolute -left-10 bottom-0 w-32 h-32 bg-indigo-600/20 rounded-full blur-[40px]"></div>
+            <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-600/30 rounded-full blur-[80px]"></div>
+            <div class="absolute -left-12 bottom-0 w-40 h-40 bg-indigo-600/20 rounded-full blur-[50px]"></div>
         </div>
     </div>
 
@@ -139,14 +150,13 @@
             document.getElementById('focusLabel').innerText = isTeam ? "Team Fokus" : "Spieler Fokus";
             document.getElementById('rankingNameHeader').innerText = isTeam ? "Team" : "Spieler";
 
+            // Dropdown füllen
             if(isTeam) {
-                // Team-Paare ins Dropdown
                 for(let i=0; i<tournamentData.p.length; i+=2) {
                     let teamName = `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
                     focusSelect.add(new Option(teamName, teamName));
                 }
             } else {
-                // Einzelspieler ins Dropdown
                 tournamentData.p.forEach(name => focusSelect.add(new Option(name, name)));
             }
             renderAll();
@@ -179,12 +189,12 @@
 
             tournamentData.s_new.forEach((round, rIdx) => {
                 let html = `<div>
-                    <div class="flex items-center justify-center mb-6">
-                        <div class="h-[1px] w-8 bg-slate-300"></div>
-                        <h2 class="mx-3 text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] italic">Runde ${round.id} <span class="text-slate-300 mx-1">•</span> ${round.time}</h2>
-                        <div class="h-[1px] w-8 bg-slate-300"></div>
+                    <div class="flex items-center justify-center mb-8">
+                        <div class="h-[2px] w-6 bg-slate-200"></div>
+                        <h2 class="mx-4 text-[13px] font-black text-slate-300 uppercase tracking-[0.3em] italic">Runde ${round.id} <span class="text-slate-200 mx-1">/</span> ${round.time}</h2>
+                        <div class="h-[2px] w-6 bg-slate-200"></div>
                     </div>
-                    <div class="space-y-5">`;
+                    <div class="space-y-6">`;
 
                 round.matches.forEach((m, mIdx) => {
                     let isFocus = false;
@@ -200,20 +210,20 @@
                         }
                     }
 
-                    // Platz / Court Anzeige (Falls im JSON vorhanden, sonst generieren)
-                    const courtName = m.court ? m.court : `Platz ${mIdx + 1}`;
+                    // Platz / Court Anzeige
+                    const courtName = m.court ? `Court ${m.court}` : `Match ${mIdx + 1}`;
 
                     html += `
                     <div class="match-card p-6 ${isFocus ? 'match-focus' : ''}">
                         
-                        <div class="text-center mb-4">
-                            <span class="bg-slate-100 text-slate-400 text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-widest">${courtName}</span>
+                        <div class="text-center mb-5">
+                            <span class="bg-slate-50 text-slate-300 text-[9px] font-black uppercase px-3 py-1 rounded-full tracking-widest border border-slate-100">${courtName}</span>
                         </div>
 
                         <div class="grid grid-cols-7 items-center">
-                            <div class="col-span-3 text-[11px] font-[900] space-y-1 uppercase tracking-tight leading-tight">
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team1[0]] ? 'text-blue-600' : 'text-slate-800'} truncate">${tournamentData.p[m.team1[0]]}</div>
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team1[1]] ? 'text-blue-600' : 'text-slate-800'} truncate">${tournamentData.p[m.team1[1]]}</div>
+                            <div class="col-span-3 text-[12px] font-[900] space-y-1 uppercase tracking-tight leading-tight">
+                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team1[0]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team1[0]]}</div>
+                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team1[1]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team1[1]]}</div>
                             </div>
 
                             <div class="col-span-1 flex flex-col items-center gap-2">
@@ -221,20 +231,36 @@
                                 <input type="number" value="${m.score[1]}" ${!isEditing ? 'disabled' : ''} onchange="saveScore(${rIdx}, ${mIdx}, 1, this.value)" class="score-input shadow-inner">
                             </div>
 
-                            <div class="col-span-3 text-[11px] font-[900] space-y-1 text-right uppercase tracking-tight leading-tight">
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[0]] ? 'text-blue-600' : 'text-slate-800'} truncate">${tournamentData.p[m.team2[0]]}</div>
-                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[1]] ? 'text-blue-600' : 'text-slate-800'} truncate">${tournamentData.p[m.team2[1]]}</div>
+                            <div class="col-span-3 text-[12px] font-[900] space-y-1 text-right uppercase tracking-tight leading-tight">
+                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[0]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team2[0]]}</div>
+                                <div class="${!isTeamMode && focusValue === tournamentData.p[m.team2[1]] ? 'text-blue-600' : 'text-slate-900'} truncate">${tournamentData.p[m.team2[1]]}</div>
                             </div>
                         </div>
                     </div>`;
                 });
 
+                // PAUSE LOGIC (Korrigiert für Teams)
                 if(round.pause && round.pause.length > 0) {
+                     let pauseDisplay = "";
+                     if(isTeamMode) {
+                        // Paare bilden für die Anzeige
+                        let pauseTeams = [];
+                        for(let i=0; i < round.pause.length; i+=2) {
+                            let p1 = tournamentData.p[round.pause[i]];
+                            let p2 = tournamentData.p[round.pause[i+1]];
+                            pauseTeams.push(`${p1} + ${p2}`);
+                        }
+                        pauseDisplay = pauseTeams.join(' <span class="text-slate-300 mx-2">|</span> ');
+                     } else {
+                        pauseDisplay = round.pause.map(i => tournamentData.p[i]).join(', ');
+                     }
+
                      html += `
-                     <div class="flex justify-center mt-4">
-                        <div class="bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">
-                                ☕ Pause: <span class="text-slate-600 not-italic">${round.pause.map(i => tournamentData.p[i]).join(', ')}</span>
+                     <div class="flex justify-center mt-6">
+                        <div class="bg-white px-6 py-3 rounded-full border border-slate-100 shadow-sm">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic text-center">
+                                ☕ Pause <br>
+                                <span class="text-slate-700 not-italic mt-1 block">${pauseDisplay}</span>
                             </p>
                         </div>
                      </div>`;
@@ -272,28 +298,28 @@
             
             document.getElementById('rankingTable').innerHTML = stats.map((s, i) => `
                 <tr class="rank-row-${i} border-b border-slate-50 last:border-none rounded-xl transition-all">
-                    <td class="p-4 pl-6 font-black text-xs ${i===0 ? 'text-black' : 'text-slate-400'}">${i+1}.</td>
-                    <td class="p-4 text-xs font-bold uppercase tracking-tight truncate max-w-[120px]">${s.name}</td>
-                    <td class="p-4 text-center font-black text-lg">${s.points}</td>
-                    <td class="p-4 pr-6 text-center text-xs font-bold ${s.diff>0?'text-green-600':s.diff<0?'text-red-500':'text-slate-400'}">${s.diff>0?'+':''}${s.diff}</td>
+                    <td class="p-5 pl-8 font-black text-sm ${i===0 ? 'text-black' : 'text-slate-400'}">#${i+1}</td>
+                    <td class="p-5 text-xs font-bold uppercase tracking-tight truncate max-w-[140px]">${s.name}</td>
+                    <td class="p-5 text-center font-black text-xl">${s.points}</td>
+                    <td class="p-5 pr-8 text-center text-xs font-bold ${s.diff>0?'text-green-600':s.diff<0?'text-red-500':'text-slate-400'}">${s.diff>0?'+':''}${s.diff}</td>
                 </tr>`).join('');
             
             // Bot Update
             const botText = document.getElementById('botText');
             if(stats[0]?.games > 0) {
                 const leader = stats[0].name.split(' + ')[0]; 
-                const margin = stats[0].points - (stats[1]?.points || 0);
+                const diff = stats[0].diff;
+                let text = "";
                 
-                let analysis = "";
-                if(margin > 10) analysis = "Absolute Dominanz! Der Turniersieg ist greifbar.";
-                else if(margin > 0) analysis = "Knappe Führung. Jeder Punkt zählt jetzt.";
-                else analysis = "Ein Kopf-an-Kopf Rennen an der Spitze!";
+                if(diff > 15) text = `${leader} dominiert das Feld komplett! Unglaubliche Performance.`;
+                else if(diff > 5) text = `${leader} führt das Ranking an, aber es bleibt spannend.`;
+                else text = `Sehr enges Rennen an der Spitze! ${leader} hat aktuell die Nase vorn.`;
 
-                botText.innerText = `${leader} & Co. führen. ${analysis}`;
+                botText.innerText = text;
                 document.getElementById('botStatus').innerText = "Live Analyse";
             } else {
-                botText.innerText = "Sammle Match-Daten für Prognose...";
-                document.getElementById('botStatus').innerText = "Warte auf Start";
+                botText.innerText = "Warte auf erste Match-Ergebnisse...";
+                document.getElementById('botStatus').innerText = "Standby";
             }
         }
 
