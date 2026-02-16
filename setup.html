@@ -200,26 +200,28 @@
 
 function runOptimization() {
     players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
-    const numCourts = parseInt(document.getElementById('cCount').value); // Fixer Wert
+    const numCourts = parseInt(document.getElementById('cCount').value);
     const mTime = parseInt(document.getElementById('matchTime').value);
     const warmup = parseInt(document.getElementById('warmup').value) || 0;
     const totalMin = parseFloat(document.getElementById('totalHours').value) * 60;
-    
-    // Berechne Runden basierend auf FIXER Zeit und FIXEN Plätzen
     let numRounds = Math.floor((totalMin - warmup) / mTime);
-    const isTeamMode = document.querySelector('input[name="tType"]:checked').value === 'team';
     
-    // Fairness-Check: Geht die Gesamtzahl der Slots glatt durch die Spieleranzahl?
     const totalSlots = numRounds * numCourts * 4;
     const remainder = totalSlots % players.length;
-    let isDummyMode = (remainder !== 0);
+    
+    // NEUE LOGIK: Dummy-Modus nur, wenn wir MEHR als einen Platz haben
+    // oder wenn die Spieleranzahl so klein ist, dass Dummys zwingend sind (z.B. 3 Spieler).
+    // Bei 6 Spielern und 1 Platz -> IMMER Finale.
+    let isDummyMode = false;
+    if (numCourts > 1 && remainder !== 0) {
+        isDummyMode = true; 
+    }
 
     let bestSchedule = null;
     let lowestPenalty = Infinity;
 
-    // 1000 Simulationen für beste Durchmischung
     for(let attempt = 0; attempt < 1000; attempt++) {
-        let res = generateVariant(numRounds, numCourts, isTeamMode, isDummyMode);
+        let res = generateVariant(numRounds, numCourts, false, isDummyMode);
         
         let playCounts = new Array(players.length).fill(0);
         res.schedule.forEach(r => {
@@ -228,9 +230,10 @@ function runOptimization() {
             });
         });
 
+        // Wir akzeptieren bei 6 Spielern/1 Platz, dass 2 Leute ein Spiel weniger haben
         const maxP = Math.max(...playCounts);
         const minP = Math.min(...playCounts);
-        let fairnessPenalty = (maxP - minP) * 100000; // Harte Strafe für Ungleichheit
+        let fairnessPenalty = (maxP - minP) * 500; // Kleine Penalty, damit es trotzdem versucht wird zu mischen
 
         if(fairnessPenalty + res.penalty < lowestPenalty) {
             lowestPenalty = fairnessPenalty + res.penalty;
