@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padel Hirsch Design Preview</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f1f5f9;
+            --accent: #3b82f6;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 24px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 { font-size: 24px; font-weight: 900; color: #0f172a; margin: 0; }
+        .header p { font-size: 14px; color: #64748b; margin-top: 5px; }
+
+        /* Main Preview Phone */
+        #main-preview-container {
+            margin-bottom: 40px;
+            transition: transform 0.3s ease;
+        }
+
+        /* Phone Mockup Styles */
+        .phone-frame {
+            width: 240px;
+            height: 480px;
+            border-radius: 30px;
+            border: 6px solid #000;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            background: #fff;
+        }
+
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 18px;
+            background: #000;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            z-index: 10;
+        }
+
+        /* Grid for selection */
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .theme-card {
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .theme-card:hover { transform: translateY(-2px); }
+        .theme-card.active { border-color: var(--accent); box-shadow: 0 4px 12px rgba(59,130,246,0.2); }
+
+        .theme-card-title { font-weight: 800; font-size: 14px; display: block; }
+        .theme-card-desc { font-size: 11px; color: #64748b; }
+
+        /* Inner Phone Elements */
+        .phone-content { height: 100%; display: flex; flex-direction: column; }
+        .app-header { padding: 30px 15px 12px; display: flex; align-items: center; gap: 8px; }
+        .match-card { margin: 8px 15px; padding: 10px; border-radius: 10px; }
+        .ranking-box { margin: 10px 15px; padding: 10px; border-radius: 10px; }
+        .bot-card { margin: 10px 15px; padding: 12px; border-radius: 12px; position: relative; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Design-Vorschläge</h1>
+        <p>Wähle ein Theme aus, um die Vorschau zu aktualisieren</p>
+    </div>
+
+    <div id="main-preview-container">
+        <div class="phone-frame" id="phone">
+            <div class="notch"></div>
+            <div class="phone-content" id="app-content">
+                </div>
+        </div>
+    </div>
+
+    <div class="theme-grid" id="theme-menu"></div>
+
+    <script>
+        const themes = [
+            {
+                name: "Hell / Clean",
+                desc: "Weiß + Blau",
+                bg: "#ffffff",
+                cardBg: "#f8fafc",
+                cardBorder: "#e2e8f0",
+                text: "#0f172a",
+                textMuted: "#64748b",
+                accent: "#3b82f6",
+                headerBg: "#ffffff",
+                headerText: "#0f172a",
+                botBg: "#0f172a",
+                botText: "#ffffff",
+                botAccent: "#3b82f6",
+                rankGold: "#fef3c7",
+                scoreBg: "#f1f5f9",
+                green: "#22c55e",
+                red: "#ef4444"
+            },
+            {
+                name: "Navy Semi-Dark",
+                desc: "Aufgehellt",
+                bg: "#1e293b",
+                cardBg: "#334155",
+                cardBorder: "#475569",
+                text: "#f1f5f9",
+                textMuted: "#94a3b8",
+                accent: "#60a5fa",
+                headerBg: "#1e293b",
+                headerText: "#f1f5f9",
+                botBg: "#0f172a",
+                botText: "#e2e8f0",
+                botAccent: "#60a5fa",
+                rankGold: "rgba(251,191,36,0.2)",
+                scoreBg: "#475569",
+                green: "#4ade80",
+                red: "#f87171"
+            },
+            {
+                name: "Warm Light",
+                desc: "Creme + Warm",
+                bg: "#faf8f4",
+                cardBg: "#ffffff",
+                cardBorder: "#e8e4dc",
+                text: "#292524",
+                textMuted: "#78716c",
+                accent: "#2563eb",
+                headerBg: "#faf8f4",
+                headerText: "#292524",
+                botBg: "#1c1917",
+                botText: "#fafaf9",
+                botAccent: "#f59e0b",
+                rankGold: "#fef9c3",
+                scoreBg: "#f5f0e8",
+                green: "#16a34a",
+                red: "#dc2626"
+            },
+            {
+                name: "Hybrid",
+                desc: "Hell + Dunkler Bot",
+                bg: "#f8fafc",
+                cardBg: "#ffffff",
+                cardBorder: "#e2e8f0",
+                text: "#0f172a",
+                textMuted: "#64748b",
+                accent: "#3b82f6",
+                headerBg: "#0f172a",
+                headerText: "#f1f5f9",
+                botBg: "#0f172a",
+                botText: "#e2e8f0",
+                botAccent: "#60a5fa",
+                rankGold: "#fef3c7",
+                scoreBg: "#f1f5f9",
+                green: "#22c55e",
+                red: "#ef4444"
+            }
+        ];
+
+        function updateTheme(index) {
+            const theme = themes[index];
+            const content = document.getElementById('app-content');
+            const phone = document.getElementById('phone');
+            
+            // Update Phone Frame
+            phone.style.background = theme.bg;
+            phone.style.borderColor = "#000";
+
+            // Update Content HTML
+            content.innerHTML = `
+                <div class="app-header" style="background: ${theme.headerBg}">
+                    <div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #1e3a6e, #3b82f6);"></div>
+                    <div>
+                        <div style="font-size: 8px; font-weight: 700; color: ${theme.textMuted}; letter-spacing: 0.1em;">PADEL HIRSCH</div>
+                        <div style="font-size: 14px; font-weight: 900; color: ${theme.headerText};">SOMMER 24</div>
+                    </div>
+                </div>
+
+                <div class="match-card" style="background: ${theme.cardBg}; border: 2px solid ${theme.accent};">
+                    <div style="display: flex; justify-content: space-between; font-size: 8px; color: ${theme.textMuted}; margin-bottom: 5px;">
+                        <span>Court 1</span>
+                        <span style="color: ${theme.green}">✓ Live</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 10px; font-weight: 800; color: ${theme.text}">MAX + LEON</div>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <div style="background: ${theme.scoreBg}; padding: 4px 8px; border-radius: 4px; font-weight: 800; color: ${theme.text}">24</div>
+                            <div style="background: ${theme.scoreBg}; padding: 4px 8px; border-radius: 4px; font-weight: 800; color: ${theme.text}; opacity: 0.5;">18</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ranking-box" style="background: ${theme.cardBg}; border: 1px solid ${theme.cardBorder}">
+                    <div style="font-size: 8px; font-weight: 700; color: ${theme.textMuted}; margin-bottom: 8px;">🏆 RANKING</div>
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: ${theme.text}; padding: 4px 0; background: ${theme.rankGold}">
+                        <span>👑 Max + Leon</span>
+                        <span style="font-weight: 800">48 Pkt</span>
+                    </div>
+                </div>
+
+                <div class="bot-card" style="background: ${theme.botBg}; color: ${theme.botText}">
+                    <div style="font-size: 7px; color: ${theme.botAccent}; font-weight: 800; margin-bottom: 5px;">HIRSCH KI</div>
+                    <div style="font-size: 18px; font-weight: 900; color: ${theme.botAccent}">#1 Favorit</div>
+                    <div style="font-size: 9px; margin-top: 5px; opacity: 0.8;">Siegwahrscheinlichkeit: 67%</div>
+                </div>
+            `;
+
+            // Update Active Card UI
+            document.querySelectorAll('.theme-card').forEach((card, i) => {
+                card.classList.toggle('active', i === index);
+            });
+        }
+
+        // Initialize Menu
+        const menu = document.getElementById('theme-menu');
+        themes.forEach((t, i) => {
+            const card = document.createElement('div');
+            card.className = `theme-card ${i === 0 ? 'active' : ''}`;
+            card.onclick = () => updateTheme(i);
+            card.innerHTML = `
+                <span class="theme-card-title">${t.name}</span>
+                <span class="theme-card-desc">${t.desc}</span>
+            `;
+            menu.appendChild(card);
+        });
+
+        // Start with first theme
+        updateTheme(0);
+    </script>
+</body>
+</html>
