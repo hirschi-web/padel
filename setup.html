@@ -860,7 +860,7 @@ function renderPreview(isDummyMode,isFinalMode,isReadonly){
         } else if(!isReadonly&&isLast&&isDummyMode){
             roundLabel='⚖️ Ausgleichsspiel'; cardCls='round-card round-balance';
             badgeHtml='<span class="badge badge-blue">Ausgleich</span>';
-            extra=`<p style="font-size:9px;color:#1e40af;text-align:center;margin-top:8px;font-weight:600;">Zählt nicht für Statistik</p>`;
+            extra=`<p style="font-size:9px;color:#1e40af;text-align:center;margin-top:8px;font-weight:600;">Echte Spieler werden normal gewertet · Virtuelle Gegner zählen nicht</p>`;
         }
 
         const matchHtml=r.matches.map(m=>{
@@ -928,8 +928,9 @@ function renderPreview(isDummyMode,isFinalMode,isReadonly){
 // STATS
 // ============================================================
 function updateStats(isDummyMode,isFinalMode,isReadonly){
-    // Finale und Ausgleich zählen nicht für die Wertungsstatistik
-    const scoredRounds=currentSchedule.filter(r=>!r.isFinale&&!r.isBalance);
+    // Finale zählt nie. Ausgleich zählt für echte Spieler (null = Virtuell wird ignoriert).
+    // calcPenalty filtert null-Indizes bereits korrekt heraus.
+    const scoredRounds=currentSchedule.filter(r=>!r.isFinale);
     const{plays,partner,opponent}=calcPenalty(scoredRounds,players.length);
     const mTime=parseInt(document.getElementById('matchTime').value)||15;
 
