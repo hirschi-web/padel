@@ -89,6 +89,8 @@
 
 <div id="toast" class="toast"></div>
 
+<div id="floatingBtn" onclick="saveAllDirty()" style="display:none;position:fixed;bottom:calc(var(--safe-bottom) + 80px);left:50%;transform:translateX(-50%);z-index:1000;background:var(--accent);color:#fff;padding:16px 28px;border-radius:16px;font-size:15px;font-weight:800;box-shadow:0 8px 32px rgba(0,0,0,.3);cursor:pointer;transition:all .3s">💾 Speichern (0)</div>
+
 <script>
 const SB_URL="https://vjcvchczbyvhweiwrunp.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
@@ -96,7 +98,7 @@ const supabaseClient=supabase.createClient(SB_URL,SB_KEY);
 
 let tournamentId,tournamentData,isEditing=false,themes=[];
 let isTyping=false,typingTimeout=null,isSaving=false,realtimeConnected=false;
-let pendingSaves=[],pollInterval=null,retryInterval=null;
+let pendingSaves=[],pollInterval=null,retryInterval=null,dirtyMatches=new Set();
 
 function parseTournamentId(){const p=new URLSearchParams(window.location.search);return p.get('id')||p.get('name')||null}
 
@@ -241,25 +243,47 @@ function onInputFocus(){isTyping=true;clearTimeout(typingTimeout)}
 function onInputBlur(){typingTimeout=setTimeout(()=>isTyping=false,1000)}
 function onInputChange(){isTyping=true;clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>isTyping=false,5000)}
 
-let saveTimeout;
-function showSaveToast(rIdx,mIdx){clearTimeout(saveTimeout);saveTimeout=setTimeout(()=>saveScore(rIdx,mIdx),1500)}
+function onScoreInput(rIdx,mIdx){
+    onInputChange();
+    dirtyMatches.add(`${rIdx}-${mIdx}`);
+    updateFloatingButton();
+}
 
-async function saveScore(rIdx,mIdx){
+function updateFloatingButton(){
+    const btn=document.getElementById('floatingBtn');
+    if(dirtyMatches.size>0){
+        btn.innerHTML=`💾 Speichern (${dirtyMatches.size})`;
+        btn.style.display='block';
+    }else{btn.style.display='none'}
+}
+
+async function saveAllDirty(){
+    if(dirtyMatches.size===0)return;
     isSaving=true;
-    const v0=document.getElementById(`s-${rIdx}-${mIdx}-0`).value.trim();
-    const v1=document.getElementById(`s-${rIdx}-${mIdx}-1`).value.trim();
+    const saves=Array.from(dirtyMatches);
     
-    if(!v0&&!v1){tournamentData.s_new[rIdx].matches[mIdx].score=["",""]}
-    else{const s0=parseInt(v0)||0,s1=parseInt(v1)||0;tournamentData.s_new[rIdx].matches[mIdx].score=[String(s0),String(s1)]}
+    for(const key of saves){
+        const[rIdx,mIdx]=key.split('-').map(Number);
+        const v0=document.getElementById(`s-${rIdx}-${mIdx}-0`).value.trim();
+        const v1=document.getElementById(`s-${rIdx}-${mIdx}-1`).value.trim();
+        
+        if(!v0&&!v1){tournamentData.s_new[rIdx].matches[mIdx].score=["",""]}
+        else{
+            const s0=parseInt(v0)||0,s1=parseInt(v1)||0;
+            tournamentData.s_new[rIdx].matches[mIdx].score=[String(s0),String(s1)];
+        }
+    }
     
-    renderAll();
     localStorage.setItem('backup_'+tournamentId,JSON.stringify({data:tournamentData,timestamp:Date.now()}));
     
     try{
         await supabaseClient.from('tournaments').update({data:tournamentData}).eq('id',tournamentId);
-        showToast('💾 Gespeichert','success');
+        dirtyMatches.clear();
+        updateFloatingButton();
+        renderAll();
+        showToast('💾 Alle Ergebnisse gespeichert','success');
     }catch(e){
-        pendingSaves.push({rIdx,mIdx,data:JSON.parse(JSON.stringify(tournamentData)),retries:0});
+        pendingSaves.push({data:JSON.parse(JSON.stringify(tournamentData)),retries:0});
         showToast('⚠️ Offline - wird synchronisiert','warning');
         startRetryQueue();
     }finally{isSaving=false}
@@ -319,9 +343,9 @@ function renderAll(){
                         ${m.team1[1]!==undefined?`<div style="font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text-muted);line-height:1.3;${chk(m.team1[1])}">${tournamentData.p[m.team1[1]]}</div>`:''}
                     </div>
                     <div style="display:flex;align-items:center;gap:10px">
-                        <input id="s-${rIdx}-${mIdx}-0" type="number" inputmode="numeric" value="${m.score?.[0]??''}" min="0" max="99" ${!isEditing?'disabled':''} onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onInputChange();showSaveToast(${rIdx},${mIdx})" class="score-box">
+                        <input id="s-${rIdx}-${mIdx}-0" type="number" inputmode="numeric" value="${m.score?.[0]??''}" min="0" max="99" ${!isEditing?'disabled':''} onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onScoreInput(${rIdx},${mIdx})" class="score-box">
                         <span style="font-size:18px;font-weight:700;color:var(--text-muted)">:</span>
-                        <input id="s-${rIdx}-${mIdx}-1" type="number" inputmode="numeric" value="${m.score?.[1]??''}" min="0" max="99" ${!isEditing?'disabled':''} onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onInputChange();showSaveToast(${rIdx},${mIdx})" class="score-box">
+                        <input id="s-${rIdx}-${mIdx}-1" type="number" inputmode="numeric" value="${m.score?.[1]??''}" min="0" max="99" ${!isEditing?'disabled':''} onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onScoreInput(${rIdx},${mIdx})" class="score-box">
                     </div>
                     <div style="flex:1;text-align:right;${w===2?'opacity:1':'opacity:'+(w===1?'.4':'1')}">
                         <div style="font-size:13px;font-weight:800;text-transform:uppercase;color:var(--text);line-height:1.3;${chk(m.team2[0])}">${tournamentData.p[m.team2[0]]}</div>
