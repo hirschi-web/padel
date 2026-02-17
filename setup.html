@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Setup Pro</title>
+    <title>Padel Hirsch</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap" rel="stylesheet">
     <style>
         :root {
             --blue:    #2563eb;
@@ -23,7 +23,7 @@
 
         * { box-sizing: border-box; }
         body {
-            font-family: 'DM Mono', monospace;
+            font-family: Arial, system-ui, sans-serif;
             background: var(--bg);
             color: var(--slate);
             padding: 1.5rem 1rem 5rem;
@@ -60,7 +60,7 @@
         input[type="time"],
         input[type="password"],
         select {
-            font-family: 'DM Mono', monospace;
+            font-family: Arial, system-ui, sans-serif;
             font-size: 13px;
             font-weight: 500;
             width: 100%;
@@ -171,7 +171,7 @@
 
         /* ---------- PLAYER LIST ---------- */
         #playerList input {
-            font-family: 'DM Mono', monospace;
+            font-family: Arial, system-ui, sans-serif;
             font-size: 12px;
         }
 
@@ -297,9 +297,46 @@
 
     <!-- HEADER -->
     <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:28px; padding-bottom:20px; border-bottom:1.5px solid #e2e8f0;">
-        <div>
-            <h1 class="display" style="font-size:32px; font-weight:900; font-style:italic; color:var(--blue); text-transform:uppercase; letter-spacing:-.01em; line-height:1;">Turnier Setup</h1>
-            <p style="font-size:10px; color:var(--muted); font-weight:500; margin-top:2px; letter-spacing:.05em;">Smart-Mix Engine v2.0 · Americano Optimizer</p>
+        <div style="display:flex; align-items:center; gap:14px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="52" height="52" style="flex-shrink:0;">
+              <defs>
+                <radialGradient id="bgG" cx="50%" cy="45%" r="50%"><stop offset="0%" stop-color="#1e3a6e"/><stop offset="100%" stop-color="#0f172a"/></radialGradient>
+                <linearGradient id="rG" x1="30%" y1="0%" x2="70%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient>
+                <linearGradient id="aG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#93c5fd"/></linearGradient>
+                <filter id="gw" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                <clipPath id="rC"><ellipse cx="100" cy="88" rx="34" ry="38"/></clipPath>
+              </defs>
+              <circle cx="100" cy="100" r="96" fill="url(#bgG)"/>
+              <circle cx="100" cy="100" r="94" fill="none" stroke="#2563eb" stroke-width="1.5" opacity="0.4"/>
+              <ellipse cx="100" cy="88" rx="34" ry="38" fill="url(#rG)" stroke="#60a5fa" stroke-width="1.5" transform="rotate(-4 100 88)"/>
+              <ellipse cx="100" cy="88" rx="27" ry="31" fill="#1e3a6e" opacity="0.6" transform="rotate(-4 100 88)"/>
+              <g clip-path="url(#rC)" opacity="0.35" stroke="#93c5fd" stroke-width="0.8" fill="none">
+                <line x1="82" y1="50" x2="82" y2="126"/><line x1="91" y1="50" x2="91" y2="126"/><line x1="100" y1="50" x2="100" y2="126"/><line x1="109" y1="50" x2="109" y2="126"/><line x1="118" y1="50" x2="118" y2="126"/>
+                <line x1="66" y1="68" x2="134" y2="68"/><line x1="66" y1="78" x2="134" y2="78"/><line x1="66" y1="88" x2="134" y2="88"/><line x1="66" y1="98" x2="134" y2="98"/><line x1="66" y1="108" x2="134" y2="108"/>
+              </g>
+              <rect x="95" y="124" width="10" height="36" rx="4" fill="#1d4ed8" stroke="#60a5fa" stroke-width="1"/>
+              <line x1="95" y1="130" x2="105" y2="126" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/>
+              <line x1="95" y1="137" x2="105" y2="133" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/>
+              <line x1="95" y1="144" x2="105" y2="140" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/>
+              <line x1="95" y1="151" x2="105" y2="147" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/>
+              <rect x="93" y="158" width="14" height="5" rx="2.5" fill="#2563eb" stroke="#60a5fa" stroke-width="1"/>
+              <path d="M100 52 L100 36" stroke="url(#aG)" stroke-width="3.5" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <path d="M100 36 C98 32 93 28 88 22" stroke="url(#aG)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <path d="M88 22 C85 18 82 15 80 11" stroke="url(#aG)" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <path d="M88 22 C86 20 85 17 86 13" stroke="url(#aG)" stroke-width="2" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <path d="M94 30 C91 27 88 25 84 23" stroke="url(#aG)" stroke-width="2" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <path d="M100 36 C102 32 107 28 112 22" stroke="url(#aG)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <path d="M112 22 C115 18 118 15 120 11" stroke="url(#aG)" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <path d="M112 22 C114 20 115 17 114 13" stroke="url(#aG)" stroke-width="2" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <path d="M106 30 C109 27 112 25 116 23" stroke="url(#aG)" stroke-width="2" stroke-linecap="round" fill="none" filter="url(#gw)"/>
+              <circle cx="124" cy="72" r="6" fill="#fbbf24" stroke="#f59e0b" stroke-width="1"/>
+              <path d="M118.5 70 Q121 67 124 68" stroke="#f59e0b" stroke-width="0.9" fill="none"/>
+              <path d="M118.5 74 Q121 77 124 76" stroke="#f59e0b" stroke-width="0.9" fill="none"/>
+            </svg>
+            <div>
+                <h1 class="display" style="font-size:32px; font-weight:900; font-style:italic; color:var(--blue); text-transform:uppercase; letter-spacing:-.01em; line-height:1;">Turnier Setup</h1>
+                <p style="font-size:10px; color:var(--muted); font-weight:500; margin-top:2px; letter-spacing:.05em;">Smart-Mix Engine v2.0 · Americano Optimizer</p>
+            </div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
             <select id="tournamentSelect" onchange="loadTournament(this.value)" style="width:auto; font-size:12px; padding:9px 12px;">
@@ -723,18 +760,81 @@ async function runOptimization(){
     if(!document.getElementById('inputError').classList.contains('hidden')){ alert('Bitte zuerst die Eingabefehler beheben!'); return; }
     players=Array.from(document.querySelectorAll('#playerList input')).map(i=>i.value.trim()).filter(Boolean);
     const inputs=getInputs();
+
+    // Wieviele Slots werden in den normalen Runden belegt?
     const totalSlots=inputs.numRounds*inputs.courts*4;
-    const isPerfectlyFair=totalSlots%players.length===0;
-    const isDummyMode=!isPerfectlyFair, isFinalMode=isPerfectlyFair;
+    const remainder=totalSlots%players.length;   // Spieler die eine Runde mehr haben
+    const isPerfectlyFair=(remainder===0);
+
+    // Ausgleich: nur nötig wenn manche weniger gespielt haben
+    // Finale:    nur wenn alle gleich oft gespielt haben
+    const isDummyMode=!isPerfectlyFair;
+    const isFinalMode=isPerfectlyFair;
+
     const btn=document.getElementById('mixBtn'),txt=document.getElementById('mixBtnText'),spin=document.getElementById('mixSpinner');
     btn.disabled=true; txt.textContent='Optimiere…'; spin.classList.remove('hidden');
     await new Promise(r=>setTimeout(r,30));
+
+    // Normale Runden optimieren (OHNE Sonder-Runde)
     let bestSchedule=null,lowestPenalty=Infinity;
     for(let i=0;i<500;i++){
         const sched=generateVariant(inputs);
         const{penalty}=calcPenalty(sched,players.length);
         if(penalty<lowestPenalty){lowestPenalty=penalty;bestSchedule=sched;}
     }
+
+    // Sonder-Runde anhängen (Ausgleich ODER Finale)
+    const lastTime=bestSchedule[bestSchedule.length-1];
+    const [lH,lM]=lastTime.time.split(':').map(Number);
+    const nextMin=lH*60+lM+inputs.matchTime;
+    const nextTime=`${String(Math.floor(nextMin/60)%24).padStart(2,'0')}:${String(nextMin%60).padStart(2,'0')}`;
+
+    if(isDummyMode){
+        // AUSGLEICH: Nur die Spieler mit wenigsten Spielen spielen
+        // Ermittle nach der Optimierung welche Spieler am wenigsten gespielt haben
+        const{plays}=calcPenalty(bestSchedule,players.length);
+        const minPlays=Math.min(...plays);
+        // Spieler mit minimaler Spielanzahl (= die benachteiligten)
+        const underPlayed=plays.map((p,i)=>({i,p})).filter(x=>x.p===minPlays).map(x=>x.i);
+        // Diese Spieler auf Courts verteilen (4 pro Court, Virtuell auffüllen)
+        const balanceMatches=[];
+        let rem=[...underPlayed];
+        let courtNum=1;
+        while(rem.length>0){
+            const p1=rem.shift()??null;
+            const p2=rem.shift()??null;
+            const p3=rem.shift()??null;
+            const p4=rem.shift()??null;
+            // Nur wenn mind. 1 echter Spieler vorhanden
+            if(p1!==null){
+                balanceMatches.push({
+                    court:courtNum++,
+                    // null = virtueller Spieler (wird in render als "Virtuell 1/2" angezeigt)
+                    team1:[p1, p2],
+                    team2:[p3, p4]
+                });
+            }
+        }
+        // Pause = alle anderen (die schon genug gespielt haben)
+        const balancePause=plays.map((p,i)=>({i,p})).filter(x=>x.p>minPlays).map(x=>x.i);
+        bestSchedule.push({
+            id:bestSchedule.length+1,
+            time:nextTime,
+            isBalance:true,
+            matches:balanceMatches,
+            pause:balancePause
+        });
+    } else {
+        // FINALE: Platz 1+4 vs Platz 2+3 (symbolisch, echte Platzierung folgt im Turnier)
+        bestSchedule.push({
+            id:bestSchedule.length+1,
+            time:nextTime,
+            isFinale:true,
+            matches:[{court:1,team1:['PLATZ1','PLATZ4'],team2:['PLATZ2','PLATZ3']}],
+            pause:[]
+        });
+    }
+
     currentSchedule=bestSchedule;
     btn.disabled=false; txt.textContent='Plan bestmöglich mischen'; spin.classList.add('hidden');
     renderPreview(isDummyMode,isFinalMode,false);
@@ -764,11 +864,29 @@ function renderPreview(isDummyMode,isFinalMode,isReadonly){
         }
 
         const matchHtml=r.matches.map(m=>{
-            const isDummy=!isReadonly&&isLast&&isFinalMode&&m.court===1;
             let p1,p2,p3,p4;
-            if(isDummy){p1='🥇 Platz 1';p2='Platz 4';p3='🥈 Platz 2';p4='Platz 3';}
-            else{p1=players[m.team1[0]]||'🤖 Virtuell';p2=players[m.team1[1]]||'🤖 Virtuell';p3=players[m.team2[0]]||'🤖 Virtuell';p4=players[m.team2[1]]||'🤖 Virtuell';}
-            const v=n=>n.includes('Virtuell');
+            if(r.isFinale){
+                // Finale: symbolische Platzierungen
+                p1='🥇 Platz 1'; p2='🥈 Platz 4'; p3='🥈 Platz 2'; p4='🥉 Platz 3';
+            } else if(r.isBalance){
+                // Ausgleich: echte Spieler oder "Virtuell 1/2" wenn null
+                const getName=(idx)=>{ if(idx===null||idx===undefined) return null; return players[idx]||null; };
+                const n1=getName(m.team1[0]), n2=getName(m.team1[1]);
+                const n3=getName(m.team2[0]), n4=getName(m.team2[1]);
+                // Virtuelle Spieler für fehlende Slots
+                let virtNum=1;
+                p1=n1||(virtNum++===1?'Virtuell 1':'Virtuell 2');
+                p2=n2||(virtNum++===1?'Virtuell 1':'Virtuell 2');
+                p3=n3||(virtNum++===1?'Virtuell 1':'Virtuell 2');
+                p4=n4||(virtNum++===1?'Virtuell 1':'Virtuell 2');
+            } else {
+                // Normale Runde
+                p1=players[m.team1[0]]||'Virtuell 1';
+                p2=players[m.team1[1]]||'Virtuell 2';
+                p3=players[m.team2[0]]||'Virtuell 1';
+                p4=players[m.team2[1]]||'Virtuell 2';
+            }
+            const v=n=>n&&(n.startsWith('Virtuell'));
             const cc=ccls[(m.court-1)%ccls.length];
             return `<div class="match-row ${cc}">
                 <span class="court-tag">C${m.court}</span>
@@ -780,7 +898,14 @@ function renderPreview(isDummyMode,isFinalMode,isReadonly){
             </div>`;
         }).join('');
 
-        const pauseNames=(isLast&&isFinalMode)?'Alle außer Finale-Teilnehmer':(r.pause||[]).map(p=>players[p]).filter(Boolean).join(', ')||'Keiner';
+        let pauseNames;
+        if(r.isFinale){
+            pauseNames='Alle außer den 4 Finalteilnehmern';
+        } else if(r.isBalance){
+            pauseNames=(r.pause||[]).map(p=>players[p]).filter(Boolean).join(', ')||'Keiner';
+        } else {
+            pauseNames=(r.pause||[]).map(p=>players[p]).filter(Boolean).join(', ')||'Keiner';
+        }
 
         return `<div class="${cardCls} fade-up">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -803,10 +928,8 @@ function renderPreview(isDummyMode,isFinalMode,isReadonly){
 // STATS
 // ============================================================
 function updateStats(isDummyMode,isFinalMode,isReadonly){
-    const scoredRounds=currentSchedule.filter((_,idx)=>{
-        const isLast=idx===currentSchedule.length-1;
-        return!(isLast&&!isReadonly&&(isFinalMode||isDummyMode));
-    });
+    // Finale und Ausgleich zählen nicht für die Wertungsstatistik
+    const scoredRounds=currentSchedule.filter(r=>!r.isFinale&&!r.isBalance);
     const{plays,partner,opponent}=calcPenalty(scoredRounds,players.length);
     const mTime=parseInt(document.getElementById('matchTime').value)||15;
 
@@ -887,4 +1010,3 @@ init();
 </script>
 </body>
 </html>
-
