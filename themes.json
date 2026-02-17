@@ -1,0 +1,108 @@
+{
+  "themes": [
+    {
+      "id": "light",
+      "name": "Hell / Clean",
+      "desc": "Weiß + Blau · Tageslicht",
+      "vars": {
+        "bg": "#ffffff",
+        "bgCard": "#f8fafc",
+        "bgCardSolid": "#f1f5f9",
+        "border": "#e2e8f0",
+        "text": "#0f172a",
+        "textMuted": "#64748b",
+        "textDim": "#94a3b8",
+        "accent": "#3b82f6",
+        "accentGlow": "rgba(59,130,246,0.25)",
+        "gold": "#f59e0b",
+        "green": "#22c55e",
+        "red": "#ef4444",
+        "headerBg": "#ffffff",
+        "headerText": "#0f172a",
+        "botBg": "#0f172a",
+        "botText": "#e2e8f0",
+        "botAccent": "#60a5fa",
+        "rankGold": "#fef3c7",
+        "scoreBg": "#f1f5f9"
+      }
+    },
+    {
+      "id": "navy",
+      "name": "Navy Semi-Dark",
+      "desc": "Aufgehellt · Abend",
+      "vars": {
+        "bg": "#1e293b",
+        "bgCard": "#334155",
+        "bgCardSolid": "#475569",
+        "border": "#475569",
+        "text": "#f1f5f9",
+        "textMuted": "#94a3b8",
+        "textDim": "#64748b",
+        "accent": "#60a5fa",
+        "accentGlow": "rgba(96,165,250,0.2)",
+        "gold": "#fbbf24",
+        "green": "#4ade80",
+        "red": "#f87171",
+        "headerBg": "#1e293b",
+        "headerText": "#f1f5f9",
+        "botBg": "#0f172a",
+        "botText": "#e2e8f0",
+        "botAccent": "#60a5fa",
+        "rankGold": "rgba(251,191,36,0.15)",
+        "scoreBg": "#475569"
+      }
+    },
+    {
+      "id": "warm",
+      "name": "Warm Light",
+      "desc": "Creme + Warm · Outdoor",
+      "vars": {
+        "bg": "#faf8f4",
+        "bgCard": "#ffffff",
+        "bgCardSolid": "#f5f0e8",
+        "border": "#e8e4dc",
+        "text": "#292524",
+        "textMuted": "#78716c",
+        "textDim": "#a8a29e",
+        "accent": "#2563eb",
+        "accentGlow": "rgba(37,99,235,0.2)",
+        "gold": "#d97706",
+        "green": "#16a34a",
+        "red": "#dc2626",
+        "headerBg": "#faf8f4",
+        "headerText": "#292524",
+        "botBg": "#1c1917",
+        "botText": "#fafaf9",
+        "botAccent": "#f59e0b",
+        "rankGold": "#fef9c3",
+        "scoreBg": "#f5f0e8"
+      }
+    },
+    {
+      "id": "hybrid",
+      "name": "Hybrid",
+      "desc": "Hell + Dunkler Header · Kontrast",
+      "vars": {
+        "bg": "#f8fafc",
+        "bgCard": "#ffffff",
+        "bgCardSolid": "#f1f5f9",
+        "border": "#e2e8f0",
+        "text": "#0f172a",
+        "textMuted": "#64748b",
+        "textDim": "#94a3b8",
+        "accent": "#3b82f6",
+        "accentGlow": "rgba(59,130,246,0.25)",
+        "gold": "#fbbf24",
+        "green": "#22c55e",
+        "red": "#ef4444",
+        "headerBg": "#0f172a",
+        "headerText": "#f1f5f9",
+        "botBg": "#0f172a",
+        "botText": "#e2e8f0",
+        "botAccent": "#60a5fa",
+        "rankGold": "#fef3c7",
+        "scoreBg": "#f1f5f9"
+      }
+    }
+  ]
+}
