@@ -209,6 +209,7 @@
             color: var(--blue); flex-shrink: 0;
         }
         .match-names { flex: 1; text-align: center; line-height: 1.7; }
+        .virt { color: #93c5fd; font-style: italic; }
 
         /* Court accent lines */
         .c1 { border-left: 3px solid #2563eb; }
@@ -273,9 +274,15 @@
         @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         .fade-up { animation: fadeUp .3s ease forwards; }
 
+        /* ---------- SCROLLBAR ---------- */
+        #playerList::-webkit-scrollbar { width:4px; }
+        #playerList::-webkit-scrollbar-track { background:transparent; }
+        #playerList::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
+
         /* ---------- RESPONSIVE ---------- */
         @media (max-width: 640px) {
             .two-col   { grid-template-columns: 1fr !important; }
+            .two-col-preview { grid-template-columns: 1fr !important; }
             #fairnessStats { grid-template-columns: repeat(2,1fr) !important; }
             #optDisplay    { grid-template-columns: 1fr !important; }
         }
@@ -283,8 +290,12 @@
 </head>
 <body>
 
+<!-- ══════════════════════════════════════
+     MAIN CARD
+══════════════════════════════════════ -->
 <div class="card p-6">
 
+    <!-- HEADER -->
     <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:28px; padding-bottom:20px; border-bottom:1.5px solid #e2e8f0;">
         <div style="display:flex; align-items:center; gap:14px;">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="52" height="52" style="flex-shrink:0;">
@@ -331,13 +342,20 @@
             <select id="tournamentSelect" onchange="loadTournament(this.value)" style="width:auto; font-size:12px; padding:9px 12px;">
                 <option value="new">+ Neues Turnier</option>
             </select>
-            <button id="deleteBtn" onclick="deleteTournament()" class="btn-danger-sm hidden">Löschen</button>
+            <button id="deleteBtn" onclick="deleteTournament()" class="btn-danger-sm hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Löschen
+            </button>
         </div>
     </div>
 
+    <!-- TWO-COLUMN LAYOUT -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
 
+        <!-- LEFT: SETTINGS -->
         <div style="display:flex; flex-direction:column; gap:16px;">
+
+            <!-- Name + PW -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <label class="lbl">Turnier Name</label>
@@ -350,6 +368,7 @@
                 </div>
             </div>
 
+            <!-- Spieler + Plätze -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <label class="lbl">Spieler / Teams</label>
@@ -361,6 +380,7 @@
                 </div>
             </div>
 
+            <!-- Zeit -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <label class="lbl">Startzeit</label>
@@ -372,6 +392,7 @@
                 </div>
             </div>
 
+            <!-- Warmup + Match -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <label class="lbl">Aufwärmen (Min)</label>
@@ -383,6 +404,7 @@
                 </div>
             </div>
 
+            <!-- Modus + Team -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <label class="lbl">Spiel-Modus</label>
@@ -400,23 +422,27 @@
                 </div>
             </div>
 
+            <!-- Info Boxes -->
             <div id="pointsModeInfo" class="alert alert-info hidden">🎯 Punkte-Modus: Runden enden bei 24 Punkten. Matchzeit = max. Limit. Zeitangaben sind Schätzwerte.</div>
             <div id="teamModeInfo"   class="alert alert-green hidden">👥 Team-Modus: Feste Paare bleiben zusammen. Nur Gegner-Durchmischung wird optimiert.</div>
             <div id="consistencyWarning" class="alert alert-warn hidden"></div>
             <div id="inputError"         class="alert alert-error hidden"></div>
         </div>
 
+        <!-- RIGHT: PLAYER LIST -->
         <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:14px; padding:18px;">
             <label id="playerListLabel" class="lbl" style="margin-bottom:10px;">Teilnehmer:innen</label>
             <div id="playerList" style="display:flex; flex-direction:column; gap:7px; max-height:400px; overflow-y:auto; padding-right:4px;"></div>
         </div>
     </div>
 
+    <!-- SETUP OPTIONEN -->
     <div id="optSection" style="margin-top:28px;">
         <button class="btn btn-secondary" onclick="showOptimalProposals()">Faire Setup-Optionen berechnen</button>
         <div id="optDisplay" style="display:none; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px;"></div>
     </div>
 
+    <!-- MIX BUTTON -->
     <button id="mixBtn" onclick="runOptimization()" class="btn btn-primary" style="margin-top:16px;">
         <span id="mixBtnText">Plan bestmöglich mischen</span>
         <svg id="mixSpinner" class="hidden spin" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -425,32 +451,59 @@
         </svg>
     </button>
 
+    <!-- PREVIEW AREA -->
     <div id="previewArea" class="hidden">
+
         <div class="section-divider">Spielplan</div>
         <div id="previewList" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"></div>
+
         <div class="section-divider">Auswertung</div>
+
+        <!-- Stats Card -->
         <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:20px;">
+
+            <!-- Spielanzahl -->
             <div>
                 <p class="lbl" style="margin-bottom:10px;">📊 Spiele & Spielzeit</p>
                 <div id="fairnessStats" style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px;"></div>
             </div>
+
+            <!-- Matrix -->
             <div>
                 <p class="lbl" style="margin-bottom:10px;">🤝 Partner & Gegner-Matrix</p>
                 <div id="partnerStats" style="background:white; border-radius:10px; padding:12px; overflow-x:auto;"></div>
             </div>
+
+            <!-- Modus-Info -->
+            <div id="modeStatsBox" class="hidden">
+                <p class="lbl" style="margin-bottom:8px;">ℹ️ Modus-Info</p>
+                <div id="modeStatsContent" class="alert alert-info"></div>
+            </div>
         </div>
+
+        <!-- Save Button -->
         <button onclick="saveFinal()" class="btn btn-success" style="margin-top:16px;">✅ Turnier final speichern</button>
     </div>
 
 </div>
 
+<!-- Footer -->
+<p id="lastActionTime" style="text-align:center; font-size:10px; color:var(--muted); margin-top:16px; letter-spacing:.06em;"></p>
+
+
 <script>
+// ============================================================
+// SUPABASE
+// ============================================================
 const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
 const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
 let currentSchedule = [], players = [], tournamentsList = [];
 
+// ============================================================
+// INIT
+// ============================================================
 async function init() {
     try {
         const { data } = await supabaseClient.from('tournaments').select('id, data');
@@ -462,10 +515,13 @@ async function init() {
         if (urlParam && tournamentsList.some(t => t.id === urlParam)) {
             sel.value = urlParam; loadTournament(urlParam);
         } else { updatePlayerInputs(); }
-    } catch(e) { updatePlayerInputs(); }
+    } catch(e) { console.warn('Supabase offline.', e); updatePlayerInputs(); }
     toggleModeUI();
 }
 
+// ============================================================
+// LOAD
+// ============================================================
 async function loadTournament(id) {
     if (id === 'new') {
         document.getElementById('deleteBtn').classList.add('hidden');
@@ -478,13 +534,14 @@ async function loadTournament(id) {
     if (!entry?.data) return;
     const d = entry.data;
     document.getElementById('tName').value = id;
-    document.getElementById('tPassword').value = d.pw || ''; // Passwort laden
+    // Passwort laden (kompatibel mit alten Turnieren ohne PW)
+    document.getElementById('tPassword').value = d.password || '';
     if (d.t) {
         if (d.t.start  != null) document.getElementById('startTime').value  = d.t.start;
         if (d.t.warmup != null) document.getElementById('warmup').value    = d.t.warmup;
         if (d.t.match  != null) document.getElementById('matchTime').value  = d.t.match;
     }
-    if (d.courts     != null) document.getElementById('cCount').value      = d.courts;
+    if (d.courts     != null) document.getElementById('cCount').value     = d.courts;
     if (d.totalHours != null) document.getElementById('totalHours').value = d.totalHours;
     if (d.mode) { const el=document.querySelector(`input[name="mode"][value="${d.mode}"]`); if(el) el.checked=true; }
     if (d.isTeam != null) { const el=document.querySelector(`input[name="tType"][value="${d.isTeam?'team':'solo'}"]`); if(el) el.checked=true; }
@@ -494,35 +551,86 @@ async function loadTournament(id) {
     toggleModeUI(); checkConsistency();
 }
 
+// ============================================================
+// PASSWORD
+// ============================================================
 function togglePw() {
     const el=document.getElementById('tPassword'), btn=document.getElementById('eyeBtn');
     if(el.type==='password'){el.type='text';btn.innerText='🙈';}
     else{el.type='password';btn.innerText='👁️';}
 }
 
+// ============================================================
+// MODUS UI
+// ============================================================
 function toggleModeUI() {
     const isTime=document.querySelector('input[name="mode"]:checked').value==='time';
     document.getElementById('optSection').style.display=isTime?'block':'none';
     document.getElementById('pointsModeInfo').classList.toggle('hidden',isTime);
+    updateCountLabel();  // Label aktualisieren
     checkConsistency();
 }
 
+function updateCountLabel() {
+    const isTeam = document.querySelector('input[name="tType"]:checked')?.value === 'team';
+    const label = document.querySelector('label[for="pCount"]') || 
+                  document.querySelectorAll('.lbl')[2];  // 3. Label = Spieler/Teams
+    if (label) {
+        label.innerHTML = isTeam 
+            ? 'Anzahl Teams <span style="font-size:8px;opacity:0.7;">(je 2 Spieler)</span>'
+            : 'Spieler';
+    }
+}
+
+// ============================================================
+// PLAYER INPUTS
+// ============================================================
 function updatePlayerInputs(preloadNames=null) {
+    updateCountLabel();  // Label aktualisieren
     const count=parseInt(document.getElementById('pCount').value)||6;
     const isTeam=document.querySelector('input[name="tType"]:checked').value==='team';
     const existing=Array.from(document.querySelectorAll('#playerList input')).map(i=>i.value);
-    document.getElementById('playerListLabel').textContent=isTeam?'Team-Namen':'Teilnehmer:innen';
+    document.getElementById('playerListLabel').textContent=isTeam?'Feste 2er-Teams':'Teilnehmer:innen';
     document.getElementById('teamModeInfo').classList.toggle('hidden',!isTeam);
+    
     let html='';
-    for(let i=0;i<count;i++){
-        let val=preloadNames?.[i]||existing[i]||(isTeam?`Team ${i+1}`:`Spieler ${i+1}`);
-        html+=`<input type="text" id="pIdx_${i}" value="${val.replace(/"/g,'&quot;')}">`;
+    if(isTeam){
+        // Team-Modus: 2 Inputs pro Zeile (Spieler A + Spieler B = 1 Team)
+        // count = Anzahl Teams, jedes Team hat 2 Spieler
+        for(let teamIdx=0; teamIdx<count; teamIdx++){
+            const playerAIdx = teamIdx * 2;
+            const playerBIdx = teamIdx * 2 + 1;
+            const valA = preloadNames?.[playerAIdx] || existing[playerAIdx] || `Spieler ${playerAIdx+1}`;
+            const valB = preloadNames?.[playerBIdx] || existing[playerBIdx] || `Spieler ${playerBIdx+1}`;
+            
+            html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:6px;">
+                <div>
+                    <label style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:3px;">Team ${teamIdx+1} · Spieler A</label>
+                    <input type="text" id="pIdx_${playerAIdx}" value="${valA.replace(/"/g,'&quot;')}" style="margin:0;">
+                </div>
+                <div>
+                    <label style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:3px;">Spieler B</label>
+                    <input type="text" id="pIdx_${playerBIdx}" value="${valB.replace(/"/g,'&quot;')}" style="margin:0;">
+                </div>
+            </div>`;
+        }
+    } else {
+        // Solo-Modus: normale Liste
+        for(let i=0; i<count; i++){
+            let val = preloadNames?.[i] || existing[i] || `Spieler ${i+1}`;
+            html += `<input type="text" id="pIdx_${i}" value="${val.replace(/"/g,'&quot;')}">`;
+        }
     }
     document.getElementById('playerList').innerHTML=html;
 }
 
+// ============================================================
+// CONSISTENCY CHECK
+// ============================================================
 function checkConsistency() {
-    const count=parseInt(document.getElementById('pCount').value)||0;
+    const countRaw=parseInt(document.getElementById('pCount').value)||0;
+    const isTeam=document.querySelector('input[name="tType"]:checked')?.value==='team';
+    const count = isTeam ? countRaw * 2 : countRaw;  // echte Spieleranzahl
     const courts=parseInt(document.getElementById('cCount').value)||1;
     const totalMin=parseFloat(document.getElementById('totalHours').value)*60||0;
     const matchTime=parseInt(document.getElementById('matchTime').value)||0;
@@ -541,139 +649,419 @@ function checkConsistency() {
         if(rounds<1) errors.push('Zu wenig Zeit für 1 Runde.');
         else {
             const slots=rounds*courts*4;
-            if(slots%count!==0) warnings.push(`⚠️ Ungleiche Verteilung. Puffer: ${netto-(rounds*matchTime)} Min.`);
-            if(mode==='points') warnings.push(`🎯 Ca. ${rounds} Runden geschätzt.`);
+            if(slots%count!==0) warnings.push(`⚠️ ${slots} Slots für ${count} Spieler → ungleiche Verteilung. Nutze "Setup-Optionen" für fairen Plan. Puffer: ${netto-(rounds*matchTime)} Min.`);
+            if(mode==='points') warnings.push(`🎯 Ca. ${rounds} Runden geschätzt (max. ${matchTime} Min./Runde).`);
         }
     }
     errBox.classList.toggle('hidden',!errors.length); errBox.innerHTML=errors.join('<br>');
     warnBox.classList.toggle('hidden',!warnings.length); warnBox.innerHTML=warnings.join('<br>');
 }
 
+// ============================================================
+// SETUP OPTIONEN
+// ============================================================
 function showOptimalProposals() {
-    const count=parseInt(document.getElementById('pCount').value)||6;
+    const countRaw=parseInt(document.getElementById('pCount').value)||6;
+    const isTeam=document.querySelector('input[name="tType"]:checked')?.value==='team';
+    const count = isTeam ? countRaw * 2 : countRaw;  // echte Spieleranzahl
     const courts=parseInt(document.getElementById('cCount').value)||1;
     const netto=parseFloat(document.getElementById('totalHours').value)*60-(parseInt(document.getElementById('warmup').value)||0);
-    let html='';
+    let html='', found=0;
     for(let r=2;r<=25;r++){
         const mt=Math.floor(netto/r/5)*5;
         if(mt<10||mt*r>netto) continue;
         const slots=r*courts*4, ppp=slots/count, isFair=Number.isInteger(ppp);
-        if(!isFair&&(netto-mt*r)<5) continue;
+        const buffer=netto-mt*r;
+        if(!isFair&&buffer<5) continue;
         html+=`<div class="opt-card">
-            <span class="badge ${isFair?'badge-amber':'badge-blue'}">${isFair?'Fair':'Ausgleich'}</span>
-            <div class="opt-time">${mt} Min.</div>
-            <p style="font-size:11px">${r} Runden</p>
-            <button class="opt-apply" onclick="applyOpt(${r},${mt})">Übernehmen</button>
+            <div>
+                <span class="badge ${isFair?'badge-amber':'badge-blue'}">${isFair?'Perfekt fair':'Ausgleich nötig'}</span>
+                <div class="opt-time" style="margin:10px 0 4px;">${mt}<span style="font-size:16px;font-weight:700"> Min.</span></div>
+                <p style="font-size:11px;color:var(--muted);font-weight:500;">🎾 ${r} Runden · ${courts} ${courts>1?'Plätze':'Platz'}</p>
+                <p style="font-size:11px;color:var(--blue);font-weight:700;margin-top:4px;">🏃 ~${Math.floor(ppp*mt)} Min. pro Person</p>
+                <div style="font-size:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 8px;margin-top:8px;">
+                    <span style="color:var(--muted);">Puffer: </span><strong>${buffer} Min. ${buffer>=15?'🔥':buffer>=5?'👍':'⚡'}</strong>
+                    <span style="display:block;color:${isFair?'var(--green)':'var(--muted)'};">${isFair?`✅ Jeder spielt ${Math.round(ppp)}×`:`⌀ ${ppp.toFixed(1)}× pro Person`}</span>
+                </div>
+            </div>
+            <button class="opt-apply" onclick="applyOpt(${mt})">Wählen</button>
         </div>`;
+        if(++found>=6) break;
     }
-    document.getElementById('optDisplay').innerHTML=html;
-    document.getElementById('optDisplay').style.display='grid';
+    if(!html) html=`<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">Keine sinnvollen Optionen. Bitte Dauer oder Plätze anpassen.</div>`;
+    const disp=document.getElementById('optDisplay');
+    disp.innerHTML=html; disp.style.display='grid';
 }
+function applyOpt(val){ document.getElementById('matchTime').value=val; checkConsistency(); document.getElementById('optDisplay').style.display='none'; }
 
-function applyOpt(r,mt) {
-    document.getElementById('matchTime').value=mt;
-    checkConsistency();
-    runOptimization();
-}
-
-async function runOptimization() {
-    const count=parseInt(document.getElementById('pCount').value);
-    const courts=parseInt(document.getElementById('cCount').value);
-    const totalMin=parseFloat(document.getElementById('totalHours').value)*60;
-    const warmup=parseInt(document.getElementById('warmup').value);
-    const matchTime=parseInt(document.getElementById('matchTime').value);
-    const startStr=document.getElementById('startTime').value;
+// ============================================================
+// INPUTS HELPER
+// ============================================================
+function getInputs() {
+    const countRaw=parseInt(document.getElementById('pCount').value)||6;
     const isTeam=document.querySelector('input[name="tType"]:checked').value==='team';
+    // Im Team-Modus: count = Anzahl Teams, aber wir haben count×2 Spieler
+    // Für die Optimierung brauchen wir die echte Spieleranzahl
+    const count = isTeam ? countRaw * 2 : countRaw;
     
-    players = Array.from({length:count},(_,i)=>document.getElementById(`pIdx_${i}`).value || `P${i+1}`);
-    const rounds = Math.floor((totalMin-warmup)/matchTime);
-    currentSchedule = [];
-    
-    let [h,m] = startStr.split(':').map(Number);
-    let currentTotal = h*60+m+warmup;
+    const courts=parseInt(document.getElementById('cCount').value)||1;
+    const totalMin=parseFloat(document.getElementById('totalHours').value)*60||120;
+    const matchTime=parseInt(document.getElementById('matchTime').value)||15;
+    const warmup=parseInt(document.getElementById('warmup').value)||0;
+    const start=document.getElementById('startTime').value||'18:00';
+    const mode=document.querySelector('input[name="mode"]:checked').value;
+    return{count,courts,totalMin,matchTime,warmup,start,mode,isTeam,nettoMin:totalMin-warmup,numRounds:Math.max(1,Math.floor((totalMin-warmup)/matchTime))};
+}
 
-    for(let r=0; r<rounds; r++) {
-        let hr=Math.floor(currentTotal/60)%24, mn=currentTotal%60;
-        let timeStr = `${hr.toString().padStart(2,'0')}:${mn.toString().padStart(2,'0')}`;
-        let matches = [];
-        let pPool = Array.from({length:count},(_,i)=>i);
-        pPool.sort(()=>Math.random()-0.5);
+// ============================================================
+// PENALTY
+// ============================================================
+function calcPenalty(schedule, numPlayers) {
+    const partner=Array.from({length:numPlayers},()=>new Array(numPlayers).fill(0));
+    const opponent=Array.from({length:numPlayers},()=>new Array(numPlayers).fill(0));
+    const plays=new Array(numPlayers).fill(0);
+    schedule.forEach(r=>{ r.matches.forEach(m=>{
+        const[a,b,c,d]=[m.team1[0],m.team1[1],m.team2[0],m.team2[1]];
+        [a,b,c,d].filter(p=>p!==undefined&&p<numPlayers).forEach(p=>plays[p]++);
+        if(a!==undefined&&b!==undefined&&a<numPlayers&&b<numPlayers){partner[a][b]++;partner[b][a]++;}
+        if(c!==undefined&&d!==undefined&&c<numPlayers&&d<numPlayers){partner[c][d]++;partner[d][c]++;}
+        [a,b].forEach(t1=>{[c,d].forEach(t2=>{
+            if(t1!==undefined&&t2!==undefined&&t1<numPlayers&&t2<numPlayers){opponent[t1][t2]++;opponent[t2][t1]++;}
+        });});
+    });});
+    let penalty=0;
+    const avg=plays.reduce((a,b)=>a+b,0)/numPlayers;
+    plays.forEach(p=>{penalty+=Math.pow(p-avg,2)*100;});
+    for(let i=0;i<numPlayers;i++) for(let j=i+1;j<numPlayers;j++){
+        if(partner[i][j]>1)  penalty+=Math.pow(partner[i][j]-1,2)*10;
+        if(opponent[i][j]>2) penalty+=Math.pow(opponent[i][j]-2,2)*3;
+    }
+    return{penalty,plays,partner,opponent};
+}
 
-        for(let c=0; c<courts; c++) {
-            if(pPool.length>=4) {
-                matches.push({
-                    court: c+1,
-                    team1: [pPool.shift(), pPool.shift()],
-                    team2: [pPool.shift(), pPool.shift()],
-                    score: ["",""]
+// ============================================================
+// SMART SELECT
+// ============================================================
+function smartSelect(pool,needed,partnerCount,opponentCount){
+    if(pool.length<=needed) return[...pool];
+    let remaining=[...pool],selected=[];
+    const firstIdx=Math.floor(Math.random()*Math.max(1,Math.ceil(remaining.length/3)));
+    selected.push(remaining.splice(firstIdx,1)[0]);
+    while(selected.length<needed&&remaining.length>0){
+        let best=null,bestScore=Infinity;
+        remaining.forEach(p=>{
+            const score=selected.reduce((sum,s)=>sum+partnerCount[p][s]*10+opponentCount[p][s]*3,0)+Math.random()*2;
+            if(score<bestScore){bestScore=score;best=p;}
+        });
+        selected.push(best); remaining=remaining.filter(p=>p!==best);
+    }
+    if(needed===4&&selected.length===4){
+        const[a,b,c,d]=selected;
+        const pairings=[[a,b,c,d],[a,c,b,d],[a,d,b,c]];
+        let bestPair=pairings[0],bestPairScore=Infinity;
+        pairings.forEach(([p1,p2,p3,p4])=>{
+            const sc=partnerCount[p1][p2]*20+partnerCount[p3][p4]*20+opponentCount[p1][p3]*3+opponentCount[p1][p4]*3+opponentCount[p2][p3]*3+opponentCount[p2][p4]*3;
+            if(sc<bestPairScore){bestPairScore=sc;bestPair=[p1,p2,p3,p4];}
+        });
+        return bestPair;
+    }
+    return selected;
+}
+
+// ============================================================
+// GENERATE VARIANT
+// ============================================================
+function generateVariant(inputs){
+    const{count,courts,matchTime,warmup,start,numRounds}=inputs;
+    let[sH,sM]=start.split(':').map(Number);
+    let schedule=[],playTracker=new Array(count).fill(0);
+    const partnerCount=Array.from({length:count},()=>new Array(count).fill(0));
+    const opponentCount=Array.from({length:count},()=>new Array(count).fill(0));
+    for(let r=1;r<=numRounds;r++){
+        const tMin=sH*60+sM+warmup+(r-1)*matchTime;
+        const timeStr=`${String(Math.floor(tMin/60)%24).padStart(2,'0')}:${String(tMin%60).padStart(2,'0')}`;
+        let pool=[...Array(count).keys()].sort((a,b)=>playTracker[a]-playTracker[b]);
+        let rem=[...pool],round={id:r,time:timeStr,pause:[],matches:[]};
+        for(let c=0;c<courts;c++){
+            if(rem.length<4) break;
+            const chosen=smartSelect(rem,4,partnerCount,opponentCount);
+            rem=rem.filter(p=>!chosen.includes(p));
+            const[p1,p2,p3,p4]=chosen;
+            [p1,p2,p3,p4].forEach(p=>{if(p!==undefined)playTracker[p]++;});
+            if(p1!==undefined&&p2!==undefined){partnerCount[p1][p2]++;partnerCount[p2][p1]++;}
+            if(p3!==undefined&&p4!==undefined){partnerCount[p3][p4]++;partnerCount[p4][p3]++;}
+            [p1,p2].forEach(a=>{[p3,p4].forEach(b=>{
+                if(a!==undefined&&b!==undefined){opponentCount[a][b]++;opponentCount[b][a]++;}
+            });});
+            round.matches.push({court:c+1,team1:[p1,p2],team2:[p3,p4]});
+        }
+        round.pause=rem; schedule.push(round);
+    }
+    return schedule;
+}
+
+// ============================================================
+// RUN OPTIMIZATION
+// ============================================================
+async function runOptimization(){
+    if(!document.getElementById('inputError').classList.contains('hidden')){ alert('Bitte zuerst die Eingabefehler beheben!'); return; }
+    players=Array.from(document.querySelectorAll('#playerList input')).map(i=>i.value.trim()).filter(Boolean);
+    const inputs=getInputs();
+
+    // Wieviele Slots werden in den normalen Runden belegt?
+    const totalSlots=inputs.numRounds*inputs.courts*4;
+    const remainder=totalSlots%players.length;   // Spieler die eine Runde mehr haben
+    const isPerfectlyFair=(remainder===0);
+
+    // Ausgleich: nur nötig wenn manche weniger gespielt haben
+    // Finale:    nur wenn alle gleich oft gespielt haben
+    const isDummyMode=!isPerfectlyFair;
+    const isFinalMode=isPerfectlyFair;
+
+    const btn=document.getElementById('mixBtn'),txt=document.getElementById('mixBtnText'),spin=document.getElementById('mixSpinner');
+    btn.disabled=true; txt.textContent='Optimiere…'; spin.classList.remove('hidden');
+    await new Promise(r=>setTimeout(r,30));
+
+    // Normale Runden optimieren (OHNE Sonder-Runde)
+    let bestSchedule=null,lowestPenalty=Infinity;
+    for(let i=0;i<500;i++){
+        const sched=generateVariant(inputs);
+        const{penalty}=calcPenalty(sched,players.length);
+        if(penalty<lowestPenalty){lowestPenalty=penalty;bestSchedule=sched;}
+    }
+
+    // Sonder-Runde anhängen (Ausgleich ODER Finale)
+    const lastTime=bestSchedule[bestSchedule.length-1];
+    const [lH,lM]=lastTime.time.split(':').map(Number);
+    const nextMin=lH*60+lM+inputs.matchTime;
+    const nextTime=`${String(Math.floor(nextMin/60)%24).padStart(2,'0')}:${String(nextMin%60).padStart(2,'0')}`;
+
+    if(isDummyMode){
+        // AUSGLEICH: Nur die Spieler mit wenigsten Spielen spielen
+        // Ermittle nach der Optimierung welche Spieler am wenigsten gespielt haben
+        const{plays}=calcPenalty(bestSchedule,players.length);
+        const minPlays=Math.min(...plays);
+        // Spieler mit minimaler Spielanzahl (= die benachteiligten)
+        const underPlayed=plays.map((p,i)=>({i,p})).filter(x=>x.p===minPlays).map(x=>x.i);
+        // Diese Spieler auf Courts verteilen (4 pro Court, Virtuell auffüllen)
+        const balanceMatches=[];
+        let rem=[...underPlayed];
+        let courtNum=1;
+        while(rem.length>0){
+            const p1=rem.shift()??null;
+            const p2=rem.shift()??null;
+            const p3=rem.shift()??null;
+            const p4=rem.shift()??null;
+            // Nur wenn mind. 1 echter Spieler vorhanden
+            if(p1!==null){
+                balanceMatches.push({
+                    court:courtNum++,
+                    // null = virtueller Spieler (wird in render als "Virtuell 1/2" angezeigt)
+                    team1:[p1, p2],
+                    team2:[p3, p4]
                 });
             }
         }
-        currentSchedule.push({id:r+1, time:timeStr, matches:matches, pause:pPool});
-        currentTotal += matchTime;
-    }
-    renderPreview();
-}
-
-function renderPreview() {
-    document.getElementById('previewArea').classList.remove('hidden');
-    let html = '';
-    currentSchedule.forEach(r => {
-        html += `<div class="round-card">
-            <p class="lbl">Runde ${r.id} - ${r.time}</p>
-            ${r.matches.map(m => `
-                <div class="match-row c${m.court}">
-                    <span class="court-tag">C${m.court}</span>
-                    <div class="match-names">${players[m.team1[0]]}+${players[m.team1[1]]} <span class="vs-tag">VS</span> ${players[m.team2[0]]}+${players[m.team2[1]]}</div>
-                </div>
-            `).join('')}
-        </div>`;
-    });
-    document.getElementById('previewList').innerHTML = html;
-    updateStats();
-}
-
-function updateStats() {
-    let s = players.map((n,i)=>({n, c:0}));
-    currentSchedule.forEach(r => {
-        r.matches.forEach(m => {
-            m.team1.concat(m.team2).forEach(pIdx => s[pIdx].c++);
+        // Pause = alle anderen (die schon genug gespielt haben)
+        const balancePause=plays.map((p,i)=>({i,p})).filter(x=>x.p>minPlays).map(x=>x.i);
+        bestSchedule.push({
+            id:bestSchedule.length+1,
+            time:nextTime,
+            isBalance:true,
+            matches:balanceMatches,
+            pause:balancePause
         });
-    });
-    document.getElementById('fairnessStats').innerHTML = s.map(x => `
-        <div class="stat-card"><p class="lbl">${x.n}</p><p class="text-lg font-bold">${x.c}</p></div>
-    `).join('');
-}
-
-async function saveFinal() {
-    const id = document.getElementById('tName').value.trim();
-    if(!id) { alert("Name fehlt"); return; }
-    
-    const payload = {
-        p: players,
-        s_new: currentSchedule,
-        courts: parseInt(document.getElementById('cCount').value),
-        totalHours: parseFloat(document.getElementById('totalHours').value),
-        mode: document.querySelector('input[name="mode"]:checked').value,
-        isTeam: document.querySelector('input[name="tType"]:checked').value === 'team',
-        pw: document.getElementById('tPassword').value, // Passwort mitspeichern
-        t: {
-            start: document.getElementById('startTime').value,
-            warmup: parseInt(document.getElementById('warmup').value),
-            match: parseInt(document.getElementById('matchTime').value)
-        }
-    };
-
-    const { error } = await supabaseClient.from('tournaments').upsert({id, data: payload});
-    if(error) alert("Fehler"); else alert("Gespeichert!");
-}
-
-async function deleteTournament() {
-    const id = document.getElementById('tName').value;
-    if(confirm(`Turnier ${id} löschen?`)) {
-        await supabaseClient.from('tournaments').delete().eq('id', id);
-        location.reload();
+    } else {
+        // FINALE: Platz 1+4 vs Platz 2+3 (symbolisch, echte Platzierung folgt im Turnier)
+        bestSchedule.push({
+            id:bestSchedule.length+1,
+            time:nextTime,
+            isFinale:true,
+            matches:[{court:1,team1:['PLATZ1','PLATZ4'],team2:['PLATZ2','PLATZ3']}],
+            pause:[]
+        });
     }
+
+    currentSchedule=bestSchedule;
+    btn.disabled=false; txt.textContent='Plan bestmöglich mischen'; spin.classList.add('hidden');
+    renderPreview(isDummyMode,isFinalMode,false);
+}
+
+// ============================================================
+// RENDER PREVIEW
+// ============================================================
+function renderPreview(isDummyMode,isFinalMode,isReadonly){
+    if(!players.length) players=Array.from(document.querySelectorAll('#playerList input')).map(i=>i.value.trim());
+    document.getElementById('previewArea').classList.remove('hidden');
+    const mode=document.querySelector('input[name="mode"]:checked')?.value||'time';
+    const ccls=['c1','c2','c3','c4'];
+
+    document.getElementById('previewList').innerHTML=currentSchedule.map((r,idx)=>{
+        const isLast=idx===currentSchedule.length-1;
+        let roundLabel=`Runde ${r.id}`, cardCls='round-card', extra='', badgeHtml='';
+
+        if(!isReadonly&&isLast&&isFinalMode){
+            roundLabel='🏆 Finale der besten 4'; cardCls='round-card round-finale';
+            badgeHtml='<span class="badge badge-amber">Finale</span>';
+            extra=`<p style="font-size:9px;color:#92400e;text-align:center;margin-top:8px;font-weight:600;">Zählt nicht für Statistik</p>`;
+        } else if(!isReadonly&&isLast&&isDummyMode){
+            roundLabel='⚖️ Ausgleichsspiel'; cardCls='round-card round-balance';
+            badgeHtml='<span class="badge badge-blue">Ausgleich</span>';
+            extra=`<p style="font-size:9px;color:#1e40af;text-align:center;margin-top:8px;font-weight:600;">Echte Spieler werden normal gewertet · Virtuelle Gegner zählen nicht</p>`;
+        }
+
+        const matchHtml=r.matches.map(m=>{
+            let p1,p2,p3,p4;
+            if(r.isFinale){
+                // Finale: symbolische Platzierungen
+                p1='🥇 Platz 1'; p2='🥈 Platz 4'; p3='🥈 Platz 2'; p4='🥉 Platz 3';
+            } else if(r.isBalance){
+                // Ausgleich: echte Spieler oder "Virtuell 1/2" wenn null
+                const getName=(idx)=>{ if(idx===null||idx===undefined) return null; return players[idx]||null; };
+                const n1=getName(m.team1[0]), n2=getName(m.team1[1]);
+                const n3=getName(m.team2[0]), n4=getName(m.team2[1]);
+                // Virtuelle Spieler für fehlende Slots
+                let virtNum=1;
+                p1=n1||(virtNum++===1?'Virtuell 1':'Virtuell 2');
+                p2=n2||(virtNum++===1?'Virtuell 1':'Virtuell 2');
+                p3=n3||(virtNum++===1?'Virtuell 1':'Virtuell 2');
+                p4=n4||(virtNum++===1?'Virtuell 1':'Virtuell 2');
+            } else {
+                // Normale Runde
+                p1=players[m.team1[0]]||'Virtuell 1';
+                p2=players[m.team1[1]]||'Virtuell 2';
+                p3=players[m.team2[0]]||'Virtuell 1';
+                p4=players[m.team2[1]]||'Virtuell 2';
+            }
+            const v=n=>n&&(n.startsWith('Virtuell'));
+            const cc=ccls[(m.court-1)%ccls.length];
+            return `<div class="match-row ${cc}">
+                <span class="court-tag">C${m.court}</span>
+                <div class="match-names">
+                    <span class="${v(p1)?'virt':''}">${p1}</span> <span style="color:#cbd5e1;">+</span> <span class="${v(p2)?'virt':''}">${p2}</span>
+                    <span class="vs-tag" style="margin:0 6px;">VS</span>
+                    <span class="${v(p3)?'virt':''}">${p3}</span> <span style="color:#cbd5e1;">+</span> <span class="${v(p4)?'virt':''}">${p4}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        let pauseNames;
+        if(r.isFinale){
+            pauseNames='Alle außer den 4 Finalteilnehmern';
+        } else if(r.isBalance){
+            pauseNames=(r.pause||[]).map(p=>players[p]).filter(Boolean).join(', ')||'Keiner';
+        } else {
+            pauseNames=(r.pause||[]).map(p=>players[p]).filter(Boolean).join(', ')||'Keiner';
+        }
+
+        return `<div class="${cardCls} fade-up">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;">${roundLabel}</span>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    ${badgeHtml}
+                    <span style="font-size:11px;color:var(--muted);font-weight:600;">${r.time}${mode==='points'?' (ca.)':''}</span>
+                </div>
+            </div>
+            ${matchHtml}
+            <p style="font-size:9px;color:#f97316;font-weight:600;margin-top:8px;text-align:center;">Pause: ${pauseNames}</p>
+            ${extra}
+        </div>`;
+    }).join('');
+
+    updateStats(isDummyMode,isFinalMode,isReadonly);
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function updateStats(isDummyMode,isFinalMode,isReadonly){
+    // Finale zählt nie. Ausgleich zählt für echte Spieler (null = Virtuell wird ignoriert).
+    // calcPenalty filtert null-Indizes bereits korrekt heraus.
+    const scoredRounds=currentSchedule.filter(r=>!r.isFinale);
+    const{plays,partner,opponent}=calcPenalty(scoredRounds,players.length);
+    const mTime=parseInt(document.getElementById('matchTime').value)||15;
+
+    document.getElementById('fairnessStats').innerHTML=players.map((name,i)=>`
+        <div class="stat-card">
+            <p style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</p>
+            <p style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--blue);line-height:1;">${plays[i]}<span style="font-size:11px;">×</span></p>
+            <p style="font-size:10px;color:var(--muted);font-weight:500;">~${plays[i]*mTime} Min.</p>
+        </div>`).join('');
+
+    // Matrix
+    let mx=`<div style="overflow-x:auto;"><table style="border-collapse:collapse;font-size:9px;font-weight:700;width:100%;">
+        <thead><tr><th style="padding:3px;min-width:50px;"></th>
+        ${players.map(nm=>`<th style="padding:3px;color:var(--muted);min-width:36px;font-weight:800;" title="${nm}">${nm.substring(0,5)}</th>`).join('')}
+        </tr></thead><tbody>`;
+    players.forEach((name,i)=>{
+        mx+=`<tr><td style="padding:3px;font-weight:800;color:var(--slate);text-align:right;padding-right:8px;font-size:8px;" title="${name}">${name.substring(0,7)}</td>`;
+        players.forEach((_,j)=>{
+            if(i===j){mx+=`<td class="matrix-cell" style="background:#f1f5f9;color:#cbd5e1;">—</td>`;return;}
+            const p=partner[i][j],o=opponent[i][j];
+            let bg='background:#f8fafc;color:#cbd5e1;';
+            if(p>1)       bg='background:#fef2f2;color:#dc2626;';
+            else if(p>0)  bg='background:#f0fdf4;color:#16a34a;';
+            else if(o>0)  bg='background:#eff6ff;color:#2563eb;';
+            const lbl=p>0?`P${p}${o>0?'/G'+o:''}`:o>0?`G${o}`:'·';
+            mx+=`<td class="matrix-cell" style="${bg}" title="Mit ${players[j]}: ${p}× Partner, ${o}× Gegner">${lbl}</td>`;
+        });
+        mx+=`</tr>`;
+    });
+    mx+=`</tbody></table>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:9px;font-weight:700;color:var(--muted);">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f0fdf4;border:1px solid #bbf7d0;margin-right:3px;"></span>P = Partner</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#eff6ff;border:1px solid #bfdbfe;margin-right:3px;"></span>G = Gegner</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#fef2f2;border:1px solid #fecaca;margin-right:3px;"></span>Doppel-Partnerschaft ⚠️</span>
+        <span>· = noch kein Kontakt</span>
+    </div></div>`;
+    document.getElementById('partnerStats').innerHTML=mx;
+
+    const mode=document.querySelector('input[name="mode"]:checked')?.value;
+    const isTeam=document.querySelector('input[name="tType"]:checked')?.value==='team';
+    const modeBox=document.getElementById('modeStatsBox');
+    let info=[];
+    if(mode==='points') info.push('🎯 Punkte-Modus: Zeiten sind Schätzwerte.');
+    if(isTeam) info.push('👥 Team-Modus: Nur Gegner-Optimierung aktiv.');
+    modeBox.classList.toggle('hidden',!info.length);
+    document.getElementById('modeStatsContent').innerHTML=info.join('<br>');
+}
+
+// ============================================================
+// SPEICHERN
+// ============================================================
+async function saveFinal(){
+    const name=document.getElementById('tName').value.trim();
+    if(!name){alert('Bitte Turniernamen eingeben.');return;}
+    if(!currentSchedule.length){alert('Bitte zuerst einen Plan erstellen.');return;}
+    const inp=getInputs();
+    const password = document.getElementById('tPassword').value.trim();
+    const payload={
+        p:players,
+        s_new:currentSchedule,
+        courts:inp.courts,
+        totalHours:inp.totalMin/60,
+        mode:inp.mode,
+        isTeam:inp.isTeam,
+        password:password||null,  // Passwort speichern (oder null wenn leer)
+        t:{start:inp.start,warmup:inp.warmup,match:inp.matchTime}
+    };
+    try{
+        const{error}=await supabaseClient.from('tournaments').upsert({id:name,data:payload});
+        if(error) throw error;
+        document.getElementById('lastActionTime').textContent=`Gespeichert: ${new Date().toLocaleTimeString('de-DE')}`;
+        alert(`✅ "${name}" gespeichert!`); init();
+    }catch(e){alert('Fehler beim Speichern: '+e.message);}
+}
+
+// ============================================================
+// LÖSCHEN
+// ============================================================
+async function deleteTournament(){
+    const id=document.getElementById('tournamentSelect').value;
+    if(id==='new') return;
+    if(!confirm(`Turnier "${id}" wirklich löschen?`)) return;
+    try{await supabaseClient.from('tournaments').delete().eq('id',id);location.reload();}
+    catch(e){alert('Fehler: '+e.message);}
 }
 
 init();
