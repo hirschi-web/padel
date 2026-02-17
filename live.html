@@ -18,8 +18,8 @@
             --bg-card-solid: #111827;
             --border: rgba(255,255,255,0.08);
             --text: #f1f5f9;
-            --text-muted: #94a3b8;
-            --text-dim: #64748b;
+            --text-muted: #64748b;
+            --text-dim: #475569;
             --accent: #3b82f6;
             --accent-glow: rgba(59,130,246,0.25);
             --gold: #fbbf24;
@@ -44,189 +44,306 @@
 
         .card {
             background:var(--bg-card); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-            border:1px solid var(--border); border-radius:24px;
+            border:1px solid var(--border); border-radius:20px;
             transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
         }
-        .card-solid { background:var(--bg-card-solid); border:1px solid var(--border); border-radius:22px; }
+        .card-solid { background:var(--bg-card-solid); border:1px solid var(--border); border-radius:20px; }
         .card-focus {
             border-color:var(--accent) !important;
-            box-shadow:0 0 0 1px var(--accent), 0 12px 40px var(--accent-glow);
-            transform:scale(1.02); z-index:10; position:relative;
+            box-shadow:0 0 0 1px var(--accent), 0 8px 32px var(--accent-glow);
+            transform:scale(1.015); z-index:10; position:relative;
         }
 
         .score-box {
-            width:56px; height:56px; text-align:center; border-radius:14px;
-            font-family:'Space Mono',monospace; font-weight:700; font-size:24px;
+            width:50px; height:50px; text-align:center; border-radius:12px;
+            font-family:'Space Mono',monospace; font-weight:700; font-size:20px;
             color:var(--text); background:rgba(255,255,255,0.06);
-            border:2px solid var(--border); transition:all 0.25s;
-            -webkit-appearance:none;
+            border:1.5px solid var(--border); transition:all 0.25s;
+            -webkit-appearance:none; -moz-appearance:textfield;
         }
+        .score-box::-webkit-inner-spin-button,
+        .score-box::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
         .score-box:disabled { background:transparent; border-color:transparent; opacity:1; }
         .is-editing .score-box:not(:disabled) {
-            background:rgba(59,130,246,0.15); border-color:var(--accent);
+            background:rgba(59,130,246,0.1); border-color:var(--accent);
             box-shadow:0 0 20px var(--accent-glow);
         }
 
         .text-focus { color:var(--gold) !important; font-weight:800; }
-        .rank-gold { background:rgba(251,191,36,0.08) !important; }
+        .rank-gold { background:rgba(251,191,36,0.12) !important; }
+        .rank-gold td:first-child { color:var(--gold); }
 
-        @keyframes pulseLive { 0%,100%{opacity:1;box-shadow:0 0 8px var(--accent)} 50%{opacity:0.4;box-shadow:none} }
-        .pulse-live { animation:pulseLive 2s ease-in-out infinite; }
-        .anim-in { animation: fadeUp 0.5s ease-out both; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulseLive { 0%,100%{opacity:1;box-shadow:0 0 6px var(--accent)} 50%{opacity:0.3;box-shadow:none} }
+        @keyframes confettiFall { 0%{transform:translateY(0) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
+        .anim-in { animation:fadeUp 0.5s ease-out both; }
+        .pulse-live { animation:pulseLive 2s ease-in-out infinite; }
 
         .focus-select {
-            width:100%; padding:16px 20px; background:var(--bg-card-solid);
-            border:2px solid var(--border); border-radius:18px;
-            font-family:'Outfit',sans-serif; font-weight:700; font-size:16px;
+            width:100%; padding:14px 18px; background:var(--bg-card-solid);
+            border:1.5px solid var(--border); border-radius:14px;
+            font-family:'Outfit',sans-serif; font-weight:700; font-size:14px;
             color:var(--text); outline:none; appearance:none; -webkit-appearance:none;
-            background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position:right 16px center; background-repeat:no-repeat; background-size:20px;
+            background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position:right 14px center; background-repeat:no-repeat; background-size:18px;
+            transition:border-color 0.2s;
         }
+        .focus-select:focus { border-color:var(--accent); }
+        .focus-select option { background:#1e293b; color:#fff; }
 
         .save-toast {
-            position:fixed; bottom:calc(var(--safe-bottom) + 30px); left:50%;
-            transform:translateX(-50%) translateY(100px); z-index:999;
+            position:fixed; bottom:calc(var(--safe-bottom) + 28px); left:50%;
+            transform:translateX(-50%) translateY(80px); z-index:999;
             transition:transform 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.4s;
-            opacity:0;
+            opacity:0; pointer-events:none;
         }
-        .save-toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+        .save-toast.show { transform:translateX(-50%) translateY(0); opacity:1; pointer-events:auto; }
 
-        .round-divider { display:flex; align-items:center; gap:12px; }
+        .bot-card {
+            background:linear-gradient(145deg, #111827 0%, #0a1628 100%);
+            border:1px solid rgba(59,130,246,0.2); border-radius:24px;
+            overflow:hidden; position:relative;
+        }
+        .bot-card::before {
+            content:''; position:absolute; top:-40%; right:-20%;
+            width:200px; height:200px;
+            background:radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%);
+            pointer-events:none;
+        }
+
+        .install-banner {
+            background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border:1px solid var(--border); border-radius:20px;
+        }
+
+        .round-divider { display:flex; align-items:center; gap:10px; }
         .round-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+        ::-webkit-scrollbar { width:0; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <header class="flex justify-between items-center pt-8 pb-2 anim-in">
-        <div class="flex items-center gap-4">
-            <svg width="48" height="48" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="100" cy="100" r="96" fill="#0f172a"/>
-                <ellipse cx="100" cy="88" rx="34" ry="38" fill="#3b82f6" opacity="0.8"/>
-                <path d="M100 52 L100 36 M88 22 C85 18 82 15 80 11 M112 22 C115 18 118 15 120 11" stroke="white" stroke-width="4" stroke-linecap="round"/>
-                <circle cx="124" cy="72" r="6" fill="#fbbf24"/>
+
+    <!-- HEADER -->
+    <header class="flex justify-between items-center pt-6 pb-1 anim-in">
+        <div class="flex items-center gap-3">
+            <svg width="42" height="42" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="bgGrad" cx="50%" cy="45%" r="50%"><stop offset="0%" stop-color="#1e3a6e"/><stop offset="100%" stop-color="#0f172a"/></radialGradient>
+                    <linearGradient id="racketGrad" x1="30%" y1="0%" x2="70%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient>
+                    <linearGradient id="antlerGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#93c5fd"/></linearGradient>
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    <clipPath id="racketClip"><ellipse cx="100" cy="88" rx="34" ry="38"/></clipPath>
+                </defs>
+                <circle cx="100" cy="100" r="96" fill="url(#bgGrad)"/>
+                <circle cx="100" cy="100" r="94" fill="none" stroke="#2563eb" stroke-width="1.5" opacity="0.4"/>
+                <ellipse cx="100" cy="88" rx="34" ry="38" fill="url(#racketGrad)" stroke="#60a5fa" stroke-width="1.5" transform="rotate(-4 100 88)"/>
+                <ellipse cx="100" cy="88" rx="27" ry="31" fill="#1e3a6e" opacity="0.6" transform="rotate(-4 100 88)"/>
+                <g clip-path="url(#racketClip)" opacity="0.35" stroke="#93c5fd" stroke-width="0.8" fill="none">
+                    <line x1="82" y1="50" x2="82" y2="126"/><line x1="91" y1="50" x2="91" y2="126"/><line x1="100" y1="50" x2="100" y2="126"/><line x1="109" y1="50" x2="109" y2="126"/><line x1="118" y1="50" x2="118" y2="126"/>
+                    <line x1="66" y1="68" x2="134" y2="68"/><line x1="66" y1="78" x2="134" y2="78"/><line x1="66" y1="88" x2="134" y2="88"/><line x1="66" y1="98" x2="134" y2="98"/><line x1="66" y1="108" x2="134" y2="108"/>
+                </g>
+                <rect x="95" y="124" width="10" height="36" rx="4" fill="#1d4ed8" stroke="#60a5fa" stroke-width="1"/>
+                <line x1="95" y1="130" x2="105" y2="126" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/><line x1="95" y1="135" x2="105" y2="131" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/><line x1="95" y1="140" x2="105" y2="136" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/><line x1="95" y1="145" x2="105" y2="141" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/><line x1="95" y1="150" x2="105" y2="146" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/><line x1="95" y1="155" x2="105" y2="151" stroke="#93c5fd" stroke-width="0.8" opacity="0.6"/>
+                <rect x="93" y="158" width="14" height="5" rx="2.5" fill="#2563eb" stroke="#60a5fa" stroke-width="1"/>
+                <path d="M100 52 L100 36" stroke="url(#antlerGrad)" stroke-width="3.5" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <path d="M100 36 C98 32 93 28 88 22" stroke="url(#antlerGrad)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <path d="M88 22 C85 18 82 15 80 11" stroke="url(#antlerGrad)" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <path d="M88 22 C86 20 85 17 86 13" stroke="url(#antlerGrad)" stroke-width="2" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <path d="M94 30 C91 27 88 25 84 23" stroke="url(#antlerGrad)" stroke-width="2" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <path d="M100 36 C102 32 107 28 112 22" stroke="url(#antlerGrad)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <path d="M112 22 C115 18 118 15 120 11" stroke="url(#antlerGrad)" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <path d="M112 22 C114 20 115 17 114 13" stroke="url(#antlerGrad)" stroke-width="2" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <path d="M106 30 C109 27 112 25 116 23" stroke="url(#antlerGrad)" stroke-width="2" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+                <circle cx="124" cy="72" r="6" fill="#fbbf24" stroke="#f59e0b" stroke-width="1"/>
+                <path d="M118.5 70 Q121 67 124 68" stroke="#f59e0b" stroke-width="0.9" fill="none"/>
+                <path d="M118.5 74 Q121 77 124 76" stroke="#f59e0b" stroke-width="0.9" fill="none"/>
             </svg>
             <div>
-                <div class="text-[10px] font-800 uppercase tracking-[0.4em] text-[var(--text-dim)]">Padel Hirsch</div>
-                <h1 id="tournamentTitle" class="text-2xl font-900 uppercase tracking-tight leading-none text-white">Lade...</h1>
+                <div class="text-[9px] font-700 uppercase tracking-[0.35em] text-[var(--text-muted)]">Padel Hirsch</div>
+                <h1 id="tournamentTitle" class="text-xl font-900 uppercase tracking-tight leading-none text-white">Lade...</h1>
             </div>
         </div>
         <div class="flex gap-2">
-            <button onclick="location.reload()" class="w-12 h-12 flex items-center justify-center card text-lg">🔄</button>
-            <button id="lockBtn" onclick="toggleEditMode()" class="w-12 h-12 flex items-center justify-center card text-lg">🔒</button>
+            <button onclick="location.reload()" class="w-10 h-10 flex items-center justify-center card text-sm">🔄</button>
+            <button id="lockBtn" onclick="toggleEditMode()" class="w-10 h-10 flex items-center justify-center card text-sm">🔒</button>
         </div>
     </header>
 
-    <div id="liveIndicator" class="flex items-center gap-2.5 mt-4 mb-8 anim-in" style="display:none;">
-        <div class="w-2 h-2 rounded-full bg-[var(--accent)] pulse-live"></div>
-        <span class="text-[10px] font-800 uppercase tracking-[0.3em] text-[var(--text-muted)]">Live Scoreboard</span>
+    <!-- Live Indicator -->
+    <div id="liveIndicator" class="flex items-center gap-2 mt-3 mb-6 anim-in" style="animation-delay:0.05s;display:none;">
+        <div class="w-[6px] h-[6px] rounded-full bg-[var(--accent)] pulse-live"></div>
+        <span class="text-[9px] font-700 uppercase tracking-[0.25em] text-[var(--text-muted)]">Live Scoreboard</span>
     </div>
 
-    <div id="errorState" style="display:none;" class="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
-        <div class="text-6xl">🦌</div>
-        <h2 class="text-xl font-800 text-white">Turnier nicht gefunden</h2>
+    <!-- Error State -->
+    <div id="errorState" style="display:none;" class="flex flex-col items-center justify-center min-h-[60vh] text-center gap-3">
+        <div class="text-5xl mb-2">🦌</div>
+        <h2 class="text-lg font-800 text-white">Turnier nicht gefunden</h2>
+        <p class="text-sm text-[var(--text-muted)]">Prüfe den Link oder erstelle ein neues Turnier.</p>
     </div>
 
+    <!-- MAIN CONTENT -->
     <div id="mainContent" style="display:none;">
-        <div class="mb-10 anim-in">
-            <label class="block text-[10px] font-800 uppercase tracking-[0.3em] text-[var(--text-dim)] mb-3 ml-1">Dein Fokus</label>
+
+        <!-- Focus Select -->
+        <div class="mb-8 anim-in" style="animation-delay:0.1s;">
+            <label class="block text-[9px] font-700 uppercase tracking-[0.25em] text-[var(--text-muted)] mb-2 ml-1">Dein Fokus</label>
             <select id="playerFocus" onchange="onFocusChange()" class="focus-select">
                 <option value="">– Wähle deinen Namen / Team –</option>
             </select>
         </div>
 
-        <div id="scheduleArea" class="space-y-8"></div>
+        <!-- Schedule -->
+        <div id="scheduleArea" class="space-y-6"></div>
 
-        <div class="mt-16 anim-in">
-            <div class="round-divider mb-6">
-                <span class="text-[11px] font-900 uppercase tracking-[0.25em] text-[var(--text-muted)]">🏆 Ranking</span>
+        <!-- RANKING -->
+        <div class="mt-14 anim-in" style="animation-delay:0.15s;">
+            <div class="round-divider mb-4">
+                <span class="text-[10px] font-800 uppercase tracking-[0.2em] text-[var(--text-muted)]">🏆 Ranking</span>
             </div>
-            <div class="card-solid overflow-hidden shadow-2xl">
+            <div class="card-solid overflow-hidden">
                 <table class="w-full text-left">
                     <thead>
-                        <tr class="text-[9px] uppercase tracking-[0.25em] text-[var(--text-dim)] border-b border-[var(--border)]">
-                            <th class="py-4 pl-6 pr-2">#</th>
-                            <th class="py-4 px-2">Teilnehmer</th>
-                            <th class="py-4 px-2 text-center">W/L</th>
-                            <th class="py-4 px-2 text-center">Pkt</th>
-                            <th class="py-4 pl-2 pr-6 text-center">Diff</th>
+                        <tr class="text-[8px] uppercase tracking-[0.2em] text-[var(--text-muted)] border-b border-[var(--border)]">
+                            <th class="py-3 pl-5 pr-2 font-700">#</th>
+                            <th class="py-3 px-2 font-700">Teilnehmer</th>
+                            <th class="py-3 px-2 text-center font-700">W/L</th>
+                            <th class="py-3 px-2 text-center font-700">Pkt</th>
+                            <th class="py-3 pl-2 pr-5 text-center font-700">Diff</th>
                         </tr>
                     </thead>
                     <tbody id="rankingTable"></tbody>
                 </table>
             </div>
         </div>
+
+        <!-- KI-BOT -->
+        <div class="mt-10 anim-in" style="animation-delay:0.2s;">
+            <div class="bot-card p-6">
+                <div class="relative z-10">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-[6px] h-[6px] bg-[var(--accent)] rounded-full pulse-live"></div>
+                        <span class="text-[8px] font-800 uppercase tracking-[0.4em] text-[var(--accent)]">Hirsch KI · Analyse</span>
+                    </div>
+                    <div id="botText" class="text-[14px] font-400 leading-relaxed text-white/80 min-h-[60px]">
+                        <span class="opacity-40">Wähle oben deinen Fokus für eine persönliche Analyse...</span>
+                    </div>
+                    <div class="mt-5 pt-4 border-t border-white/5 flex items-center gap-3">
+                        <svg width="28" height="28" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="100" cy="100" r="96" fill="#1e3a6e" opacity="0.4"/>
+                            <path d="M100 52 L100 36" stroke="#93c5fd" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+                            <path d="M100 36 C98 32 93 28 88 22" stroke="#93c5fd" stroke-width="3" stroke-linecap="round" fill="none"/>
+                            <path d="M88 22 C85 18 82 15 80 11" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                            <path d="M100 36 C102 32 107 28 112 22" stroke="#93c5fd" stroke-width="3" stroke-linecap="round" fill="none"/>
+                            <path d="M112 22 C115 18 118 15 120 11" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                            <ellipse cx="100" cy="88" rx="34" ry="38" fill="#3b82f6" opacity="0.3"/>
+                        </svg>
+                        <div>
+                            <p class="text-[7px] font-700 uppercase tracking-[0.3em] text-[var(--accent)] opacity-60">Status</p>
+                            <p class="text-[11px] font-600 text-white/60" id="botStatus">Standby</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INSTALL APP -->
+        <div class="mt-10 mb-8 anim-in" style="animation-delay:0.25s;">
+            <div id="installBanner" class="install-banner p-5 text-center">
+                <p class="text-[9px] font-700 uppercase tracking-[0.25em] text-[var(--text-muted)] mb-3">📱 Als App installieren</p>
+                <button onclick="installApp()" class="bg-[var(--accent)] text-white px-6 py-3 rounded-full font-700 text-xs uppercase tracking-wider shadow-lg shadow-blue-500/20 transition-all active:scale-95">
+                    Zum Startbildschirm hinzufügen
+                </button>
+                <p class="text-[10px] text-[var(--text-dim)] mt-2">Schnellzugriff ohne Browser</p>
+            </div>
+        </div>
+
     </div>
 </div>
 
+<!-- Save Toast -->
 <div id="saveToast" class="save-toast">
-    <button id="saveToastBtn" onclick="saveCurrentMatch()" class="bg-blue-600 text-white px-10 py-4 rounded-full font-900 text-sm uppercase tracking-widest shadow-2xl flex items-center gap-3 transition-all active:scale-90">
-        <span>✓ SPEICHERN</span>
+    <button id="saveToastBtn" onclick="saveCurrentMatch()" class="bg-[var(--accent)] text-white px-8 py-3.5 rounded-full font-800 text-xs uppercase tracking-wider shadow-xl shadow-blue-500/30 flex items-center gap-2 transition-all active:scale-95">
+        <span>✓ Speichern</span>
     </button>
 </div>
 
+<!-- Saved Feedback -->
+<div id="savedFeedback" class="save-toast" style="pointer-events:none;">
+    <div class="bg-[var(--green)] text-white px-8 py-3.5 rounded-full font-800 text-xs uppercase tracking-wider shadow-xl">✓ Gespeichert</div>
+</div>
+
+<!-- PWA Manifest -->
 <script>
+const manifestData = {
+    name:"Padel Hirsch – Live", short_name:"Padel Hirsch",
+    start_url:window.location.href, display:"standalone",
+    background_color:"#080e1a", theme_color:"#0f172a",
+    icons:[{
+        src:"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="96" fill="#0f172a"/><ellipse cx="100" cy="88" rx="34" ry="38" fill="#3b82f6" transform="rotate(-4 100 88)"/><ellipse cx="100" cy="88" rx="27" ry="31" fill="#1e3a6e" opacity="0.6" transform="rotate(-4 100 88)"/><rect x="95" y="124" width="10" height="36" rx="4" fill="#1d4ed8"/><path d="M100 52 L100 36" stroke="white" stroke-width="3.5" stroke-linecap="round"/><path d="M100 36 C98 32 93 28 88 22" stroke="white" stroke-width="3" stroke-linecap="round"/><path d="M88 22 C85 18 82 15 80 11" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M100 36 C102 32 107 28 112 22" stroke="white" stroke-width="3" stroke-linecap="round"/><path d="M112 22 C115 18 118 15 120 11" stroke="white" stroke-width="2.5" stroke-linecap="round"/><circle cx="124" cy="72" r="6" fill="#fbbf24"/></svg>'),
+        sizes:"192x192", type:"image/svg+xml"
+    }]
+};
+const mBlob = new Blob([JSON.stringify(manifestData)],{type:'application/json'});
+const mLink = document.createElement('link'); mLink.rel='manifest'; mLink.href=URL.createObjectURL(mBlob);
+document.head.appendChild(mLink);
+</script>
+
+<script>
+// ═══ CONFIG ═══
 const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
 const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-let tournamentId = "";
+let tournamentId = parseTournamentId();
 let tournamentData = null;
 let isEditing = false;
 let pendingMatch = null;
 
+// ═══ URL PARSING ═══
 function parseTournamentId() {
     const params = new URLSearchParams(window.location.search);
-    let id = params.get('id');
-    if (!id) {
-        const raw = window.location.search.substring(1);
-        if (raw) id = decodeURIComponent(raw).split('&')[0].split('=')[0];
-    }
-    return id ? id.replace(/\/$/, '') : ''; 
+    if (params.get('id')) return params.get('id').replace(/\/$/,'');
+    const raw = window.location.search.substring(1);
+    if (raw) return decodeURIComponent(raw).split('&')[0].split('=')[0].replace(/\/$/,'');
+    return '';
 }
 
+// ═══ INIT ═══
 async function init() {
-    tournamentId = parseTournamentId();
     if (!tournamentId) { showError(); return; }
-    
     try {
         const { data, error } = await supabaseClient.from('tournaments').select('*').eq('id', tournamentId);
         if (error || !data || data.length === 0) { showError(); return; }
-        
         tournamentData = data[0].data;
-        document.getElementById('tournamentTitle').innerText = tournamentId.toUpperCase();
+        document.getElementById('tournamentTitle').innerText = data[0].id.toUpperCase();
         document.getElementById('mainContent').style.display = 'block';
         document.getElementById('liveIndicator').style.display = 'flex';
-        
-        if (sessionStorage.getItem('isAdmin_'+tournamentId) === 'true') {
-            isEditing = true;
-            document.getElementById('lockBtn').innerText = "🔓";
-            document.body.classList.add('is-editing');
+        if (sessionStorage.getItem('isAdmin_'+tournamentId)==='true') {
+            isEditing=true; document.getElementById('lockBtn').innerText="🔓"; document.body.classList.add('is-editing');
         }
-        
         populateFocusSelect();
         renderAll();
         setupRealtime();
-    } catch(e) { showError(); }
+    } catch(e) { console.error(e); showError(); }
 }
 
 function showError() {
-    document.getElementById('errorState').style.display = 'flex';
-    document.getElementById('tournamentTitle').innerText = '—';
+    document.getElementById('errorState').style.display='flex';
+    document.getElementById('tournamentTitle').innerText='—';
 }
 
 function populateFocusSelect() {
     const sel = document.getElementById('playerFocus');
     const saved = localStorage.getItem('focus_'+tournamentId);
-    if (tournamentData.type === 'team') {
-        for (let i = 0; i < tournamentData.p.length; i += 2) {
-            const n = `${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
-            sel.add(new Option(n, n));
+    if (tournamentData.type==='team') {
+        for (let i=0; i<tournamentData.p.length; i+=2) {
+            const n=`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
+            sel.add(new Option(n,n));
         }
-    } else {
-        tournamentData.p.forEach(n => sel.add(new Option(n, n)));
-    }
+    } else { tournamentData.p.forEach(n => sel.add(new Option(n,n))); }
     if (saved) sel.value = saved;
 }
 
@@ -237,148 +354,310 @@ function onFocusChange() {
     renderAll();
 }
 
+// ═══ REALTIME ═══
 function setupRealtime() {
-    supabaseClient.channel('t-' + tournamentId)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments', filter: `id=eq.${tournamentId}` },
+    supabaseClient.channel('t-'+tournamentId)
+        .on('postgres_changes',{ event:'UPDATE', schema:'public', table:'tournaments', filter:`id=eq.${tournamentId}` },
             (payload) => { tournamentData = payload.new.data; renderAll(); })
         .subscribe();
 }
 
+// ═══ EDIT MODE ═══
 function toggleEditMode() {
     if (!isEditing) {
         const pw = prompt("Admin Passwort:");
         if (pw && pw === tournamentData.pw) {
-            isEditing = true;
-            sessionStorage.setItem('isAdmin_'+tournamentId, 'true');
-            document.getElementById('lockBtn').innerText = "🔓";
-            document.body.classList.add('is-editing');
-            renderAll();
+            isEditing=true; sessionStorage.setItem('isAdmin_'+tournamentId,'true');
+            document.getElementById('lockBtn').innerText="🔓"; document.body.classList.add('is-editing'); renderAll();
         }
     } else {
-        isEditing = false;
-        sessionStorage.removeItem('isAdmin_'+tournamentId);
-        document.getElementById('lockBtn').innerText = "🔒";
-        document.body.classList.remove('is-editing');
-        hideSaveToast();
-        renderAll();
+        isEditing=false; sessionStorage.removeItem('isAdmin_'+tournamentId);
+        document.getElementById('lockBtn').innerText="🔒"; document.body.classList.remove('is-editing'); hideSaveToast(); renderAll();
     }
 }
 
+// ═══ SAVE ═══
 function showSaveToast(rIdx, mIdx) {
-    pendingMatch = {rIdx, mIdx};
+    pendingMatch={rIdx,mIdx};
     document.getElementById('saveToast').classList.add('show');
 }
-function hideSaveToast() {
-    pendingMatch = null;
-    document.getElementById('saveToast').classList.remove('show');
-}
+function hideSaveToast() { pendingMatch=null; document.getElementById('saveToast').classList.remove('show'); }
 
 async function saveCurrentMatch() {
     if (!pendingMatch) return;
-    const {rIdx, mIdx} = pendingMatch;
-    const v0 = document.getElementById(`score-${rIdx}-${mIdx}-0`).value.trim();
-    const v1 = document.getElementById(`score-${rIdx}-${mIdx}-1`).value.trim();
-
-    if (v0 === '' && v1 === '') {
-        tournamentData.s_new[rIdx].matches[mIdx].score = ["", ""];
+    const {rIdx,mIdx}=pendingMatch;
+    const v0=document.getElementById(`score-${rIdx}-${mIdx}-0`).value.trim();
+    const v1=document.getElementById(`score-${rIdx}-${mIdx}-1`).value.trim();
+    if (v0===''&&v1==='') {
+        tournamentData.s_new[rIdx].matches[mIdx].score=["",""];
     } else {
-        tournamentData.s_new[rIdx].matches[mIdx].score = [v0, v1];
+        const s0=parseInt(v0), s1=parseInt(v1);
+        if (isNaN(s0)||isNaN(s1)||s0<0||s1<0||s0>99||s1>99) { alert("Bitte gültige Scores eingeben (0–99)"); return; }
+        tournamentData.s_new[rIdx].matches[mIdx].score=[String(s0),String(s1)];
     }
-
+    const btn=document.getElementById('saveToastBtn'); btn.style.opacity='0.5';
     try {
-        await supabaseClient.from('tournaments').update({data: tournamentData}).eq('id', tournamentId);
+        await supabaseClient.from('tournaments').update({data:tournamentData}).eq('id',tournamentId);
         hideSaveToast();
-        renderAll();
+        const fb=document.getElementById('savedFeedback'); fb.classList.add('show'); setTimeout(()=>fb.classList.remove('show'),1500);
+        updateRanking();
     } catch(e) { alert("Fehler beim Speichern."); }
+    finally { btn.style.opacity='1'; }
 }
 
+// ═══ RENDER ═══
 function renderAll() {
-    const focus = document.getElementById('playerFocus').value;
-    const area = document.getElementById('scheduleArea');
-    const isTeam = tournamentData.type === 'team';
-    let html = '';
+    const focus=document.getElementById('playerFocus').value;
+    const area=document.getElementById('scheduleArea');
+    const isTeam=tournamentData.type==='team';
+    let html='';
 
-    tournamentData.s_new.forEach((round, rIdx) => {
-        html += `<div class="anim-in">`;
-        html += `<div class="round-divider mb-4"><span class="text-[11px] font-900 uppercase tracking-[0.2em] text-[var(--text-muted)]">Runde ${round.id} · ${round.time} Uhr</span></div><div class="space-y-4">`;
+    tournamentData.s_new.forEach((round,rIdx) => {
+        html+=`<div class="anim-in" style="animation-delay:${0.04*rIdx}s">`;
+        html+=`<div class="round-divider mb-3"><span class="text-[9px] font-700 uppercase tracking-[0.15em] text-[var(--text-muted)] whitespace-nowrap">Runde ${round.id} · ${round.time}</span></div>`;
+        html+=`<div class="space-y-2.5">`;
 
-        round.matches.forEach((m, mIdx) => {
-            const t1N = isTeam ? `${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}` : tournamentData.p[m.team1[0]];
-            const t2N = isTeam ? `${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}` : tournamentData.p[m.team2[0]];
-            const s0 = m.score ? m.score[0] : "";
-            const s1 = m.score ? m.score[1] : "";
-            const hasScore = s0 !== "" && s0 !== null;
-            
-            let w = 0;
-            if (hasScore) {
-                if (parseInt(s0) > parseInt(s1)) w = 1; else if (parseInt(s1) > parseInt(s0)) w = 2;
-            }
+        round.matches.forEach((m,mIdx) => {
+            const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
+            const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
+            const isFocus=focus&&(focus===t1N||focus===t2N);
+            const hasScore=m.score[0]!==""&&m.score[0]!==null;
 
-            const chk = (pIdx) => (focus && (tournamentData.p[pIdx] === focus || (isTeam && (focus === t1N && m.team1.includes(pIdx) || focus === t2N && m.team2.includes(pIdx))))) ? 'text-focus' : '';
+            const chk=(pIdx)=>{
+                if(!focus) return '';
+                if(tournamentData.p[pIdx]===focus) return 'text-focus';
+                if(isTeam){
+                    if(focus===t1N&&m.team1.includes(pIdx)) return 'text-focus';
+                    if(focus===t2N&&m.team2.includes(pIdx)) return 'text-focus';
+                }
+                return '';
+            };
 
-            html += `
-            <div class="card p-5 ${focus && (focus === t1N || focus === t2N) ? 'card-focus' : ''}">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[9px] font-900 uppercase tracking-widest text-[var(--text-dim)]">Court ${m.court || (mIdx + 1)}</span>
-                    ${hasScore ? '<span class="text-[10px] text-[var(--green)] font-900">✓ LIVE</span>' : '<span class="text-[10px] text-[var(--text-dim)] font-700">OFFEN</span>'}
+            let w=0;
+            if(hasScore){const s1=parseInt(m.score[0])||0,s2=parseInt(m.score[1])||0;if(s1>s2)w=1;else if(s2>s1)w=2;}
+
+            html+=`
+            <div class="card p-4 ${isFocus?'card-focus':''}">
+                <div class="flex items-center justify-between mb-0.5">
+                    <span class="text-[8px] font-600 uppercase tracking-wider text-[var(--text-dim)]">Court ${m.court||(mIdx+1)}</span>
+                    ${hasScore?'<span class="text-[8px] text-[var(--green)]">✓</span>':'<span class="text-[8px] text-[var(--text-dim)]">–</span>'}
                 </div>
-                <div class="flex justify-between items-center gap-2">
-                    <div class="flex-1 min-w-0 ${w === 1 || !hasScore ? '' : 'opacity-40'}">
-                        <div class="text-[15px] font-900 uppercase truncate ${chk(m.team1[0])}">${tournamentData.p[m.team1[0]]}</div>
-                        ${m.team1[1] !== undefined ? `<div class="text-[13px] font-700 uppercase truncate text-[var(--text-muted)] ${chk(m.team1[1])}">${tournamentData.p[m.team1[1]]}</div>` : ''}
+                <div class="flex justify-between items-center">
+                    <div class="flex-1 pr-2 min-w-0 ${w===1?'opacity-100':hasScore?'opacity-40':'opacity-100'}">
+                        <div class="text-[11px] font-800 uppercase leading-snug truncate ${chk(m.team1[0])}">${tournamentData.p[m.team1[0]]}</div>
+                        ${m.team1[1]!==undefined?`<div class="text-[11px] font-700 uppercase leading-snug truncate text-[var(--text-muted)] ${chk(m.team1[1])}">${tournamentData.p[m.team1[1]]}</div>`:''}
                     </div>
-                    <div class="flex items-center gap-2">
-                        <input id="score-${rIdx}-${mIdx}-0" type="number" value="${s0}" ${!isEditing ? 'disabled' : ''} oninput="showSaveToast(${rIdx},${mIdx})" class="score-box">
-                        <span class="text-[var(--text-dim)] font-900 text-xl">:</span>
-                        <input id="score-${rIdx}-${mIdx}-1" type="number" value="${s1}" ${!isEditing ? 'disabled' : ''} oninput="showSaveToast(${rIdx},${mIdx})" class="score-box">
+                    <div class="flex items-center gap-1.5 flex-shrink-0 mx-1">
+                        <input id="score-${rIdx}-${mIdx}-0" type="number" inputmode="numeric" pattern="[0-9]*" value="${m.score[0]??''}" min="0" max="99" step="1" ${!isEditing?'disabled':''} oninput="showSaveToast(${rIdx},${mIdx})" class="score-box">
+                        <span class="text-[var(--text-dim)] font-700 text-[10px]">:</span>
+                        <input id="score-${rIdx}-${mIdx}-1" type="number" inputmode="numeric" pattern="[0-9]*" value="${m.score[1]??''}" min="0" max="99" step="1" ${!isEditing?'disabled':''} oninput="showSaveToast(${rIdx},${mIdx})" class="score-box">
                     </div>
-                    <div class="flex-1 text-right min-w-0 ${w === 2 || !hasScore ? '' : 'opacity-40'}">
-                        <div class="text-[15px] font-900 uppercase truncate ${chk(m.team2[0])}">${tournamentData.p[m.team2[0]]}</div>
-                        ${m.team2[1] !== undefined ? `<div class="text-[13px] font-700 uppercase truncate text-[var(--text-muted)] ${chk(m.team2[1])}">${tournamentData.p[m.team2[1]]}</div>` : ''}
+                    <div class="flex-1 pl-2 text-right min-w-0 ${w===2?'opacity-100':hasScore?'opacity-40':'opacity-100'}">
+                        <div class="text-[11px] font-800 uppercase leading-snug truncate ${chk(m.team2[0])}">${tournamentData.p[m.team2[0]]}</div>
+                        ${m.team2[1]!==undefined?`<div class="text-[11px] font-700 uppercase leading-snug truncate text-[var(--text-muted)] ${chk(m.team2[1])}">${tournamentData.p[m.team2[1]]}</div>`:''}
                     </div>
                 </div>
             </div>`;
         });
-        html += `</div></div>`;
+
+        if(round.pause?.length>0){
+            let pDisp=isTeam?`${tournamentData.p[round.pause[0]]} + ${tournamentData.p[round.pause[1]]}`:round.pause.map(i=>tournamentData.p[i]).join(', ');
+            let isPF=focus&&(round.pause.map(i=>tournamentData.p[i]).includes(focus)||(isTeam&&focus===`${tournamentData.p[round.pause[0]]} + ${tournamentData.p[round.pause[1]]}`));
+            html+=`<div class="flex justify-center mt-2"><div class="px-4 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-card)]"><span class="text-[9px] font-500 text-[var(--text-dim)]">☕ Pause: </span><span class="text-[10px] font-700 ${isPF?'text-focus':'text-[var(--text-muted)]'}">${pDisp}</span></div></div>`;
+        }
+        html+=`</div></div>`;
     });
-    area.innerHTML = html;
+
+    area.innerHTML=html;
     updateRanking();
 }
 
+// ═══ RANKING ═══
 function updateRanking() {
-    const isTeam = tournamentData.type === 'team';
-    let stats = [];
-    if(isTeam){for(let i=0;i<tournamentData.p.length;i+=2) stats.push({name:`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`,ids:[i,i+1],points:0,diff:0,wins:0,losses:0});}
-    else{stats=tournamentData.p.map((n,i)=>({name:n,ids:[i],points:0,diff:0,wins:0,losses:0}));}
+    const isTeam=tournamentData.type==='team';
+    let stats=[];
+    if(isTeam){for(let i=0;i<tournamentData.p.length;i+=2) stats.push({name:`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`,ids:[i,i+1],points:0,diff:0,wins:0,losses:0,draws:0,played:0,history:[]});}
+    else{stats=tournamentData.p.map((n,i)=>({name:n,ids:[i],points:0,diff:0,wins:0,losses:0,draws:0,played:0,history:[]}));}
 
-    tournamentData.s_new.forEach(r => {
-        r.matches.forEach(m => {
-            if(m.score && m.score[0] !== "" && m.score[0] !== null){
-                const s1 = parseInt(m.score[0]); const s2 = parseInt(m.score[1]);
-                stats.forEach(e => {
-                    if(e.ids.some(id => m.team1.includes(id))){
-                        e.points += s1; e.diff += (s1 - s2); if(s1 > s2) e.wins++; else if(s2 > s1) e.losses++;
+    let totalMatches=0, playedMatches=0;
+    tournamentData.s_new.forEach(r=>{
+        totalMatches+=r.matches.length;
+        r.matches.forEach(m=>{
+            if(m.score[0]!==""&&m.score[0]!==null){
+                playedMatches++;
+                const s1=parseInt(m.score[0])||0, s2=parseInt(m.score[1])||0;
+                const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
+                const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
+                stats.forEach(e=>{
+                    if(e.ids.some(id=>m.team1.includes(id))){
+                        e.points+=s1;e.diff+=(s1-s2);e.played++;
+                        if(s1>s2)e.wins++;else if(s1<s2)e.losses++;else e.draws++;
+                        e.history.push({opp:t2N,scored:s1,conceded:s2,diff:s1-s2,round:r.id});
                     }
-                    if(e.ids.some(id => m.team2.includes(id))){
-                        e.points += s2; e.diff += (s2 - s1); if(s2 > s1) e.wins++; else if(s1 > s2) e.losses++;
+                    if(e.ids.some(id=>m.team2.includes(id))){
+                        e.points+=s2;e.diff+=(s2-s1);e.played++;
+                        if(s2>s1)e.wins++;else if(s2<s1)e.losses++;else e.draws++;
+                        e.history.push({opp:t1N,scored:s2,conceded:s1,diff:s2-s1,round:r.id});
                     }
                 });
             }
         });
     });
 
-    stats.sort((a,b) => b.points - a.points || b.diff - a.diff);
-    const focus = document.getElementById('playerFocus').value;
-    document.getElementById('rankingTable').innerHTML = stats.map((s,i) => `
-        <tr class="${i === 0 && s.points > 0 ? 'rank-gold' : ''} border-b border-[var(--border)] last:border-none ${s.name === focus ? '!bg-blue-500/10' : ''}">
-            <td class="py-5 pl-6 pr-2 font-900 text-sm">${i === 0 && s.points > 0 ? '👑' : '#' + (i + 1)}</td>
-            <td class="py-5 px-2 text-[14px] font-900 uppercase truncate ${s.name === focus ? 'text-focus' : ''}">${s.name}</td>
-            <td class="py-5 px-2 text-center text-[12px] font-700 text-[var(--text-muted)]">${s.wins}/${s.losses}</td>
-            <td class="py-5 px-2 text-center font-900 text-base" style="font-family:'Space Mono'">${s.points}</td>
-            <td class="py-5 pl-2 pr-6 text-center text-[12px] font-900 ${s.diff > 0 ? 'text-[var(--green)]' : s.diff < 0 ? 'text-[var(--red)]' : ''}">${s.diff > 0 ? '+' : ''}${s.diff}</td>
-        </tr>`).join('');
+    stats.sort((a,b)=>b.points-a.points||b.diff-a.diff);
+    const focus=document.getElementById('playerFocus').value;
+
+    document.getElementById('rankingTable').innerHTML=stats.map((s,i)=>{
+        const isGold=i===0&&s.points>0;
+        const isFocus=s.name===focus;
+        return `
+        <tr class="${isGold?'rank-gold':''} border-b border-[var(--border)] last:border-none ${isFocus?'!bg-blue-500/10':''}">
+            <td class="py-3 pl-5 pr-2 font-800 text-xs ${isGold?'text-[var(--gold)]':'text-[var(--text-muted)]'}">${isGold?'👑':'#'+(i+1)}</td>
+            <td class="py-3 px-2 text-[10px] font-700 uppercase truncate max-w-[120px] ${isFocus?'text-focus':''}">${s.name}</td>
+            <td class="py-3 px-2 text-center text-[10px] font-600 text-[var(--text-muted)]">${s.wins}/${s.losses}</td>
+            <td class="py-3 px-2 text-center font-800 text-sm" style="font-family:'Space Mono',monospace">${s.points}</td>
+            <td class="py-3 pl-2 pr-5 text-center text-[10px] font-700 ${s.diff>0?'text-[var(--green)]':s.diff<0?'text-[var(--red)]':'text-[var(--text-muted)]'}" style="font-family:'Space Mono',monospace">${s.diff>0?'+':''}${s.diff}</td>
+        </tr>`;
+    }).join('');
+
+    updateBot(stats, totalMatches, playedMatches, focus);
 }
 
+// ═══ KI-BOT ═══
+function updateBot(stats, totalMatches, playedMatches, focus) {
+    const bot=document.getElementById('botText');
+    const status=document.getElementById('botStatus');
+    const isTeam=tournamentData.type==='team';
+    const progress=totalMatches>0?Math.round((playedMatches/totalMatches)*100):0;
+    const allDone=playedMatches===totalMatches&&totalMatches>0;
+
+    if(!focus){
+        bot.innerHTML='<span style="opacity:0.4">Wähle oben deinen Fokus für eine persönliche Analyse...</span>';
+        status.innerText='Standby'; return;
+    }
+
+    const me=stats.find(s=>s.name===focus);
+    const myRank=stats.findIndex(s=>s.name===focus)+1;
+    if(!me) return;
+
+    let L=[];
+
+    // Progress
+    L.push(`<div class="text-[10px] text-white/40 mb-1">${playedMatches}/${totalMatches} Matches · ${progress}%</div>`);
+    L.push(`<div class="w-full bg-white/5 rounded-full h-1 mb-4"><div class="bg-[var(--accent)] h-1 rounded-full" style="width:${progress}%;transition:width 0.5s"></div></div>`);
+
+    // ALL DONE
+    if(allDone){
+        if(myRank===1){
+            L.push(`<div class="text-[18px] font-800 text-[var(--gold)] mb-1">🏆 Platz #1 – Glückwunsch!</div>`);
+            L.push(`<div class="text-[12px] text-white/60">${me.wins}W ${me.losses}L · ${me.points} Pkt · Diff ${me.diff>0?'+':''}${me.diff}</div>`);
+            const best=me.history.reduce((b,h)=>h.diff>b.diff?h:b,{diff:-999});
+            if(best.diff>0) L.push(`<div class="text-[11px] text-white/40 mt-2 italic">Bester Sieg: +${best.diff} vs ${best.opp}</div>`);
+            triggerConfetti();
+        } else {
+            L.push(`<div class="text-[16px] font-700 mb-1">Turnier beendet – Platz #${myRank}</div>`);
+            L.push(`<div class="text-[12px] text-white/60">${me.wins}W ${me.losses}L · ${me.points} Pkt · Diff ${me.diff>0?'+':''}${me.diff}</div>`);
+            const gap=stats[0].points-me.points;
+            L.push(`<div class="text-[11px] text-white/40 mt-2 italic">${gap} Punkte hinter #1 – nächstes Mal! 🦌</div>`);
+        }
+        status.innerText='Turnier beendet'; bot.innerHTML=L.join(''); return;
+    }
+
+    // Ranking overview
+    L.push(`<div class="flex items-baseline gap-3 mb-2">`);
+    L.push(`<span class="text-[28px] font-900 text-[var(--accent)]" style="font-family:'Space Mono',monospace">#${myRank}</span>`);
+    L.push(`<span class="text-[11px] text-white/50">${me.points} Pkt · ${me.wins}W ${me.losses}L · <span class="${me.diff>=0?'text-[var(--green)]':'text-[var(--red)]'}">${me.diff>0?'+':''}${me.diff}</span></span>`);
+    L.push(`</div>`);
+
+    // Momentum
+    if(me.history.length>=2){
+        const recent=me.history.slice(-3);
+        const icons=recent.map(h=>{
+            if(h.diff>0) return `<span class="inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-700" style="background:rgba(34,197,94,0.15);color:var(--green)">W</span>`;
+            if(h.diff<0) return `<span class="inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-700" style="background:rgba(239,68,68,0.15);color:var(--red)">L</span>`;
+            return `<span class="inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-700" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.4)">D</span>`;
+        }).join(' ');
+        const trend=recent.reduce((s,h)=>s+h.diff,0);
+        let tt=''; if(trend>4)tt='🔥 Stark!'; else if(trend>0)tt='📈 Aufwärts'; else if(trend<-4)tt='⚡ Comeback!'; else if(trend<0)tt='📉 Tough'; else tt='➡️ Stabil';
+        L.push(`<div class="flex items-center gap-2 mb-3"><span class="text-[10px] text-white/40">Form:</span> ${icons} <span class="text-[10px] text-white/50">${tt}</span></div>`);
+    }
+
+    // Next match
+    let nextMatch=null, opponent="", nextRound=null;
+    for(let r of tournamentData.s_new){
+        for(let m of r.matches){
+            if(m.score[0]===""||m.score[0]===null){
+                const t1=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
+                const t2=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
+                if(t1===focus){nextMatch=m;opponent=t2;nextRound=r;break;}
+                if(t2===focus){nextMatch=m;opponent=t1;nextRound=r;break;}
+            }
+        }
+        if(nextMatch)break;
+    }
+
+    if(nextMatch){
+        const opp=stats.find(s=>s.name===opponent);
+        const oppRank=stats.findIndex(s=>s.name===opponent)+1;
+
+        L.push(`<div class="border-t border-white/5 pt-3 mt-1">`);
+        L.push(`<div class="text-[10px] text-white/40 uppercase tracking-wider mb-2">⚔️ Nächstes Match · Runde ${nextRound.id}</div>`);
+        L.push(`<div class="text-[14px] font-700 text-white mb-1">${opponent}</div>`);
+        L.push(`<div class="text-[10px] text-white/40">#${oppRank} · ${opp.points} Pkt · ${opp.wins}W ${opp.losses}L · Diff ${opp.diff>0?'+':''}${opp.diff}</div>`);
+
+        // Win probability
+        let wp=50;
+        const da=(me.diff-opp.diff)*1.5;
+        const pa=(me.points-opp.points)*0.5;
+        let bridge=0, bc=0;
+        me.history.forEach(h=>{const c=opp.history.find(oh=>oh.opp===h.opp);if(c){bridge+=(h.diff-c.diff);bc++;}});
+        if(bc>0)bridge=bridge/bc;
+        wp=Math.min(Math.max(Math.round(50+da+pa+bridge*2),8),92);
+
+        const barC=wp>=55?'var(--green)':wp<=45?'var(--red)':'var(--accent)';
+        L.push(`<div class="mt-3 flex items-center gap-2"><div class="flex-1 bg-white/5 rounded-full h-2 overflow-hidden"><div class="h-2 rounded-full" style="width:${wp}%;background:${barC};transition:width 0.5s"></div></div><span class="text-[11px] font-700" style="color:${barC}">${wp}%</span></div>`);
+
+        // Goal
+        if(myRank>1){
+            const above=stats[myRank-2];
+            const gap=above.points-me.points;
+            L.push(`<div class="text-[10px] text-white/40 mt-2">🎯 ${gap+1}+ Pkt → Chance auf Platz #${myRank-1}</div>`);
+        } else {
+            if(stats.length>1){const lead=me.points-stats[1].points; L.push(`<div class="text-[10px] text-white/40 mt-2">👑 #1 mit ${lead} Pkt Vorsprung</div>`);}
+        }
+        L.push(`</div>`);
+    } else if(me.played>0) {
+        L.push(`<div class="border-t border-white/5 pt-3 mt-1"><div class="text-[13px] text-white/60">Alle deine Matches gespielt. Warte auf Ergebnisse... 🦌</div></div>`);
+    }
+
+    status.innerText=`Platz #${myRank} · ${progress}%`;
+    bot.innerHTML=L.join('');
+}
+
+// ═══ CONFETTI ═══
+let confettiDone=false;
+function triggerConfetti(){
+    if(confettiDone)return; confettiDone=true;
+    const cols=['#3b82f6','#fbbf24','#22c55e','#ef4444','#8b5cf6','#ec4899'];
+    for(let i=0;i<40;i++){
+        const el=document.createElement('div');
+        el.style.cssText=`position:fixed;top:-10px;z-index:9999;pointer-events:none;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;left:${Math.random()*100}vw;background:${cols[Math.floor(Math.random()*cols.length)]};border-radius:${Math.random()>0.5?'50%':'2px'};animation:confettiFall ${2+Math.random()*2}s ease-out ${Math.random()*0.5}s forwards;`;
+        document.body.appendChild(el);
+        setTimeout(()=>el.remove(),5000);
+    }
+}
+
+// ═══ PWA INSTALL ═══
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;});
+function installApp(){
+    if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;});return;}
+    const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
+    if(isIOS) alert('Tippe auf das Teilen-Symbol (📤) unten in Safari,\ndann "Zum Home-Bildschirm".');
+    else alert('Öffne das Browser-Menü (⋮) und wähle\n"Zum Startbildschirm hinzufügen".');
+}
+
+// ═══ GO ═══
 init();
 </script>
 </body>
