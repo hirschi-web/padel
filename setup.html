@@ -1375,10 +1375,20 @@ function koCheckConsistency() {
     if (matchTime < 5) errors.push('Match-Dauer muss mind. 5 Min. sein.');
     if (koTeamCount === 8 && courts === 1) warnings.push('⚠️ Mit nur 1 Platz dauert das Turnier sehr lange. Empfehlung: 2–3 Plätze.');
 
-    // 8-Team time fit check
+    // 8-Team time fit check – use real slot count from scheduler
     if (koTeamCount === 8) {
-        const slotDur = matchTime + pause;
-        const totalNeededMin = 5 * slotDur; // 5 Slots
+        const courts2 = courts; // use same courts value
+        // Estimate slots: phase 1 = ceil(3/courts) batches, phase 2 = ceil(3/courts), phase 3 = ceil(2/courts), phase 4 = ceil(4/courts), phase 5 = ceil(4/courts)
+        // Each batch costs matchTime + pause (except last of each phase which only costs matchTime, pause is added before next phase)
+        let numSlots = 0;
+        if (courts >= 3) {
+            // Optimized layout: 6 fixed slots (S1-S6)
+            numSlots = 6;
+        } else {
+            // Naive batching
+            [3,3,2,4,4].forEach(n => { numSlots += Math.ceil(n / courts2); });
+        }
+        const totalNeededMin = numSlots * matchTime + (numSlots - 1) * pause;
         const availableMin = courtHours * 60;
         const endMin = baseMin + totalNeededMin;
         const bookingEndMin = baseMin + availableMin;
@@ -1627,126 +1637,250 @@ function ko8CalcRanking() {
 }
 
 // ============================================================
+// K.O. 8-TEAM: OPTIMIZED SCHEDULING ENGINE
+//
+// Abhängigkeitsanalyse:
+//   S1: V1, V2, V3
+//   S2: V4⚡, R1a, R1b   (V4 parallel constraint)
+//   S3: R1c, R1d, CHF1   ← CHF1 = Verlierer R1a+R1b → nach S2 ✅
+//   S4: HF1, HF2, CHF2   ← HF1/2 = Sieger R1a-d → nach S3 ✅
+//                          CHF2 = Verlierer R1c+R1d → nach S3 ✅
+//   S5: FINALE, KLF, CF  ← FINALE/KLF = nach HF1+HF2 (S4) ✅
+//                          CF = Sieger CHF1+CHF2 → CHF1 nach S3, CHF2 nach S4 ✅
+//   S6: CKF              ← Verlierer CHF1+CHF2 → nach S4/S5 ✅
+//
+// Bei courts >= 3: optimiertes Layout (6 Slots)
+// Bei courts = 2 oder 1: naive Batch-Aufteilung
+// ============================================================
+function ko8CalcSchedule() {
+    const courts    = parseInt(document.getElementById('koCourts').value)    || 3;
+    const matchTime = parseInt(document.getElementById('koMatchTime').value)  || 30;
+    const pause     = parseInt(document.getElementById('koPause').value)      || 5;
+    const startTime = document.getElementById('koStartTime').value            || '09:00';
+    const [sH, sM]  = startTime.split(':').map(Number);
+    const baseMin   = sH * 60 + sM;
+    const pm        = koBracketData?.prelimMatches || [];
+
+    const slotDur = matchTime + pause;
+    const t = (slot) => baseMin + slot * slotDur;
+
+    // ── OPTIMIZED LAYOUT für courts >= 3 ─────────────────────
+    if (courts >= 3) {
+        // Jede Phase kann bis zu 3 Courts nutzen
+        // Slots mit genutzten Courts:
+        const slotsOpt = [
+            {
+                label: 'Vorrunde', type: 'prelim', isParallel: false, hasParallelNote: false,
+                matches: [
+                    { id:'V1', t1: pm[0]?koTeamLabel(pm[0].team1):'?', t2: pm[0]?koTeamLabel(pm[0].team2):'?', placeholder:false, court:1 },
+                    { id:'V2', t1: pm[1]?koTeamLabel(pm[1].team1):'?', t2: pm[1]?koTeamLabel(pm[1].team2):'?', placeholder:false, court:2 },
+                    { id:'V3', t1: pm[2]?koTeamLabel(pm[2].team1):'?', t2: pm[2]?koTeamLabel(pm[2].team2):'?', placeholder:false, court:3 },
+                ],
+                note: null,
+            },
+            {
+                label: 'V4 + Runde 1 (R1a, R1b)', type: 'parallel', isParallel: true, hasParallelNote: true,
+                matches: [
+                    { id:'V4',  t1: pm[3]?koTeamLabel(pm[3].team1):'?', t2: pm[3]?koTeamLabel(pm[3].team2):'?', placeholder:false, court:1 },
+                    { id:'R1a', t1:'Platz 1', t2:'Platz 8', placeholder:true, court:2 },
+                    { id:'R1b', t1:'Platz 2', t2:'Platz 7', placeholder:true, court:3 },
+                ],
+                note: '⚡ V4 (Vorrunde) läuft gleichzeitig mit R1a + R1b.',
+            },
+            {
+                label: 'Runde 1 + Cons. HF (1/2)', type: 'r1', isParallel: false, hasParallelNote: false,
+                matches: [
+                    { id:'R1c',  t1:'Platz 3', t2:'Platz 6', placeholder:true, court:1 },
+                    { id:'R1d',  t1:'Platz 4', t2:'Platz 5', placeholder:true, court:2 },
+                    { id:'CHF1', t1:'Verlierer R1a', t2:'Verlierer R1b', placeholder:true, court:3 },
+                ],
+                note: '✅ CHF1 startet direkt: Verlierer R1a+R1b nach Slot 2 bekannt.',
+            },
+            {
+                label: 'Halbfinale + Cons. HF (2/2)', type: 'hf', isParallel: false, hasParallelNote: false,
+                matches: [
+                    { id:'HF1',  t1:'Sieger R1a',    t2:'Sieger R1b',    placeholder:true, court:1 },
+                    { id:'HF2',  t1:'Sieger R1c',    t2:'Sieger R1d',    placeholder:true, court:2 },
+                    { id:'CHF2', t1:'Verlierer R1c', t2:'Verlierer R1d', placeholder:true, court:3 },
+                ],
+                note: '✅ HF1/HF2 + CHF2 gleichzeitig: alle Voraussetzungen nach Slot 3 erfüllt.',
+            },
+            {
+                label: 'Cons. Finale + Cons. Kl. Finale', type: 'consolation', isParallel: false, hasParallelNote: false,
+                matches: [
+                    { id:'CF',  t1:'Sieger CHF1',    t2:'Sieger CHF2',    placeholder:true, court:1, placement:'Pl. 5/6' },
+                    { id:'CKF', t1:'Verlierer CHF1', t2:'Verlierer CHF2', placeholder:true, court:2, placement:'Pl. 7/8' },
+                ],
+                note: '✅ CF + CKF gleichzeitig: Sieger/Verlierer CHF1 (S3) + CHF2 (S4) bekannt.',
+            },
+            {
+                label: '🏆 Kl. Finale + Finale', type: 'finale', isParallel: false, hasParallelNote: false,
+                matches: [
+                    { id:'KLF',    t1:'Verlierer HF1', t2:'Verlierer HF2', placeholder:true, court:1, placement:'🥉 3/4' },
+                    { id:'FINALE', t1:'Sieger HF1',    t2:'Sieger HF2',    placeholder:true, court:2, placement:'🥇 1/2' },
+                ],
+                note: '🏆 Das FINALE als krönender Abschluss – gleichzeitig mit dem Spiel um Platz 3/4.',
+            },
+        ];
+
+        return {
+            slots: slotsOpt.map((s, i) => ({
+                ...s,
+                courtsUsed: s.matches.length,
+                startMin: t(i),
+                endMin: t(i) + matchTime,
+            })),
+            baseMin, matchTime, pause, courts,
+            optimized: true,
+        };
+    }
+
+    // ── NAIVE BATCH-LAYOUT für courts < 3 ───────────────────
+    // Einfache sequenzielle Aufteilung in Batches der Größe 'courts'
+    const phases = [
+        { key:'prelim1', label:'Vorrunde', type:'prelim', parallelNote:false, matches:[
+            { id:'V1', t1:pm[0]?koTeamLabel(pm[0].team1):'?', t2:pm[0]?koTeamLabel(pm[0].team2):'?', placeholder:false },
+            { id:'V2', t1:pm[1]?koTeamLabel(pm[1].team1):'?', t2:pm[1]?koTeamLabel(pm[1].team2):'?', placeholder:false },
+            { id:'V3', t1:pm[2]?koTeamLabel(pm[2].team1):'?', t2:pm[2]?koTeamLabel(pm[2].team2):'?', placeholder:false },
+        ]},
+        { key:'prelim2', label:'V4 + Runde 1 (R1a, R1b)', type:'parallel', parallelNote:true, matches:[
+            { id:'V4',  t1:pm[3]?koTeamLabel(pm[3].team1):'?', t2:pm[3]?koTeamLabel(pm[3].team2):'?', placeholder:false },
+            { id:'R1a', t1:'Platz 1', t2:'Platz 8', placeholder:true },
+            { id:'R1b', t1:'Platz 2', t2:'Platz 7', placeholder:true },
+        ]},
+        { key:'r1cd', label:'Runde 1 (R1c, R1d)', type:'r1', parallelNote:false, matches:[
+            { id:'R1c', t1:'Platz 3', t2:'Platz 6', placeholder:true },
+            { id:'R1d', t1:'Platz 4', t2:'Platz 5', placeholder:true },
+        ]},
+        { key:'hf', label:'Halbfinale', type:'hf', parallelNote:false, matches:[
+            { id:'HF1',  t1:'Sieger R1a',    t2:'Sieger R1b',    placeholder:true },
+            { id:'HF2',  t1:'Sieger R1c',    t2:'Sieger R1d',    placeholder:true },
+            { id:'CHF1', t1:'Verlierer R1a', t2:'Verlierer R1b', placeholder:true },
+            { id:'CHF2', t1:'Verlierer R1c', t2:'Verlierer R1d', placeholder:true },
+        ]},
+        { key:'finale', label:'Finale', type:'finale', parallelNote:false, matches:[
+            { id:'FINALE', t1:'Sieger HF1',     t2:'Sieger HF2',     placeholder:true, placement:'🥇 1/2' },
+            { id:'KLF',    t1:'Verlierer HF1',  t2:'Verlierer HF2',  placeholder:true, placement:'🥉 3/4' },
+            { id:'CF',     t1:'Sieger CHF1',    t2:'Sieger CHF2',    placeholder:true, placement:'Pl. 5/6' },
+            { id:'CKF',    t1:'Verlierer CHF1', t2:'Verlierer CHF2', placeholder:true, placement:'Pl. 7/8' },
+        ]},
+    ];
+
+    const naiveSlots = [];
+    let currentMin = baseMin;
+    let firstSlot = true;
+    phases.forEach(phase => {
+        const numBatches = Math.ceil(phase.matches.length / courts);
+        for (let bi = 0; bi < numBatches; bi++) {
+            const batch = phase.matches.slice(bi * courts, (bi + 1) * courts)
+                .map((m, j) => ({ ...m, court: j + 1 }));
+            const label = numBatches > 1 ? `${phase.label} (${bi+1}/${numBatches})` : phase.label;
+            if (!firstSlot) currentMin += pause;
+            firstSlot = false;
+            naiveSlots.push({
+                label, type: phase.type,
+                isParallel: phase.parallelNote && bi === 0 && courts >= 3,
+                hasParallelNote: phase.parallelNote && bi === 0,
+                courtsUsed: batch.length,
+                matches: batch,
+                startMin: currentMin,
+                endMin: currentMin + matchTime,
+                note: null,
+            });
+            currentMin += matchTime;
+        }
+    });
+    return { slots: naiveSlots, baseMin, matchTime, pause, courts, optimized: false };
+}
+
+// ============================================================
 // K.O. 8-TEAM: FULL SCHEDULE OVERVIEW (all rounds, with placeholders)
 // ============================================================
 function ko8RenderSchedule() {
     if (!koBracketData) return;
-    const { prelimMatches } = koBracketData;
-    const courts = parseInt(document.getElementById('koCourts').value) || 3;
-    const matchTime = parseInt(document.getElementById('koMatchTime').value) || 30;
-    const pause = parseInt(document.getElementById('koPause').value) || 5;
+    const { slots, baseMin, matchTime, pause, courts, optimized } = ko8CalcSchedule();
     const startTime = document.getElementById('koStartTime').value || '09:00';
-    const [sH, sM] = startTime.split(':').map(Number);
-    const baseMin = sH * 60 + sM;
-    const slotDur = matchTime + pause;
+    const courtHours = parseFloat(document.getElementById('koCourtHours').value) || 3;
+    const bookingEndMin = baseMin + courtHours * 60;
+    const totalEndMin = slots[slots.length - 1].endMin;
 
-    // Court accent colors
+    const typeStyle = {
+        prelim:      { bg:'#f5f3ff', border:'#ddd6fe', hdrColor:'#7c3aed', icon:'📋' },
+        parallel:    { bg:'#fffbeb', border:'#fde68a', hdrColor:'#d97706', icon:'⚡' },
+        r1:          { bg:'#eff6ff', border:'#bfdbfe', hdrColor:'#2563eb', icon:'🎾' },
+        hf:          { bg:'#f5f3ff', border:'#ddd6fe', hdrColor:'#7c3aed', icon:'⚔️' },
+        finale:      { bg:'#fffbeb', border:'#fde68a', hdrColor:'#d97706', icon:'🏆' },
+        consolation: { bg:'#fef2f2', border:'#fecaca', hdrColor:'#dc2626', icon:'🎯' },
+    };
     const courtColors = ['#2563eb','#16a34a','#d97706','#dc2626'];
     const courtBg     = ['#eff6ff','#f0fdf4','#fffbeb','#fef2f2'];
 
-    const makeMatchCard = (gameId, team1Label, team2Label, courtNum, timeStr, badgeLabel, badgeClass, isPlaceholder=false) => {
-        const ci = (courtNum - 1) % 4;
-        const borderColor = courtColors[ci];
-        const bgColor = isPlaceholder ? '#f8fafc' : courtBg[ci];
-        const textColor = isPlaceholder ? '#94a3b8' : '#0f172a';
-        const t1style = isPlaceholder ? 'font-style:italic; color:#94a3b8;' : 'font-weight:700; color:#0f172a;';
-        const t2style = isPlaceholder ? 'font-style:italic; color:#94a3b8;' : 'font-weight:700; color:#0f172a;';
-        return `<div style="background:${bgColor}; border:1.5px solid ${borderColor}; border-left-width:3px; border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:5px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                <span style="font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:900; letter-spacing:.06em; color:${borderColor};">${gameId} · Court ${courtNum}</span>
-                <span class="badge ${badgeClass}" style="font-size:8px;">${badgeLabel}</span>
-            </div>
-            <div style="${t1style} font-size:11px;">${escHtml(team1Label)}</div>
-            <div style="font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:900; color:#94a3b8; letter-spacing:.1em;">VS</div>
-            <div style="${t2style} font-size:11px;">${escHtml(team2Label)}</div>
-            <div style="font-size:9px; color:#64748b; margin-top:2px;">⏰ ${timeStr} · ${matchTime} Min.</div>
-        </div>`;
-    };
-
-    const makeSlotHeader = (label, timeStr, courtStr, badgeClass='badge-slate', extraBadge='') => `
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; margin-top:4px;">
-            <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:900; color:var(--muted); letter-spacing:.08em; text-transform:uppercase;">${label}</span>
-            <span class="badge ${badgeClass}">⏰ ${timeStr}</span>
-            <span class="badge badge-slate">${courtStr}</span>
-            ${extraBadge}
-        </div>`;
-
     let html = '';
 
-    // ── SLOT 0: Vorrunde V1/V2/V3 ──────────────────────────
-    const t0 = formatMin(baseMin);
-    html += `<div style="background:#f5f3ff; border:1.5px solid #ddd6fe; border-radius:14px; padding:14px; margin-bottom:12px;">`;
-    html += makeSlotHeader('Vorrunde – Slot 1', t0, `Courts 1–${Math.min(3,courts)}`, 'badge-purple');
-    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px;">`;
-    [0,1,2].forEach(idx => {
-        const m = prelimMatches[idx];
-        html += makeMatchCard(`V${idx+1}`, koTeamLabel(m.team1), koTeamLabel(m.team2), m.court, t0, 'Vorrunde', 'badge-purple');
+    // Optimization badge
+    if (optimized) {
+        html += `<div style="padding:10px 14px; border-radius:10px; background:#f0fdf4; border:1.5px solid #bbf7d0; font-size:11px; font-weight:700; color:#166534; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+            ✅ <strong>Optimierter Spielplan (${courts} Courts)</strong> · ${slots.length} Slots · Courts werden maximal ausgenutzt · FINALE + KLF + CF gleichzeitig auf 3 Courts
+            <span style="margin-left:auto; font-size:10px; font-weight:500; color:#64748b;">CKF (Platz 7/8) folgt nach dem Finale</span>
+        </div>`;
+    }
+
+    slots.forEach(slot => {
+        const ts = typeStyle[slot.type] || typeStyle.r1;
+        const over = slot.endMin > bookingEndMin;
+        const bg     = over ? '#fef2f2' : ts.bg;
+        const border = over ? '#fecaca' : ts.border;
+
+        const parallelBadge = slot.isParallel
+            ? `<span class="badge badge-amber" style="margin-left:4px;">⚡ Parallel</span>` : '';
+        const overBadge = over
+            ? `<span class="badge" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;margin-left:4px;">⚠️ über Buchungszeit</span>` : '';
+
+        html += `<div style="background:${bg}; border:1.5px solid ${border}; border-radius:14px; padding:12px 14px; margin-bottom:10px;">`;
+        html += `<div style="display:flex; align-items:center; gap:6px; margin-bottom:10px; flex-wrap:wrap;">
+            <span style="font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:900; color:${over ? '#dc2626' : ts.hdrColor}; letter-spacing:.08em; text-transform:uppercase;">${ts.icon} ${slot.label}</span>
+            <span class="badge badge-slate">⏰ ${formatMin(slot.startMin)} – ${formatMin(slot.endMin)}</span>
+            <span class="badge badge-slate">${slot.courtsUsed} Court${slot.courtsUsed > 1 ? 's' : ''} gleichzeitig</span>
+            ${parallelBadge}${overBadge}
+        </div>`;
+
+        html += `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px;">`;
+        slot.matches.forEach(m => {
+            const ci = (m.court - 1) % 4;
+            const cColor = courtColors[ci];
+            const cBg    = m.placeholder ? '#f8fafc' : courtBg[ci];
+            const tStyle = m.placeholder ? 'font-style:italic; color:#94a3b8;' : 'font-weight:700; color:#0f172a;';
+            const placementTag = m.placement
+                ? `<span style="font-size:8px; font-weight:700; color:${cColor};">${m.placement}</span>` : '';
+            html += `<div style="background:${cBg}; border:1.5px solid ${cColor}; border-left-width:3px; border-radius:10px; padding:9px 11px; display:flex; flex-direction:column; gap:4px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:900; color:${cColor};">C${m.court} · ${m.id}</span>
+                    ${placementTag}
+                </div>
+                <div style="${tStyle} font-size:11px; line-height:1.2;">${escHtml(m.t1)}</div>
+                <div style="font-size:8px; font-weight:900; color:#94a3b8; letter-spacing:.1em;">VS</div>
+                <div style="${tStyle} font-size:11px; line-height:1.2;">${escHtml(m.t2)}</div>
+            </div>`;
+        });
+        html += `</div>`;
+
+        if (slot.note) {
+            html += `<p style="font-size:10px; color:${over ? '#991b1b' : '#64748b'}; margin-top:8px; font-weight:600;">${slot.note}</p>`;
+        }
+        html += `</div>`;
     });
-    html += `</div></div>`;
 
-    // ── SLOT 1: V4 + R1a + R1b (PARALLEL) ──────────────────
-    const t1 = formatMin(baseMin + slotDur);
-    html += `<div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:14px; padding:14px; margin-bottom:12px;">`;
-    html += makeSlotHeader('Slot 2 – Vorrunde V4 + Runde 1 (parallel)', t1, `Courts 1–${Math.min(3,courts)}`, 'badge-amber', '<span class="badge badge-amber">⚡ Parallel</span>');
-    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px;">`;
-    // V4 on court 1
-    const v4 = prelimMatches[3];
-    html += makeMatchCard('V4', koTeamLabel(v4.team1), koTeamLabel(v4.team2), 1, t1, 'Vorrunde ⚡', 'badge-amber');
-    // R1a: P1 vs P8 on court 2
-    html += makeMatchCard('R1a', 'Platz 1 der Vorrunde', 'Platz 8 der Vorrunde', 2, t1, 'Runde 1', 'badge-blue', true);
-    // R1b: P2 vs P7 on court 3 (if available)
-    if (courts >= 3) {
-        html += makeMatchCard('R1b', 'Platz 2 der Vorrunde', 'Platz 7 der Vorrunde', 3, t1, 'Runde 1', 'badge-blue', true);
-    }
-    html += `</div>`;
-    if (courts < 3) {
-        html += `<p style="font-size:10px; color:#92400e; margin-top:8px; font-weight:600;">⚠️ Nur ${courts} Court${courts>1?'s':''} verfügbar – R1b verschiebt sich auf Slot 3</p>`;
-    }
-    html += `</div>`;
-
-    // ── SLOT 2: R1c + R1d (+ R1b if only 2 courts) ─────────
-    const t2 = formatMin(baseMin + 2 * slotDur);
-    html += `<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:14px; padding:14px; margin-bottom:12px;">`;
-    html += makeSlotHeader('Runde 1 – Slot 3', t2, `Courts 1–${Math.min(courts >= 3 ? 2 : 3, courts)}`, 'badge-blue');
-    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px;">`;
-    if (courts < 3) {
-        html += makeMatchCard('R1b', 'Platz 2 der Vorrunde', 'Platz 7 der Vorrunde', 2, t2, 'Runde 1', 'badge-blue', true);
-    }
-    html += makeMatchCard('R1c', 'Platz 3 der Vorrunde', 'Platz 6 der Vorrunde', courts >= 3 ? 1 : 3, t2, 'Runde 1', 'badge-blue', true);
-    html += makeMatchCard('R1d', 'Platz 4 der Vorrunde', 'Platz 5 der Vorrunde', courts >= 3 ? 2 : (courts >= 2 ? 2 : 1), t2, 'Runde 1', 'badge-blue', true);
-    html += `</div>
-        <p style="font-size:10px; color:#1e40af; margin-top:8px; font-weight:600;">📌 V4-Teams werden nach ihrem Vorrunden-Ergebnis in die Platzierungen eingereiht und hier automatisch zugewiesen.</p>
-    </div>`;
-
-    // ── SLOT 3: Halbfinale (Winner HF1, HF2 + Cons HF1, HF2) ─
-    const t3 = formatMin(baseMin + 3 * slotDur);
-    html += `<div style="background:#f5f3ff; border:1.5px solid #ddd6fe; border-radius:14px; padding:14px; margin-bottom:12px;">`;
-    html += makeSlotHeader('Halbfinale – Slot 4', t3, `Courts 1–${Math.min(4,courts)}`, 'badge-purple');
-    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px;">`;
-    html += makeMatchCard('HF1', 'Sieger R1a', 'Sieger R1b', 1, t3, 'Winner HF', 'badge-green', true);
-    html += makeMatchCard('HF2', 'Sieger R1c', 'Sieger R1d', 2, t3, 'Winner HF', 'badge-green', true);
-    html += makeMatchCard('CHF1', 'Verlierer R1a', 'Verlierer R1b', courts >= 3 ? 3 : 1, t3, 'Cons. HF', 'badge-red', true);
-    html += makeMatchCard('CHF2', 'Verlierer R1c', 'Verlierer R1d', courts >= 4 ? 4 : (courts >= 3 ? 1 : 2), t3, 'Cons. HF', 'badge-red', true);
-    html += `</div></div>`;
-
-    // ── SLOT 4: Finale ──────────────────────────────────────
-    const t4 = formatMin(baseMin + 4 * slotDur);
-    html += `<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:14px; padding:14px; margin-bottom:4px;">`;
-    html += makeSlotHeader('Finale – Slot 5 🏆', t4, `Courts 1–${Math.min(4,courts)}`, 'badge-amber');
-    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px;">`;
-    html += makeMatchCard('FINALE', 'Sieger HF1', 'Sieger HF2', 1, t4, '🥇 Platz 1/2', 'badge-amber', true);
-    html += makeMatchCard('KLF', 'Verlierer HF1', 'Verlierer HF2', 2, t4, '🥉 Platz 3/4', 'badge-amber', true);
-    html += makeMatchCard('CF', 'Sieger CHF1', 'Sieger CHF2', courts >= 3 ? 3 : 1, t4, 'Platz 5/6', 'badge-red', true);
-    html += makeMatchCard('CKF', 'Verlierer CHF1', 'Verlierer CHF2', courts >= 4 ? 4 : (courts >= 3 ? 1 : 2), t4, 'Platz 7/8', 'badge-red', true);
-    html += `</div></div>`;
-
-    // Total
-    const totalMin = 5 * slotDur;
-    html += `<div style="margin-top:10px; background:white; border:1.5px solid #e2e8f0; border-radius:10px; padding:12px; display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
-        <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.08em;">Gesamtdauer:</span>
-        <span style="font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:900; color:var(--blue);">${Math.floor(totalMin/60)}h ${totalMin%60}m</span>
-        <span style="font-size:10px; color:var(--muted);">Start ${startTime} · Ende ca. ${formatMin(baseMin + totalMin)}</span>
-        <span style="font-size:10px; color:var(--muted);">11 Spiele total · jedes Team spielt mind. 3×</span>
+    // Summary
+    const totalMin = totalEndMin - baseMin;
+    const diff = bookingEndMin - totalEndMin;
+    const fits = diff >= 0;
+    const totalMatches = slots.reduce((s, x) => s + x.matches.length, 0);
+    html += `<div style="margin-top:10px; background:white; border:1.5px solid #e2e8f0; border-radius:10px; padding:12px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+        <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Gesamtdauer:</span>
+        <span style="font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:900; color:${fits ? 'var(--blue)' : 'var(--red)'};">${Math.floor(totalMin/60)}h ${totalMin % 60 > 0 ? totalMin % 60 + 'm' : ''}</span>
+        <span style="font-size:10px; color:var(--muted);">Start ${startTime} · Ende ca. <strong>${formatMin(totalEndMin)}</strong></span>
+        <span style="font-size:10px; font-weight:700; color:${fits ? (diff < 15 ? '#d97706' : '#16a34a') : '#dc2626'};">${fits ? '✅ +' + diff + ' Min Puffer' : '❌ ' + Math.abs(diff) + ' Min zu lang'}</span>
+        <span style="font-size:10px; color:var(--muted);">${slots.length} Zeitslots · ${totalMatches} Spiele · ${courts} Courts</span>
     </div>`;
 
     document.getElementById('ko8ScheduleContainer').innerHTML = html;
@@ -2045,47 +2179,23 @@ function placeLabel(x, y, text, color) {
 // K.O. 8-TEAM: TIME SIMULATION
 // ============================================================
 function ko8RenderSimulation() {
-    const courts = parseInt(document.getElementById('koCourts').value) || 3;
-    const matchTime = parseInt(document.getElementById('koMatchTime').value) || 30;
-    const pause = parseInt(document.getElementById('koPause').value) || 5;
-    const courtHours = parseFloat(document.getElementById('koCourtHours').value) || 3;
+    if (!koBracketData) return;
+    const { slots, baseMin, matchTime, pause, courts } = ko8CalcSchedule();
     const startTime = document.getElementById('koStartTime').value || '09:00';
-    const [sH, sM] = startTime.split(':').map(Number);
-    const baseMin = sH * 60 + sM;
-    const slotDur = matchTime + pause;
+    const courtHours = parseFloat(document.getElementById('koCourtHours').value) || 3;
+    const bookingEndMin = baseMin + courtHours * 60;
+    const totalEndMin = slots[slots.length - 1].endMin;
+    const totalDuration = totalEndMin - baseMin;
+    const diff = bookingEndMin - totalEndMin;
+    const fits = diff >= 0;
 
-    const availableMin = courtHours * 60;
-    const bookingEndMin = baseMin + availableMin;
-
-    const slotTime = (slot) => baseMin + slot * slotDur;
-
-    const slots = [
-        { label: 'Vorrunde – Slot 1 (V1, V2, V3)', matches: 'V1 · V2 · V3', courts: Math.min(3, courts), start: slotTime(0), type: 'prelim' },
-        { label: 'Slot 2 – V4 + R1a, R1b (parallel)', matches: 'V4 (C1) + R1a (C2) + R1b (C3)', courts: Math.min(3, courts), start: slotTime(1), type: 'parallel', warning: true },
-        { label: 'Runde 1 – R1c, R1d', matches: 'R1c · R1d', courts: Math.min(2, courts), start: slotTime(2), type: 'r1' },
-        { label: 'Halbfinale (HF1, HF2, CHF1, CHF2)', matches: 'HF1 · HF2 · CHF1 · CHF2', courts: Math.min(4, courts), start: slotTime(3), type: 'hf' },
-        { label: 'Finale (FINALE, KLF, CF, CKF)', matches: 'Finale P1/2 · Kl.Finale P3/4 · Cons. P5/6 · Cons. P7/8', courts: Math.min(4, courts), start: slotTime(4), type: 'finale' },
-    ];
-
-    const endMin = slotTime(5);
-    const totalDuration = endMin - baseMin;
-    const diff = availableMin - totalDuration;
-    const fitsInBooking = diff >= 0;
-
-    let html = `<p class="lbl" style="margin-bottom:12px;">⏱️ Zeitplan (${courts} Plätze · ${matchTime} Min/Match · ${pause} Min Pause · Buchung ${courtHours}h)</p>`;
+    let html = `<p class="lbl" style="margin-bottom:12px;">⏱️ Zeitplan (${courts} Courts · ${matchTime} Min/Match · ${pause} Min Pause · Buchung ${courtHours}h)</p>`;
 
     // Time-fit banner
-    if (fitsInBooking) {
-        const bufStr = diff === 0 ? 'Exakt passend – kein Puffer' : `${diff} Min Puffer bis Platzbuchungsende`;
-        html += `<div style="padding:10px 14px; border-radius:10px; background:${diff < 10 ? '#fffbeb' : '#f0fdf4'}; border:1.5px solid ${diff < 10 ? '#fde68a' : '#bbf7d0'}; font-size:11px; font-weight:700; color:${diff < 10 ? '#92400e' : '#166534'}; margin-bottom:10px;">
-            ${diff < 10 ? '⚠️' : '✅'} Ende ca. <strong>${formatMin(endMin)}</strong> · Platzbuchung bis <strong>${formatMin(bookingEndMin)}</strong> · ${bufStr}
-        </div>`;
-    } else {
-        const over = Math.abs(diff);
-        html += `<div style="padding:10px 14px; border-radius:10px; background:#fef2f2; border:1.5px solid #fecaca; font-size:11px; font-weight:700; color:#991b1b; margin-bottom:10px;">
-            ❌ Zu lang! Ende ca. <strong>${formatMin(endMin)}</strong> · Buchung bis <strong>${formatMin(bookingEndMin)}</strong> · ${over} Min zu viel → Pause oder Matchzeit reduzieren
-        </div>`;
-    }
+    const bufStr = diff === 0 ? 'Exakt passend' : (fits ? `+${diff} Min Puffer` : `${Math.abs(diff)} Min zu lang`);
+    html += `<div style="padding:10px 14px; border-radius:10px; background:${fits ? (diff<10?'#fffbeb':'#f0fdf4') : '#fef2f2'}; border:1.5px solid ${fits ? (diff<10?'#fde68a':'#bbf7d0') : '#fecaca'}; font-size:11px; font-weight:700; color:${fits ? (diff<10?'#92400e':'#166534') : '#991b1b'}; margin-bottom:10px;">
+        ${fits ? (diff<10?'⚠️':'✅') : '❌'} Ende ca. <strong>${formatMin(totalEndMin)}</strong> · Buchung bis <strong>${formatMin(bookingEndMin)}</strong> · ${bufStr}
+    </div>`;
 
     const typeColors = {
         prelim:   { bg:'#f0fdf4', border:'#bbf7d0', text:'#16a34a',  icon:'📋' },
@@ -2097,52 +2207,41 @@ function ko8RenderSimulation() {
 
     slots.forEach(s => {
         const c = typeColors[s.type] || typeColors.r1;
-        const endSlot = s.start + matchTime;
-        const overBook = endSlot > bookingEndMin;
+        const overBook = s.endMin > bookingEndMin;
         const rowBorder = overBook ? '2px solid #fca5a5' : `1.5px solid ${c.border}`;
+        const matchIds = s.matches.map(m => `${m.id}(C${m.court})`).join(' · ');
         html += `<div class="sim-row" style="background:${overBook ? '#fef2f2' : c.bg}; border:${rowBorder}; flex-wrap:wrap; gap:4px;">
             <span class="round-num" style="color:${overBook ? '#dc2626' : c.text};">${c.icon} ${s.label}</span>
-            <span class="matches-info">${s.matches} · ${s.courts} Court${s.courts > 1 ? 's' : ''}</span>
-            <span class="time-info">${formatMin(s.start)} – ${formatMin(endSlot)}${overBook ? ' ⚠️' : ''}</span>
+            <span class="matches-info">${matchIds} · ${s.courtsUsed} Court${s.courtsUsed > 1 ? 's' : ''}</span>
+            <span class="time-info">${formatMin(s.startMin)} – ${formatMin(s.endMin)}${overBook ? ' ⚠️' : ''}</span>
         </div>`;
     });
 
-    // Player / match check
+    const slotDur = matchTime + pause;
     html += `<div style="margin-top:12px; padding:10px 14px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; font-size:11px; color:#166534; font-weight:600;">
-        ✅ <strong>Spieler-Check OK</strong> · Jedes Team spielt genau 4× (Vorrunde + R1 + HF + Finale) · Pausen gleichmäßig je ${slotDur} Min zwischen Runden
+        ✅ <strong>Spieler-Check OK</strong> · Jedes Team spielt genau 4× (Vorrunde + R1 + HF + Finale) · Pausen je ${slotDur} Min zwischen Runden
     </div>`;
 
     html += `<div style="margin-top:12px; padding:14px; background:white; border:1.5px solid #e2e8f0; border-radius:10px;">
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:12px; text-align:center;">
-            <div>
-                <p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Gesamtdauer</p>
-                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:${fitsInBooking ? 'var(--blue)' : 'var(--red)'};">${Math.floor(totalDuration/60)}h ${totalDuration%60}m</p>
-            </div>
-            <div>
-                <p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Ende ca.</p>
-                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:var(--slate);">${formatMin(endMin)}</p>
-            </div>
-            <div>
-                <p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Buchung bis</p>
-                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:${fitsInBooking ? 'var(--green)' : 'var(--red)'};">${formatMin(bookingEndMin)}</p>
-            </div>
-            <div>
-                <p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Puffer</p>
-                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:${fitsInBooking ? (diff < 10 ? 'var(--amber)' : 'var(--green)') : 'var(--red)'};">${fitsInBooking ? '+' + diff : diff} Min</p>
-            </div>
-            <div>
-                <p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Spiele</p>
-                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:var(--amber);">11</p>
-            </div>
+            <div><p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Gesamtdauer</p>
+                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:${fits ? 'var(--blue)' : 'var(--red)'};">${Math.floor(totalDuration/60)}h ${totalDuration%60>0?totalDuration%60+'m':''}</p></div>
+            <div><p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Ende ca.</p>
+                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:var(--slate);">${formatMin(totalEndMin)}</p></div>
+            <div><p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Buchung bis</p>
+                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:${fits ? 'var(--green)' : 'var(--red)'};">${formatMin(bookingEndMin)}</p></div>
+            <div><p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Puffer</p>
+                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:${fits ? (diff<10?'var(--amber)':'var(--green)') : 'var(--red)'};">${fits?'+'+diff:diff} Min</p></div>
+            <div><p style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Spiele</p>
+                <p style="font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:var(--amber);">11</p></div>
         </div>
     </div>
-
     <div style="margin-top:12px; padding:12px; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; font-size:11px; color:#1e40af; line-height:1.8;">
         <strong>Platzierungen:</strong>
-        Finale-Sieger → 🥇 P1 · Finale-Verlierer → 🥈 P2 ·
-        Kl.Finale-Sieger → 🥉 P3 · Kl.Finale-Verlierer → P4 ·
-        Cons.Finale-Sieger → P5 · Cons.Finale-Verlierer → P6 ·
-        Cons.Kl.Finale-Sieger → P7 · Cons.Kl.Finale-Verlierer → P8
+        FINALE-Sieger → 🥇 P1 · FINALE-Verlierer → 🥈 P2 ·
+        KLF-Sieger → 🥉 P3 · KLF-Verlierer → P4 ·
+        CF-Sieger → P5 · CF-Verlierer → P6 ·
+        CKF-Sieger → P7 · CKF-Verlierer → P8
     </div>`;
 
     document.getElementById('ko8Simulation').innerHTML = html;
