@@ -1187,7 +1187,7 @@ async function runOptimization(){
         const balancePause=plays.map((p,i)=>({i,p})).filter(x=>x.p>minPlays).map(x=>x.i);
         bestSchedule.push({id:bestSchedule.length+1,time:nextTime,isBalance:true,matches:balanceMatches,pause:balancePause});
     } else {
-        bestSchedule.push({id:bestSchedule.length+1,time:nextTime,isFinale:true,matches:[{court:1,team1:['PLATZ1','PLATZ4'],team2:['PLATZ2','PLATZ3']}],pause:[]});
+        bestSchedule.push({id:bestSchedule.length+1,time:nextTime,isFinale:true,finaleMode:'P1+P4_vs_P2+P3',matches:[],pause:[]});
     }
     currentSchedule=bestSchedule;
     btn.disabled=false; txt.textContent='Plan bestmöglich mischen'; spin.classList.add('hidden');
