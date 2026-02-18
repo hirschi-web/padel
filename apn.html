@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>APN Padel Rechner</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    max-width: 900px;
+    margin: 40px auto;
+    background:#f5f6f7;
+}
+.card {
+    background:white;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+input, select {
+    padding:6px;
+    margin:4px;
+    width:90px;
+}
+.result {
+    font-size:18px;
+    font-weight:bold;
+}
+h2 { margin-top:0; }
+</style>
+</head>
+
+<body>
+
+<h1>APN Live Rechner (Padel)</h1>
+
+<div class="card">
+<h2>Start APN</h2>
+<label>Mein APN:</label>
+<input id="me" type="number" step="0.01">
+
+<label>Partner APN:</label>
+<input id="partner" type="number" step="0.01">
+
+<br><br>
+
+<label>Kgb:</label>
+<input id="kgb" type="number" step="0.01" value="0.02">
+
+<label>Kvb:</label>
+<input id="kvb" type="number" step="0.01" value="0.01">
+
+<label>Kgs:</label>
+<input id="kgs" type="number" step="0.01" value="0.01">
+
+<label>Kvs:</label>
+<input id="kvs" type="number" step="0.01" value="0.02">
+</div>
+
+<div id="games"></div>
+
+<div class="card result">
+Aktueller APN:<br>
+Ich: <span id="meResult">-</span><br>
+Partner: <span id="partnerResult">-</span>
+</div>
+
+<script>
+
+let gamesContainer = document.getElementById("games");
+
+for(let i=1;i<=4;i++){
+    gamesContainer.innerHTML += `
+    <div class="card">
+        <h2>Spiel ${i}</h2>
+
+        Gegner 1 APN:
+        <input class="opp1">
+
+        Gegner 2 APN:
+        <input class="opp2">
+
+        Ergebnis:
+        <select class="resultSelect">
+            <option value="">--</option>
+            <option value="win">Sieg</option>
+            <option value="loss">Niederlage</option>
+        </select>
+    </div>`;
+}
+
+document.addEventListener("input", calculate);
+document.addEventListener("change", calculate);
+
+function calculate(){
+
+    let S1 = parseFloat(me.value);
+    let S2 = parseFloat(partner.value);
+
+    if(isNaN(S1) || isNaN(S2)) return;
+
+    let Kgb = parseFloat(kgb.value);
+    let Kvb = parseFloat(kvb.value);
+    let Kgs = parseFloat(kgs.value);
+    let Kvs = parseFloat(kvs.value);
+
+    let opp1 = document.querySelectorAll(".opp1");
+    let opp2 = document.querySelectorAll(".opp2");
+    let results = document.querySelectorAll(".resultSelect");
+
+    let myAPN = S1;
+    let partnerAPN = S2;
+
+    for(let i=0;i<4;i++){
+
+        let S3 = parseFloat(opp1[i].value);
+        let S4 = parseFloat(opp2[i].value);
+        let res = results[i].value;
+
+        if(isNaN(S3) || isNaN(S4) || res==="") continue;
+
+        let A = (myAPN + partnerAPN)/2;
+        let B = (S3 + S4)/2;
+
+        let d = Math.abs(A - B);
+        if(d < 1) d = 1;
+
+        let win = (res === "win");
+
+        if(A > B){ // wir besser
+            if(win){
+                myAPN += Kgs/d;
+                partnerAPN += Kgs/d;
+            } else {
+                myAPN -= Kvs/d;
+                partnerAPN -= Kvs/d;
+            }
+        } else { // wir schlechter
+            if(win){
+                myAPN += d*Kgb;
+                partnerAPN += d*Kgb;
+            } else {
+                myAPN -= d*Kvb;
+                partnerAPN -= d*Kvb;
+            }
+        }
+    }
+
+    meResult.textContent = myAPN.toFixed(3);
+    partnerResult.textContent = partnerAPN.toFixed(3);
+}
+
+</script>
+
+</body>
+</html>
