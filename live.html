@@ -150,10 +150,27 @@ async function loadTournament(){
         document.getElementById('offlineWarning').style.display='none';
         
         const pw=tournamentData.password||tournamentData.pw||null;
-        if(pw===null||pw===undefined||sessionStorage.getItem('isAdmin_'+tournamentId)==='true'){
-            isEditing=true;sessionStorage.setItem('isAdmin_'+tournamentId,'true');
-            document.getElementById('editToggle').innerText='✏️ Bearbeiten';
-        }else{isEditing=false;document.getElementById('editToggle').innerText='🔒 Bearbeiten'}
+        const wasUnlocked=sessionStorage.getItem('isAdmin_'+tournamentId)==='true';
+        
+        if(pw===null||pw===undefined){
+            // Kein PW → standardmäßig LOCKED, User muss entsperren
+            if(wasUnlocked){
+                isEditing=true;
+                document.getElementById('editToggle').innerText='✏️ Bearbeiten';
+            }else{
+                isEditing=false;
+                document.getElementById('editToggle').innerText='🔓 Bearbeiten';
+            }
+        }else{
+            // PW vorhanden → nur unlocked wenn sessionStorage sagt true
+            if(wasUnlocked){
+                isEditing=true;
+                document.getElementById('editToggle').innerText='✏️ Bearbeiten';
+            }else{
+                isEditing=false;
+                document.getElementById('editToggle').innerText='🔒 Bearbeiten';
+            }
+        }
         
         renderAll();
     }catch(e){
@@ -233,10 +250,19 @@ function toggleEdit(){
     if(!isEditing){
         if(pw!==null&&pw!==undefined){
             const inp=prompt('Passwort eingeben:');
-            if(inp&&inp===pw){isEditing=true;sessionStorage.setItem('isAdmin_'+tournamentId,'true');document.getElementById('editToggle').innerText='✏️ Bearbeiten';renderAll()}
+            if(inp===null)return; // Abbruch → nichts tun
+            if(inp===pw){isEditing=true;sessionStorage.setItem('isAdmin_'+tournamentId,'true');document.getElementById('editToggle').innerText='✏️ Bearbeiten';renderAll()}
             else{showToast('❌ Falsches Passwort','error');return}
-        }else{isEditing=true;sessionStorage.setItem('isAdmin_'+tournamentId,'true');document.getElementById('editToggle').innerText='✏️ Bearbeiten';renderAll()}
-    }else{isEditing=false;sessionStorage.removeItem('isAdmin_'+tournamentId);document.getElementById('editToggle').innerText='🔒 Bearbeiten';renderAll()}
+        }else{
+            // Kein PW → direkt entsperren
+            isEditing=true;sessionStorage.setItem('isAdmin_'+tournamentId,'true');document.getElementById('editToggle').innerText='✏️ Bearbeiten';renderAll()
+        }
+    }else{
+        // Sperren
+        isEditing=false;sessionStorage.removeItem('isAdmin_'+tournamentId);
+        document.getElementById('editToggle').innerText=pw?'🔒 Bearbeiten':'🔓 Bearbeiten';
+        renderAll()
+    }
 }
 
 function onInputFocus(){isTyping=true;clearTimeout(typingTimeout)}
@@ -314,6 +340,7 @@ function showToast(msg,type='info'){
 }
 
 function renderAll(){
+    fillFinaleMatches();
     const area=document.getElementById('matchesArea');
     const isTeam=tournamentData.isTeam||tournamentData.type==='team';
     const focus=document.getElementById('playerFocus').value;
@@ -357,6 +384,43 @@ function renderAll(){
     });
     area.innerHTML=html;
     updateRanking();
+}
+
+function calculateQualificationRanking(){
+    const isTeam=tournamentData.isTeam||tournamentData.type==='team';
+    let stats=[];
+    if(isTeam){for(let i=0;i<tournamentData.p.length;i+=2)stats.push({name:`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`,ids:[i,i+1],points:0,diff:0,wins:0,losses:0,played:0,history:[]})}
+    else{stats=tournamentData.p.map((n,i)=>({name:n,ids:[i],points:0,diff:0,wins:0,losses:0,played:0,history:[]}))}
+    const qualRounds=tournamentData.s_new.filter(r=>!r.isFinale&&!r.isBalance);
+    qualRounds.forEach(r=>{
+        r.matches.forEach(m=>{
+            if(m.score&&m.score[0]!==""&&m.score[0]!==null){
+                const s1=parseInt(m.score[0])||0,s2=parseInt(m.score[1])||0;
+                const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
+                const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
+                stats.forEach(e=>{
+                    if(e.ids.some(id=>m.team1.includes(id))){e.points+=s1;e.diff+=(s1-s2);e.played++;if(s1>s2)e.wins++;else if(s1<s2)e.losses++;e.history.push({opp:t2N,scored:s1,conceded:s2,diff:s1-s2})}
+                    if(e.ids.some(id=>m.team2.includes(id))){e.points+=s2;e.diff+=(s2-s1);e.played++;if(s2>s1)e.wins++;else if(s2<s1)e.losses++;e.history.push({opp:t1N,scored:s2,conceded:s1,diff:s2-s1})}
+                })
+            }
+        })
+    });
+    stats.sort((a,b)=>b.points-a.points||b.diff-a.diff);
+    return stats;
+}
+
+function fillFinaleMatches(){
+    tournamentData.s_new.forEach(r=>{
+        if(!r.isFinale)return;
+        const needsFill=r.matches.length===0||typeof r.matches[0]?.team1[0]==='string';
+        if(!needsFill)return;
+        const qualStats=calculateQualificationRanking();
+        const top4=qualStats.slice(0,4);
+        if(top4.length>=4){
+            const existingScore=r.matches[0]?.score||["",""];
+            r.matches=[{court:1,team1:[top4[0].ids[0],top4[3].ids[0]],team2:[top4[1].ids[0],top4[2].ids[0]],score:existingScore}];
+        }
+    });
 }
 
 function updateRanking(){
@@ -423,6 +487,7 @@ function updateBot(stats,totalMatches,playedMatches,focus){
         L.push(`<div style="font-size:16px;font-weight:700;margin-bottom:10px">Aktuell: Platz <span style="color:var(--bot-accent)">#${myRank}</span></div>`);
         L.push(`<div style="margin-bottom:12px">${me.points} Punkte · ${me.wins} Siege · ${me.losses} Niederlagen · Diff ${me.diff>0?'+':''}${me.diff}</div>`);
         
+        const isTeam=tournamentData.isTeam||tournamentData.type==='team';
         const last3=me.history.slice(-3);
         if(last3.length>0){
             L.push(`<div style="display:flex;gap:6px;margin-bottom:12px">`);
@@ -432,7 +497,7 @@ function updateBot(stats,totalMatches,playedMatches,focus){
             });
             L.push('</div>');
             const form=last3.filter(g=>g.diff>0).length>=2?'🔥 Stark':last3.filter(g=>g.diff>0).length===1?'📊 Solide':'📉 Schwach';
-            L.push(`<div style="font-size:13px;margin-bottom:10px">${form}</div>`);
+            L.push(`<div style="font-size:13px;margin-bottom:10px">${isTeam?'Eure':'Deine'} Form: ${form}</div>`);
         }
         
         const next=stats.find(s=>s.name!==focus&&!me.history.some(h=>h.opp===s.name));
@@ -443,7 +508,7 @@ function updateBot(stats,totalMatches,playedMatches,focus){
             L.push(`<div style="border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
                 <div style="font-size:13px;margin-bottom:6px">⚔️ Nächster Gegner: <strong>${next.name}</strong></div>
                 <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${next.points} Pkt · ${next.wins}W/${next.losses}L · Diff ${next.diff>0?'+':''}${next.diff}</div>
-                <div style="font-size:13px">Form: ${nextForm}</div>
+                <div style="font-size:13px">${isTeam?'Deren':'Ihre'} Form: ${nextForm}</div>
             </div>`)
         }
     }
