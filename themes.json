@@ -26,6 +26,61 @@
         "scoreBg": "#f1f5f9"
       }
     },
+
+{
+  "id": "slate-night",
+  "name": "Slate Night",
+  "desc": "Deep Black · Fokus auf Kontrast",
+  "vars": {
+    "bg": "#020617",
+    "bgCard": "#0f172a",
+    "bgCardSolid": "#1e293b",
+    "border": "#334155",
+    "text": "#f8fafc",
+    "textMuted": "#94a3b8",
+    "textDim": "#64748b",
+    "accent": "#8b5cf6",
+    "accentGlow": "rgba(139,92,246,0.3)",
+    "gold": "#fbbf24",
+    "green": "#10b981",
+    "red": "#f43f5e",
+    "headerBg": "#020617",
+    "headerText": "#f8fafc",
+    "botBg": "#000000",
+    "botText": "#f8fafc",
+    "botAccent": "#a78bfa",
+    "rankGold": "rgba(251,191,36,0.1)",
+    "scoreBg": "#1e293b"
+  }
+},
+
+{
+  "id": "ember",
+  "name": "Midnight Ember",
+  "desc": "Anthrazit + Bernstein · Warm & Modern",
+  "vars": {
+    "bg": "#111111",
+    "bgCard": "#1c1c1c",
+    "bgCardSolid": "#262626",
+    "border": "#3f3f46",
+    "text": "#fafafa",
+    "textMuted": "#a1a1aa",
+    "textDim": "#71717a",
+    "accent": "#f59e0b",
+    "accentGlow": "rgba(245,158,11,0.25)",
+    "gold": "#fbbf24",
+    "green": "#22c55e",
+    "red": "#ef4444",
+    "headerBg": "#111111",
+    "headerText": "#fafafa",
+    "botBg": "#000000",
+    "botText": "#ffffff",
+    "botAccent": "#fbbf24",
+    "rankGold": "rgba(245,158,11,0.15)",
+    "scoreBg": "#262626"
+  }
+},
+    
     {
       "id": "navy",
       "name": "Navy Semi-Dark",
