@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Padel Hirsch – Live</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#1e293b;--bg-card:#334155;--bg-card-solid:#475569;--border:#475569;--text:#f1f5f9;--text-muted:#94a3b8;--text-dim:#64748b;--accent:#60a5fa;--accent-glow:rgba(96,165,250,0.2);--gold:#fbbf24;--green:#4ade80;--red:#f87171;--header-bg:#1e293b;--header-text:#f1f5f9;--bot-bg:#0f172a;--bot-text:#e2e8f0;--bot-accent:#60a5fa;--rank-gold:rgba(251,191,36,0.15);--score-bg:#475569;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
+        }
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;padding-top:calc(var(--safe-top) + 8px);padding-bottom:calc(var(--safe-bottom) + 160px);overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+        .container{max-width:430px;margin:0 auto;padding:0 18px;position:relative;z-index:1}
+        .card{background:var(--bg-card);border:1.5px solid var(--border);border-radius:18px;transition:all .3s}
+        .card-solid{background:var(--bg-card-solid);border:1.5px solid var(--border);border-radius:18px}
+        .card-focus{border-color:var(--accent)!important;box-shadow:0 0 0 2px var(--accent-glow);transform:scale(1.01)}
+        .score-box{width:56px;height:56px;text-align:center;border-radius:12px;font-family:Space Mono,monospace;font-weight:700;font-size:22px;color:var(--text);background:var(--score-bg);border:2px solid var(--border);transition:all .25s;-webkit-appearance:none;-moz-appearance:textfield}
+        .score-box::-webkit-inner-spin-button,.score-box::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+        .score-box:disabled{opacity:1}
+        .is-editing .score-box:not(:disabled){background:var(--accent-glow);border-color:var(--accent);box-shadow:0 0 16px var(--accent-glow)}
+        .text-focus{color:var(--gold)!important;font-weight:800}
+        .rank-gold{background:var(--rank-gold)!important}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .anim-in{animation:fadeUp .4s ease-out both}
+        .spin{animation:spin 1s linear infinite}
+        .focus-select{width:100%;padding:14px 16px;background:var(--bg-card-solid);border:1.5px solid var(--border);border-radius:14px;font-family:Outfit,sans-serif;font-weight:700;font-size:14px;color:var(--text);outline:0;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position:right 14px center;background-repeat:no-repeat;background-size:18px;transition:border-color .2s}
+        .focus-select:focus{border-color:var(--accent)}
+        .toast{position:fixed;bottom:calc(var(--safe-bottom) + 28px);left:50%;transform:translateX(-50%) translateY(80px);z-index:999;transition:transform .4s,opacity .4s;opacity:0;pointer-events:none}
+        .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+        .bot-card{background:var(--bot-bg);border:1.5px solid var(--border);border-radius:20px;overflow:hidden;position:relative;padding:20px}
+        .theme-btn{padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;font-family:Outfit,sans-serif}
+        .theme-btn:hover{border-color:var(--accent)}
+        .theme-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .round-time{font-size:12px;font-weight:700;color:var(--text-muted);font-family:Space Mono,monospace}
+        .header-btn{padding:10px 16px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text);font-size:13px;font-weight:800;cursor:pointer;font-family:Outfit,sans-serif;transition:all .2s}
+        .header-btn:hover{border-color:var(--accent)}
+        .header-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    </style>
+</head>
+<body>
+<div class="container">
+
+<div id="offlineWarning" style="display:none;background:#fbbf24;color:#000;padding:12px;border-radius:12px;margin-bottom:12px;font-size:13px;font-weight:700">⚠️ Offline-Modus · Daten aus Backup · Wird synchronisiert sobald online</div>
+
+<header class="flex justify-between items-center pt-4 pb-2 anim-in" style="background:var(--header-bg);margin:0 -18px;padding:16px 18px;border-radius:0 0 20px 20px">
+<div class="flex items-center gap-3">
+<svg width="40" height="40" viewBox="0 0 200 200"><defs><radialGradient id="bg" cx="50%" cy="45%" r="50%"><stop offset="0%" stop-color="#1e3a6e"/><stop offset="100%" stop-color="#0f172a"/></radialGradient><linearGradient id="rk" x1="30%" y1="0%" x2="70%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient><linearGradient id="an" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#93c5fd"/></linearGradient><filter id="gl"><feGaussianBlur stdDeviation="3"/></filter><clipPath id="rc"><ellipse cx="100" cy="88" rx="34" ry="38"/></clipPath></defs><circle cx="100" cy="100" r="96" fill="url(#bg)"/><ellipse cx="100" cy="88" rx="34" ry="38" fill="url(#rk)" stroke="#60a5fa" stroke-width="1.5" transform="rotate(-4 100 88)"/><ellipse cx="100" cy="88" rx="27" ry="31" fill="#1e3a6e" opacity=".6" transform="rotate(-4 100 88)"/><g clip-path="url(#rc)" opacity=".35" stroke="#93c5fd" stroke-width=".8" fill="none"><line x1="82" y1="50" x2="82" y2="126"/><line x1="100" y1="50" x2="100" y2="126"/><line x1="118" y1="50" x2="118" y2="126"/><line x1="66" y1="88" x2="134" y2="88"/><line x1="66" y1="108" x2="134" y2="108"/></g><rect x="95" y="124" width="10" height="36" rx="4" fill="#1d4ed8" stroke="#60a5fa"/><rect x="93" y="158" width="14" height="5" rx="2.5" fill="#2563eb" stroke="#60a5fa"/><path d="M100 52 L100 36" stroke="url(#an)" stroke-width="3.5" stroke-linecap="round" fill="none" filter="url(#gl)"/><path d="M100 36 C98 32 93 28 88 22" stroke="url(#an)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#gl)"/><path d="M88 22 C85 18 82 15 80 11" stroke="url(#an)" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#gl)"/><path d="M100 36 C102 32 107 28 112 22" stroke="url(#an)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#gl)"/><path d="M112 22 C115 18 118 15 120 11" stroke="url(#an)" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#gl)"/><circle cx="124" cy="72" r="6" fill="#fbbf24" stroke="#f59e0b"/></svg>
+<div><div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase">Padel Hirsch</div><h1 id="tournamentTitle" style="font-size:18px;font-weight:900;color:var(--header-text);text-transform:uppercase;line-height:1">Lade...</h1></div>
+</div>
+<div style="display:flex;gap:8px">
+<button id="refreshBtn" onclick="manualRefresh()" class="header-btn" title="Aktualisieren"><span id="refreshIcon">🔄</span></button>
+<button id="editToggle" onclick="toggleEdit()" class="header-btn primary">🔒 Bearbeiten</button>
+</div>
+</header>
+
+<div style="margin-top:20px" class="anim-in">
+<label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;display:block">🎯 Fokus wählen</label>
+<select id="playerFocus" class="focus-select" onchange="saveFocus()"><option value="">Alle anzeigen</option></select>
+</div>
+
+<div id="matchesArea" class="mt-6"></div>
+
+<div class="mt-8 anim-in">
+<h2 style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">🏆 Ranking</h2>
+<div class="card-solid"><table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1.5px solid var(--border)"><th style="padding:12px 16px;text-align:left;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase">#</th><th style="padding:12px 10px;text-align:left;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Team</th><th style="padding:12px 10px;text-align:center;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase">W/L</th><th style="padding:12px 10px;text-align:center;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Pkt</th><th style="padding:12px 16px;text-align:center;font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Diff</th></tr></thead><tbody id="rankingTable"></tbody></table></div>
+</div>
+
+<div class="mt-8 anim-in">
+<h2 style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">🤖 Hirsch KI · Analyse</h2>
+<div class="bot-card"><div id="botText" style="font-size:14px;line-height:1.6;color:var(--bot-text);min-height:60px"></div><p id="botStatus" style="font-size:11px;color:var(--text-muted);margin-top:12px">Standby</p></div>
+</div>
+
+<div class="mt-8 anim-in">
+<h2 style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">🎨 Design wählen</h2>
+<div id="themeButtons" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+</div>
+
+<div class="mt-6 anim-in" style="text-align:center;padding:16px;background:var(--bg-card);border:1.5px solid var(--border);border-radius:16px">
+<p style="font-size:12px;color:var(--text-muted)">📧 Fragen? Kontakt:</p>
+<a href="mailto:hirschi77@gmail.com" style="font-size:14px;font-weight:700;color:var(--accent);text-decoration:none">hirschi77@gmail.com</a>
+</div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div id="floatingBtn" onclick="saveAllDirty()" style="display:none;position:fixed;bottom:calc(var(--safe-bottom) + 80px);left:50%;transform:translateX(-50%);z-index:1000;background:var(--accent);color:#fff;padding:16px 28px;border-radius:16px;font-size:15px;font-weight:800;box-shadow:0 8px 32px rgba(0,0,0,.3);cursor:pointer;transition:all .3s">💾 Speichern (0)</div>
+
+<script>
+const SB_URL="https://vjcvchczbyvhweiwrunp.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
+const supabaseClient=supabase.createClient(SB_URL,SB_KEY);
+
+let tournamentId,tournamentData,isEditing=false,themes=[];
+let isTyping=false,typingTimeout=null,isSaving=false,realtimeConnected=false;
+let pendingSaves=[],pollInterval=null,retryInterval=null,dirtyMatches=new Set();
+
+function parseTournamentId(){const p=new URLSearchParams(window.location.search);return p.get('id')||p.get('name')||null}
+
+async function init(){
+    tournamentId=parseTournamentId();
+    if(!tournamentId){document.getElementById('tournamentTitle').innerText='Fehler: Keine Turnier-ID';return}
+    await loadThemes();
+    await loadTournament();
+    setupFocus();
+    setupRealtime();
+    setupVisibility();
+    setTimeout(()=>{if(!realtimeConnected){console.warn('[Init] Realtime timeout, starte Polling');startPolling()}},60000);
+}
+
+async function loadThemes(){
+    try{
+        const r=await fetch('themes.json');
+        const d=await r.json();
+        themes=d.themes||[];
+        const current=localStorage.getItem('theme')||'navy';
+        renderThemeButtons(current);
+        applyTheme(current);
+    }catch(e){console.warn('themes.json fehlt, nutze navy');applyTheme('navy')}
+}
+
+function renderThemeButtons(current){
+    const area=document.getElementById('themeButtons');
+    if(!themes.length)return;
+    area.innerHTML=themes.map(t=>`<button class="theme-btn ${t.id===current?'active':''}" onclick="switchTheme('${t.id}')">${t.name}<br><span style="font-size:10px;opacity:.7">${t.desc}</span></button>`).join('');
+}
+
+function switchTheme(id){localStorage.setItem('theme',id);applyTheme(id);renderThemeButtons(id)}
+
+function applyTheme(id){
+    const t=themes.find(x=>x.id===id);
+    if(!t)return;
+    Object.entries(t.vars).forEach(([k,v])=>{
+        const cssVar=k.replace(/([A-Z])/g,'-$1').toLowerCase();
+        document.documentElement.style.setProperty('--'+cssVar,v);
+    });
+}
+
+async function loadTournament(){
+    try{
+        const{data,error}=await supabaseClient.from('tournaments').select('*').eq('id',tournamentId);
+        
+        if(error)throw error;
+        if(!data||!data[0]){showToast('Turnier nicht gefunden','error');return}
+        
+        // Check expiry date
+        if(data[0].expiry_date){
+            const expiry=new Date(data[0].expiry_date);
+            if(expiry<new Date()){
+                document.getElementById('matchesArea').innerHTML='<div style="text-align:center;padding:60px 20px"><div style="font-size:48px;margin-bottom:16px">⏰</div><div style="font-size:18px;font-weight:700;margin-bottom:8px">Turnier abgelaufen</div><div style="color:var(--text-muted)">Dieses Turnier ist nicht mehr verfügbar</div></div>';
+                return;
+            }
+        }
+        
+        // Check tournament type and route
+        const tournamentType=data[0].tournament_type||'roundrobin';
+        
+        if(tournamentType==='knockout'){
+            initKnockout(data[0]);
+            return;
+        }
+        
+        // Round-Robin (default)
+        if(error||!data||!data[0])throw new Error('Nicht gefunden');
+        tournamentData=data[0].data;
+        document.getElementById('tournamentTitle').innerText=data[0].id.toUpperCase();
+        document.getElementById('offlineWarning').style.display='none';
+        
+        const pw=tournamentData.password||tournamentData.pw||null;
+        const wasUnlocked=sessionStorage.getItem('isAdmin_'+tournamentId)==='true';
+        
+        if(pw===null||pw===undefined){
+            // Kein PW → standardmäßig LOCKED, User muss entsperren
+            if(wasUnlocked){
+                isEditing=true;
+                document.getElementById('editToggle').innerText='✏️ Bearbeiten';
+            }else{
+                isEditing=false;
+                document.getElementById('editToggle').innerText='🔓 Bearbeiten';
+            }
+        }else{
+            // PW vorhanden → nur unlocked wenn sessionStorage sagt true
+            if(wasUnlocked){
+                isEditing=true;
+                document.getElementById('editToggle').innerText='✏️ Bearbeiten';
+            }else{
+                isEditing=false;
+                document.getElementById('editToggle').innerText='🔒 Bearbeiten';
+            }
+        }
+        
+        renderAll();
+    }catch(e){
+        console.error('DB Load failed:',e);
+        const backup=localStorage.getItem('backup_'+tournamentId);
+        if(backup){
+            const cached=JSON.parse(backup);
+            tournamentData=cached.data;
+            document.getElementById('tournamentTitle').innerText='OFFLINE';
+            document.getElementById('offlineWarning').style.display='block';
+            renderAll();
+        }else{
+            document.getElementById('tournamentTitle').innerText='Fehler beim Laden';
+            showToast('❌ Keine Verbindung und kein Backup','error');
+        }
+    }
+}
+
+function setupFocus(){
+    const sel=document.getElementById('playerFocus');
+    const saved=localStorage.getItem('focus_'+tournamentId);
+    if(tournamentData.isTeam||tournamentData.type==='team'){
+        for(let i=0;i<tournamentData.p.length;i+=2){
+            const n=`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`;
+            sel.add(new Option(n,n));
+        }
+    }else{tournamentData.p.forEach(n=>sel.add(new Option(n,n)))}
+    if(saved)sel.value=saved;
+}
+
+function saveFocus(){
+    const v=document.getElementById('playerFocus').value;
+    if(v)localStorage.setItem('focus_'+tournamentId,v);
+    else localStorage.removeItem('focus_'+tournamentId);
+    renderAll();
+}
+
+function setupRealtime(){
+    supabaseClient.channel('t-'+tournamentId).on('postgres_changes',{event:'UPDATE',schema:'public',table:'tournaments',filter:`id=eq.${tournamentId}`},async(payload)=>{
+        realtimeConnected=true;
+        tournamentData=payload.new.data;
+        if(!isTyping&&!isSaving){renderAll()}
+        else{console.log('[Realtime] Update pending, user typing');setTimeout(()=>{if(!isTyping&&!isSaving)renderAll()},3000)}
+    }).subscribe(status=>{if(status==='SUBSCRIBED'){realtimeConnected=true;console.log('[Realtime] Connected')}});
+}
+
+function setupVisibility(){
+    document.addEventListener('visibilitychange',async()=>{if(!document.hidden)await safeRefresh('Visibility')});
+}
+
+async function safeRefresh(source){
+    if(isTyping||isSaving){console.log(`[${source}] Blocked - typing/saving`);return false}
+    console.log(`[${source}] Refreshing`);
+    await loadTournament();
+    return true;
+}
+
+function startPolling(){
+    if(pollInterval)return;
+    console.log('[Polling] Started');
+    pollInterval=setInterval(async()=>{
+        if(realtimeConnected){console.log('[Polling] Realtime OK, skip');return}
+        await safeRefresh('Polling');
+    },30000);
+}
+
+async function manualRefresh(){
+    const icon=document.getElementById('refreshIcon');
+    icon.classList.add('spin');
+    await loadTournament();
+    setTimeout(()=>icon.classList.remove('spin'),1000);
+    showToast('✓ Aktualisiert','success');
+}
+
+function toggleEdit(){
+    const pw=tournamentData.password||tournamentData.pw||null;
+    if(!isEditing){
+        if(pw!==null&&pw!==undefined){
+            const inp=prompt('Passwort eingeben:');
+            if(inp===null)return; // Abbruch → nichts tun
+            if(inp===pw){isEditing=true;sessionStorage.setItem('isAdmin_'+tournamentId,'true');document.getElementById('editToggle').innerText='✏️ Bearbeiten';renderAll()}
+            else{showToast('❌ Falsches Passwort','error');return}
+        }else{
+            // Kein PW → direkt entsperren
+            isEditing=true;sessionStorage.setItem('isAdmin_'+tournamentId,'true');document.getElementById('editToggle').innerText='✏️ Bearbeiten';renderAll()
+        }
+    }else{
+        // Sperren
+        isEditing=false;sessionStorage.removeItem('isAdmin_'+tournamentId);
+        document.getElementById('editToggle').innerText=pw?'🔒 Bearbeiten':'🔓 Bearbeiten';
+        renderAll()
+    }
+}
+
+function onInputFocus(){isTyping=true;clearTimeout(typingTimeout)}
+function onInputBlur(){typingTimeout=setTimeout(()=>isTyping=false,1000)}
+function onInputChange(){isTyping=true;clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>isTyping=false,5000)}
+
+function onScoreInput(rIdx,mIdx){
+    onInputChange();
+    dirtyMatches.add(`${rIdx}-${mIdx}`);
+    updateFloatingButton();
+}
+
+function updateFloatingButton(){
+    const btn=document.getElementById('floatingBtn');
+    if(dirtyMatches.size>0){
+        btn.innerHTML=`💾 Speichern (${dirtyMatches.size})`;
+        btn.style.display='block';
+    }else{btn.style.display='none'}
+}
+
+async function saveAllDirty(){
+    if(dirtyMatches.size===0)return;
+    isSaving=true;
+    const saves=Array.from(dirtyMatches);
+    
+    for(const key of saves){
+        const[rIdx,mIdx]=key.split('-').map(Number);
+        const v0=document.getElementById(`s-${rIdx}-${mIdx}-0`).value.trim();
+        const v1=document.getElementById(`s-${rIdx}-${mIdx}-1`).value.trim();
+        
+        if(!v0&&!v1){tournamentData.s_new[rIdx].matches[mIdx].score=["",""]}
+        else{
+            const s0=parseInt(v0)||0,s1=parseInt(v1)||0;
+            tournamentData.s_new[rIdx].matches[mIdx].score=[String(s0),String(s1)];
+        }
+    }
+    
+    localStorage.setItem('backup_'+tournamentId,JSON.stringify({data:tournamentData,timestamp:Date.now()}));
+    
+    try{
+        await supabaseClient.from('tournaments').update({data:tournamentData}).eq('id',tournamentId);
+        dirtyMatches.clear();
+        updateFloatingButton();
+        renderAll();
+        showToast('💾 Alle Ergebnisse gespeichert','success');
+    }catch(e){
+        pendingSaves.push({data:JSON.parse(JSON.stringify(tournamentData)),retries:0});
+        showToast('⚠️ Offline - wird synchronisiert','warning');
+        startRetryQueue();
+    }finally{isSaving=false}
+}
+
+function startRetryQueue(){
+    if(retryInterval)return;
+    retryInterval=setInterval(async()=>{
+        if(pendingSaves.length===0){clearInterval(retryInterval);retryInterval=null;return}
+        const save=pendingSaves[0];
+        try{
+            await supabaseClient.from('tournaments').update({data:save.data}).eq('id',tournamentId);
+            pendingSaves.shift();
+            showToast('✅ Synchronisiert','success');
+        }catch(e){
+            save.retries++;
+            if(save.retries>5){pendingSaves.shift();showToast('❌ Sync fehlgeschlagen - Backup gespeichert','error')}
+        }
+    },10000);
+}
+
+function showToast(msg,type='info'){
+    const toast=document.getElementById('toast');
+    const colors={success:'#4ade80',warning:'#fbbf24',error:'#f87171',info:'#60a5fa'};
+    toast.innerHTML=`<div style="background:${colors[type]};color:#000;padding:14px 20px;border-radius:14px;font-size:14px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.2)">${msg}</div>`;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),3000);
+}
+
+function renderAll(){
+    fillFinaleMatches();
+    const area=document.getElementById('matchesArea');
+    const isTeam=tournamentData.isTeam||tournamentData.type==='team';
+    const focus=document.getElementById('playerFocus').value;
+    const cls=isEditing?'is-editing':'';
+    
+    let html='';
+    tournamentData.s_new.forEach((r,rIdx)=>{
+        html+=`<div style="display:flex;align-items:center;gap:10px;margin:28px 0 14px"><span class="round-time">Runde ${r.id}${r.time?' · '+r.time:''}</span><div style="flex:1;height:1px;background:var(--border)"></div></div>`;
+        
+        r.matches.forEach((m,mIdx)=>{
+            const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
+            const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
+            const hasScore=m.score&&m.score[0]!==""&&m.score[0]!==null;
+            let focusPlayerIds=[];
+            if(focus){
+                if(isTeam){
+                    for(let i=0;i<tournamentData.p.length;i+=2){
+                        if(`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`===focus){
+                            focusPlayerIds=[i,i+1];
+                            break;
+                        }
+                    }
+                }else{
+                    const idx=tournamentData.p.findIndex(p=>p===focus);
+                    if(idx!==-1)focusPlayerIds=[idx];
+                }
+            }
+            const allMatchPlayers=[m.team1[0],m.team1[1],m.team2[0],m.team2[1]].filter(id=>id!==null&&id!==undefined);
+            const isFocus=focusPlayerIds.some(fid=>allMatchPlayers.includes(fid));
+            const chk=pIdx=>tournamentData.p[pIdx]===focus?'text-focus':'';
+            let w=0;
+            if(hasScore){const s1=parseInt(m.score[0])||0,s2=parseInt(m.score[1])||0;if(s1>s2)w=1;else if(s2>s1)w=2}
+            
+            html+=`<div class="card ${isFocus?'card-focus':''} ${cls}" style="padding:16px;margin-bottom:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                    <span style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Court ${m.court||(mIdx+1)}</span>
+                    ${hasScore?'<span style="font-size:16px">'+(w===1?'✅':w===2?'✅':'—')+'</span>':''}
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                    <div style="flex:1;text-align:left;${w===1?'opacity:1':'opacity:'+(w===2?'.4':'1')}">
+                        <div style="font-size:13px;font-weight:800;text-transform:uppercase;color:var(--text);line-height:1.3;${chk(m.team1[0])}">${m.team1[0]!==null&&m.team1[0]!==undefined?tournamentData.p[m.team1[0]]:"Virtuell"}</div>
+                        ${m.team1[1]!==undefined&&m.team1[1]!==null?`<div style="font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text-muted);line-height:1.3;${chk(m.team1[1])}">${tournamentData.p[m.team1[1]]||"Virtuell"}</div>`:''}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <input id="s-${rIdx}-${mIdx}-0" type="number" inputmode="numeric" value="${m.score?.[0]??''}" min="0" max="99" ${!isEditing?'disabled':''} onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onScoreInput(${rIdx},${mIdx})" class="score-box">
+                        <span style="font-size:18px;font-weight:700;color:var(--text-muted)">:</span>
+                        <input id="s-${rIdx}-${mIdx}-1" type="number" inputmode="numeric" value="${m.score?.[1]??''}" min="0" max="99" ${!isEditing?'disabled':''} onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onScoreInput(${rIdx},${mIdx})" class="score-box">
+                    </div>
+                    <div style="flex:1;text-align:right;${w===2?'opacity:1':'opacity:'+(w===1?'.4':'1')}">
+                        <div style="font-size:13px;font-weight:800;text-transform:uppercase;color:var(--text);line-height:1.3;${chk(m.team2[0])}">${m.team2[0]!==null&&m.team2[0]!==undefined?tournamentData.p[m.team2[0]]:"Virtuell"}</div>
+                        ${m.team2[1]!==undefined&&m.team2[1]!==null?`<div style="font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text-muted);line-height:1.3;${chk(m.team2[1])}">${tournamentData.p[m.team2[1]]||"Virtuell"}</div>`:''}
+                    </div>
+                </div>
+            </div>`;
+        });
+        
+        if(r.pause&&r.pause.length>0){
+            const pauseNames=r.pause.map(pIdx=>tournamentData.p[pIdx]).filter(Boolean).join(', ');
+            if(pauseNames){
+                html+=`<div style="padding:12px;background:var(--bg-card);border-radius:12px;margin-top:8px;border-left:3px solid var(--accent)"><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:700;letter-spacing:.06em">⏸️ Pause:</span><span style="font-size:13px;font-weight:700;color:var(--text);margin-left:8px">${pauseNames}</span></div>`;
+            }
+        }
+    });
+    area.innerHTML=html;
+    updateRanking();
+}
+
+function calculateQualificationRanking(){
+    const isTeam=tournamentData.isTeam||tournamentData.type==='team';
+    let stats=[];
+    if(isTeam){for(let i=0;i<tournamentData.p.length;i+=2)stats.push({name:`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`,ids:[i,i+1],points:0,diff:0,wins:0,losses:0,played:0,history:[]})}
+    else{stats=tournamentData.p.map((n,i)=>({name:n,ids:[i],points:0,diff:0,wins:0,losses:0,played:0,history:[]}))}
+    const qualRounds=tournamentData.s_new.filter(r=>!r.isFinale&&!r.isBalance);
+    qualRounds.forEach(r=>{
+        r.matches.forEach(m=>{
+            if(m.score&&m.score[0]!==""&&m.score[0]!==null){
+                const s1=parseInt(m.score[0])||0,s2=parseInt(m.score[1])||0;
+                const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
+                const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
+                stats.forEach(e=>{
+                    if(e.ids.some(id=>m.team1.includes(id))){e.points+=s1;e.diff+=(s1-s2);e.played++;if(s1>s2)e.wins++;else if(s1<s2)e.losses++;e.history.push({opp:t2N,scored:s1,conceded:s2,diff:s1-s2})}
+                    if(e.ids.some(id=>m.team2.includes(id))){e.points+=s2;e.diff+=(s2-s1);e.played++;if(s2>s1)e.wins++;else if(s2<s1)e.losses++;e.history.push({opp:t1N,scored:s2,conceded:s1,diff:s2-s1})}
+                })
+            }
+        })
+    });
+    stats.sort((a,b)=>b.points-a.points||b.diff-a.diff);
+    return stats;
+}
+
+function fillFinaleMatches(){
+    tournamentData.s_new.forEach(r=>{
+        if(!r.isFinale)return;
+        const needsFill=r.matches.length===0||typeof r.matches[0]?.team1[0]==='string';
+        if(!needsFill)return;
+        const qualStats=calculateQualificationRanking();
+        const top4=qualStats.slice(0,4);
+        if(top4.length>=4){
+            const existingScore=r.matches[0]?.score||["",""];
+            r.matches=[{court:1,team1:[top4[0].ids[0],top4[3].ids[0]],team2:[top4[1].ids[0],top4[2].ids[0]],score:existingScore}];
+        }
+    });
+}
+
+function updateRanking(){
+    const isTeam=tournamentData.isTeam||tournamentData.type==='team';
+    let stats=[];
+    if(isTeam){for(let i=0;i<tournamentData.p.length;i+=2)stats.push({name:`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`,ids:[i,i+1],points:0,diff:0,wins:0,losses:0,played:0,history:[]})}
+    else{stats=tournamentData.p.map((n,i)=>({name:n,ids:[i],points:0,diff:0,wins:0,losses:0,played:0,history:[]}))}
+    
+    let totalMatches=0,playedMatches=0;
+    tournamentData.s_new.forEach(r=>{
+        totalMatches+=r.matches.length;
+        r.matches.forEach(m=>{
+            if(m.score&&m.score[0]!==""&&m.score[0]!==null){
+                playedMatches++;
+                const s1=parseInt(m.score[0])||0,s2=parseInt(m.score[1])||0;
+                
+                if(r.isFinale){
+                    [m.team1[0],m.team1[1]].forEach(playerId=>{
+                        if(playerId===null||playerId===undefined)return;
+                        const team=stats.find(st=>st.ids.includes(playerId));
+                        if(team){
+                            team.points+=s1;team.diff+=(s1-s2);team.played++;
+                            if(s1>s2)team.wins++;else if(s1<s2)team.losses++;
+                            team.history.push({opp:"(Finale)",scored:s1,conceded:s2,diff:s1-s2});
+                        }
+                    });
+                    [m.team2[0],m.team2[1]].forEach(playerId=>{
+                        if(playerId===null||playerId===undefined)return;
+                        const team=stats.find(st=>st.ids.includes(playerId));
+                        if(team){
+                            team.points+=s2;team.diff+=(s2-s1);team.played++;
+                            if(s2>s1)team.wins++;else if(s2<s1)team.losses++;
+                            team.history.push({opp:"(Finale)",scored:s2,conceded:s1,diff:s2-s1});
+                        }
+                    });
+                }else{
+                    const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
+                    const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
+                    stats.forEach(e=>{
+                        if(e.ids.some(id=>m.team1.includes(id))){e.points+=s1;e.diff+=(s1-s2);e.played++;if(s1>s2)e.wins++;else if(s1<s2)e.losses++;e.history.push({opp:t2N,scored:s1,conceded:s2,diff:s1-s2})}
+                        if(e.ids.some(id=>m.team2.includes(id))){e.points+=s2;e.diff+=(s2-s1);e.played++;if(s2>s1)e.wins++;else if(s2<s1)e.losses++;e.history.push({opp:t1N,scored:s2,conceded:s1,diff:s2-s1})}
+                    })
+                }
+            }
+        })
+    });
+    
+    stats.sort((a,b)=>b.points-a.points||b.diff-a.diff);
+    const focus=document.getElementById('playerFocus').value;
+    
+    document.getElementById('rankingTable').innerHTML=stats.map((s,i)=>{
+        const isGold=i===0&&s.points>0;
+        const isFocus=s.name===focus;
+        return `<tr class="${isGold?'rank-gold':''} ${isFocus?'!bg-blue-500/10':''}" style="border-bottom:1.5px solid var(--border)">
+            <td style="padding:14px 16px;font-size:13px;font-weight:800;color:${isGold?'var(--gold)':'var(--text-muted)'}">${isGold?'👑':'#'+(i+1)}</td>
+            <td style="padding:14px 10px;font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text);${isFocus?'font-weight:800':''}">${s.name}</td>
+            <td style="padding:14px 10px;text-align:center;font-size:12px;font-weight:600;color:var(--text-muted)">${s.wins}/${s.losses}</td>
+            <td style="padding:14px 10px;text-align:center;font-size:16px;font-weight:800;font-family:Space Mono,monospace;color:var(--text)">${s.points}</td>
+            <td style="padding:14px 16px;text-align:center;font-size:13px;font-weight:700;font-family:Space Mono,monospace;color:${s.diff>0?'var(--green)':s.diff<0?'var(--red)':'var(--text-muted)'}">${s.diff>0?'+':''}${s.diff}</td>
+        </tr>`;
+    }).join('');
+    
+    updateBot(stats,totalMatches,playedMatches,focus);
+}
+
+function updateBot(stats,totalMatches,playedMatches,focus){
+    const bot=document.getElementById('botText'),status=document.getElementById('botStatus');
+    const progress=totalMatches>0?Math.round((playedMatches/totalMatches)*100):0;
+    const allDone=playedMatches===totalMatches&&totalMatches>0;
+    
+    if(!focus){bot.innerHTML='<span style="opacity:.5">Wähle oben deinen Fokus für persönliche Analyse...</span>';status.innerText='Standby';return}
+    
+    const me=stats.find(s=>s.name===focus),myRank=stats.findIndex(s=>s.name===focus)+1;
+    if(!me)return;
+    
+    let L=[];
+    L.push(`<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">${playedMatches}/${totalMatches} Matches · ${progress}%</div>`);
+    L.push(`<div style="width:100%;background:rgba(255,255,255,.1);border-radius:8px;height:6px;margin-bottom:16px"><div style="background:var(--bot-accent);height:6px;border-radius:8px;width:${progress}%;transition:width .5s"></div></div>`);
+    
+    if(allDone){
+        L.push(`<div style="font-size:18px;font-weight:800;color:var(--bot-accent);margin-bottom:8px">🏁 Turnier beendet!</div>`);
+        L.push(`<div style="font-size:14px;margin-bottom:12px">Platz <strong style="color:var(--bot-accent)">#${myRank}</strong> mit <strong>${me.points} Punkten</strong> (${me.wins}W/${me.losses}L)</div>`);
+        if(myRank===1)L.push('<div style="font-size:16px">🏆 Glückwunsch zum Sieg!</div>');
+        else L.push(`<div>Differenz zu Platz 1: ${stats[0].points-me.points} Pkt</div>`);
+    }else{
+        L.push(`<div style="font-size:16px;font-weight:700;margin-bottom:10px">Aktuell: Platz <span style="color:var(--bot-accent)">#${myRank}</span></div>`);
+        L.push(`<div style="margin-bottom:12px">${me.points} Punkte · ${me.wins} Siege · ${me.losses} Niederlagen · Diff ${me.diff>0?'+':''}${me.diff}</div>`);
+        
+        const isTeam=tournamentData.isTeam||tournamentData.type==='team';
+        const last3=me.history.slice(-3);
+        if(last3.length>0){
+            L.push(`<div style="display:flex;gap:6px;margin-bottom:12px">`);
+            last3.forEach(g=>{
+                const won=g.diff>0;
+                L.push(`<div style="padding:6px 10px;border-radius:8px;background:${won?'rgba(74,222,128,.15)':'rgba(248,113,113,.15)'};color:${won?'var(--green)':'var(--red)'};font-size:12px;font-weight:700">${won?'W':'L'}</div>`)
+            });
+            L.push('</div>');
+            const form=last3.filter(g=>g.diff>0).length>=2?'🔥 Stark':last3.filter(g=>g.diff>0).length===1?'📊 Solide':'📉 Schwach';
+            L.push(`<div style="font-size:13px;margin-bottom:10px">${isTeam?'Eure':'Deine'} Form: ${form}</div>`);
+        }
+        
+        const next=stats.find(s=>s.name!==focus&&!me.history.some(h=>h.opp===s.name||h.opp==="(Finale)"));
+        if(next){
+            const nextLast3=next.history.slice(-3);
+            const nextRecentWins=nextLast3.filter(g=>g.diff>0).length;
+            const nextForm=nextRecentWins>=2?'🔥 Stark':nextRecentWins===1?'📊 Solide':'📉 Schwach';
+            L.push(`<div style="border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
+                <div style="font-size:13px;margin-bottom:6px">⚔️ Nächster Gegner: <strong>${next.name}</strong></div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${next.points} Pkt · ${next.wins}W/${next.losses}L · Diff ${next.diff>0?'+':''}${next.diff}</div>
+                <div style="font-size:13px">${isTeam?'Deren':'Ihre'} Form: ${nextForm}</div>
+            </div>`)
+        }
+    }
+    
+    bot.innerHTML=L.join('');
+    status.innerText=allDone?'Abgeschlossen':`${progress}% · Aktiv`;
+}
+
+function initKnockout(tournamentRecord){
+    // K.O. System Implementation (Coming Soon)
+    tournamentData=tournamentRecord.data;
+    
+    document.getElementById('matchesArea').innerHTML=`
+        <div style="text-align:center;padding:60px 20px">
+            <div style="font-size:48px;margin-bottom:16px">🏆</div>
+            <div style="font-size:20px;font-weight:800;margin-bottom:8px">K.O.-System</div>
+            <div style="color:var(--text-muted);margin-bottom:24px">Knockout-Turniere werden bald unterstützt</div>
+            <div style="padding:16px;background:var(--bg-card);border-radius:12px;max-width:280px;margin:0 auto">
+                <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Geplante Features:</div>
+                <div style="font-size:12px;color:var(--text);line-height:1.8;text-align:left">
+                    • Turnierbaum-Ansicht<br>
+                    • Automatische Qualifikation<br>
+                    • Live Score-Eingabe<br>
+                    • KI-Gegner-Analyse<br>
+                    • Head-to-Head Stats
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+init();
+</script>
+
+</body>
+</html>
