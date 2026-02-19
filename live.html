@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Padel Hirsch(i) – Live</title>
+    <title>Padel Hirsch – Live</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
@@ -50,7 +50,7 @@
 <header class="flex justify-between items-center pt-4 pb-2 anim-in" style="background:var(--header-bg);margin:0 -18px;padding:16px 18px;border-radius:0 0 20px 20px">
 <div class="flex items-center gap-3">
 <svg width="40" height="40" viewBox="0 0 200 200"><defs><radialGradient id="bg" cx="50%" cy="45%" r="50%"><stop offset="0%" stop-color="#1e3a6e"/><stop offset="100%" stop-color="#0f172a"/></radialGradient><linearGradient id="rk" x1="30%" y1="0%" x2="70%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient><linearGradient id="an" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#93c5fd"/></linearGradient><filter id="gl"><feGaussianBlur stdDeviation="3"/></filter><clipPath id="rc"><ellipse cx="100" cy="88" rx="34" ry="38"/></clipPath></defs><circle cx="100" cy="100" r="96" fill="url(#bg)"/><ellipse cx="100" cy="88" rx="34" ry="38" fill="url(#rk)" stroke="#60a5fa" stroke-width="1.5" transform="rotate(-4 100 88)"/><ellipse cx="100" cy="88" rx="27" ry="31" fill="#1e3a6e" opacity=".6" transform="rotate(-4 100 88)"/><g clip-path="url(#rc)" opacity=".35" stroke="#93c5fd" stroke-width=".8" fill="none"><line x1="82" y1="50" x2="82" y2="126"/><line x1="100" y1="50" x2="100" y2="126"/><line x1="118" y1="50" x2="118" y2="126"/><line x1="66" y1="88" x2="134" y2="88"/><line x1="66" y1="108" x2="134" y2="108"/></g><rect x="95" y="124" width="10" height="36" rx="4" fill="#1d4ed8" stroke="#60a5fa"/><rect x="93" y="158" width="14" height="5" rx="2.5" fill="#2563eb" stroke="#60a5fa"/><path d="M100 52 L100 36" stroke="url(#an)" stroke-width="3.5" stroke-linecap="round" fill="none" filter="url(#gl)"/><path d="M100 36 C98 32 93 28 88 22" stroke="url(#an)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#gl)"/><path d="M88 22 C85 18 82 15 80 11" stroke="url(#an)" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#gl)"/><path d="M100 36 C102 32 107 28 112 22" stroke="url(#an)" stroke-width="3" stroke-linecap="round" fill="none" filter="url(#gl)"/><path d="M112 22 C115 18 118 15 120 11" stroke="url(#an)" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#gl)"/><circle cx="124" cy="72" r="6" fill="#fbbf24" stroke="#f59e0b"/></svg>
-<div><div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase">Padel Hirsch(i)</div><h1 id="tournamentTitle" style="font-size:18px;font-weight:900;color:var(--header-text);text-transform:uppercase;line-height:1">Lade...</h1></div>
+<div><div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase">Padel Hirsch</div><h1 id="tournamentTitle" style="font-size:18px;font-weight:900;color:var(--header-text);text-transform:uppercase;line-height:1">Lade...</h1></div>
 </div>
 <div style="display:flex;gap:8px">
 <button id="refreshBtn" onclick="manualRefresh()" class="header-btn" title="Aktualisieren"><span id="refreshIcon">🔄</span></button>
@@ -82,7 +82,7 @@
 
 <div class="mt-6 anim-in" style="text-align:center;padding:16px;background:var(--bg-card);border:1.5px solid var(--border);border-radius:16px">
 <p style="font-size:12px;color:var(--text-muted)">📧 Fragen? Kontakt:</p>
-<a href="mailto:hirschi77@gmail.com" style="font-size:14px;font-weight:700;color:var(--accent);text-decoration:none">hirschi77@gmail.com</a>
+<a href="/cdn-cgi/l/email-protection#3d55544f4e5e55540a0a7d5a505c5451135e5250" style="font-size:14px;font-weight:700;color:var(--accent);text-decoration:none"><span class="__cf_email__" data-cfemail="8de5e4fffeeee5e4babacdeae0ece4e1a3eee2e0">[email&#160;protected]</span></a>
 </div>
 
 </div>
@@ -91,7 +91,7 @@
 
 <div id="floatingBtn" onclick="saveAllDirty()" style="display:none;position:fixed;bottom:calc(var(--safe-bottom) + 80px);left:50%;transform:translateX(-50%);z-index:1000;background:var(--accent);color:#fff;padding:16px 28px;border-radius:16px;font-size:15px;font-weight:800;box-shadow:0 8px 32px rgba(0,0,0,.3);cursor:pointer;transition:all .3s">💾 Speichern (0)</div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const SB_URL="https://vjcvchczbyvhweiwrunp.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
 const supabaseClient=supabase.createClient(SB_URL,SB_KEY);
@@ -356,7 +356,22 @@ function renderAll(){
             const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
             const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
             const hasScore=m.score&&m.score[0]!==""&&m.score[0]!==null;
-            const isFocus=focus&&(t1N===focus||t2N===focus);
+            let focusPlayerIds=[];
+            if(focus){
+                if(isTeam){
+                    for(let i=0;i<tournamentData.p.length;i+=2){
+                        if(`${tournamentData.p[i]} + ${tournamentData.p[i+1]}`===focus){
+                            focusPlayerIds=[i,i+1];
+                            break;
+                        }
+                    }
+                }else{
+                    const idx=tournamentData.p.findIndex(p=>p===focus);
+                    if(idx!==-1)focusPlayerIds=[idx];
+                }
+            }
+            const allMatchPlayers=[m.team1[0],m.team1[1],m.team2[0],m.team2[1]].filter(id=>id!==null&&id!==undefined);
+            const isFocus=focusPlayerIds.some(fid=>allMatchPlayers.includes(fid));
             const chk=pIdx=>tournamentData.p[pIdx]===focus?'text-focus':'';
             let w=0;
             if(hasScore){const s1=parseInt(m.score[0])||0,s2=parseInt(m.score[1])||0;if(s1>s2)w=1;else if(s2>s1)w=2}
@@ -368,8 +383,8 @@ function renderAll(){
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
                     <div style="flex:1;text-align:left;${w===1?'opacity:1':'opacity:'+(w===2?'.4':'1')}">
-                        <div style="font-size:13px;font-weight:800;text-transform:uppercase;color:var(--text);line-height:1.3;${chk(m.team1[0])}">${tournamentData.p[m.team1[0]]}</div>
-                        ${m.team1[1]!==undefined?`<div style="font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text-muted);line-height:1.3;${chk(m.team1[1])}">${tournamentData.p[m.team1[1]]}</div>`:''}
+                        <div style="font-size:13px;font-weight:800;text-transform:uppercase;color:var(--text);line-height:1.3;${chk(m.team1[0])}">${m.team1[0]!==null&&m.team1[0]!==undefined?tournamentData.p[m.team1[0]]:"Virtuell"}</div>
+                        ${m.team1[1]!==undefined&&m.team1[1]!==null?`<div style="font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text-muted);line-height:1.3;${chk(m.team1[1])}">${tournamentData.p[m.team1[1]]||"Virtuell"}</div>`:''}
                     </div>
                     <div style="display:flex;align-items:center;gap:10px">
                         <input id="s-${rIdx}-${mIdx}-0" type="number" inputmode="numeric" value="${m.score?.[0]??''}" min="0" max="99" ${!isEditing?'disabled':''} onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onScoreInput(${rIdx},${mIdx})" class="score-box">
@@ -377,13 +392,20 @@ function renderAll(){
                         <input id="s-${rIdx}-${mIdx}-1" type="number" inputmode="numeric" value="${m.score?.[1]??''}" min="0" max="99" ${!isEditing?'disabled':''} onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onScoreInput(${rIdx},${mIdx})" class="score-box">
                     </div>
                     <div style="flex:1;text-align:right;${w===2?'opacity:1':'opacity:'+(w===1?'.4':'1')}">
-                        <div style="font-size:13px;font-weight:800;text-transform:uppercase;color:var(--text);line-height:1.3;${chk(m.team2[0])}">${tournamentData.p[m.team2[0]]}</div>
-                        ${m.team2[1]!==undefined?`<div style="font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text-muted);line-height:1.3;${chk(m.team2[1])}">${tournamentData.p[m.team2[1]]}</div>`:''}
+                        <div style="font-size:13px;font-weight:800;text-transform:uppercase;color:var(--text);line-height:1.3;${chk(m.team2[0])}">${m.team2[0]!==null&&m.team2[0]!==undefined?tournamentData.p[m.team2[0]]:"Virtuell"}</div>
+                        ${m.team2[1]!==undefined&&m.team2[1]!==null?`<div style="font-size:13px;font-weight:700;text-transform:uppercase;color:var(--text-muted);line-height:1.3;${chk(m.team2[1])}">${tournamentData.p[m.team2[1]]||"Virtuell"}</div>`:''}
                     </div>
                 </div>
                 ${isFinaleRound?'<p style="font-size:10px;color:var(--gold);text-align:center;margin-top:10px;font-weight:700">Platz 1+4 vs Platz 2+3 · Zählt für finales Ranking</p>':''}${isBalanceRound?'<p style="font-size:10px;color:var(--accent);text-align:center;margin-top:10px;font-weight:700">Echte Spieler werden gewertet · Virtuelle zählen nicht</p>':''}
             </div>`;
         });
+        
+        if(r.pause&&r.pause.length>0){
+            const pauseNames=r.pause.map(pIdx=>tournamentData.p[pIdx]).filter(Boolean).join(', ');
+            if(pauseNames){
+                html+=`<div style="padding:12px;background:var(--bg-card);border-radius:12px;margin-top:8px;border-left:3px solid var(--accent)"><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:700;letter-spacing:.06em">⏸️ Pause:</span><span style="font-size:13px;font-weight:700;color:var(--text);margin-left:8px">${pauseNames}</span></div>`;
+            }
+        }
     });
     area.innerHTML=html;
     updateRanking();
@@ -438,12 +460,34 @@ function updateRanking(){
             if(m.score&&m.score[0]!==""&&m.score[0]!==null){
                 playedMatches++;
                 const s1=parseInt(m.score[0])||0,s2=parseInt(m.score[1])||0;
-                const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
-                const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
-                stats.forEach(e=>{
-                    if(e.ids.some(id=>m.team1.includes(id))){e.points+=s1;e.diff+=(s1-s2);e.played++;if(s1>s2)e.wins++;else if(s1<s2)e.losses++;e.history.push({opp:t2N,scored:s1,conceded:s2,diff:s1-s2})}
-                    if(e.ids.some(id=>m.team2.includes(id))){e.points+=s2;e.diff+=(s2-s1);e.played++;if(s2>s1)e.wins++;else if(s2<s1)e.losses++;e.history.push({opp:t1N,scored:s2,conceded:s1,diff:s2-s1})}
-                })
+                
+                if(r.isFinale){
+                    [m.team1[0],m.team1[1]].forEach(playerId=>{
+                        if(playerId===null||playerId===undefined)return;
+                        const team=stats.find(st=>st.ids.includes(playerId));
+                        if(team){
+                            team.points+=s1;team.diff+=(s1-s2);team.played++;
+                            if(s1>s2)team.wins++;else if(s1<s2)team.losses++;
+                            team.history.push({opp:"(Finale)",scored:s1,conceded:s2,diff:s1-s2});
+                        }
+                    });
+                    [m.team2[0],m.team2[1]].forEach(playerId=>{
+                        if(playerId===null||playerId===undefined)return;
+                        const team=stats.find(st=>st.ids.includes(playerId));
+                        if(team){
+                            team.points+=s2;team.diff+=(s2-s1);team.played++;
+                            if(s2>s1)team.wins++;else if(s2<s1)team.losses++;
+                            team.history.push({opp:"(Finale)",scored:s2,conceded:s1,diff:s2-s1});
+                        }
+                    });
+                }else{
+                    const t1N=isTeam?`${tournamentData.p[m.team1[0]]} + ${tournamentData.p[m.team1[1]]}`:tournamentData.p[m.team1[0]];
+                    const t2N=isTeam?`${tournamentData.p[m.team2[0]]} + ${tournamentData.p[m.team2[1]]}`:tournamentData.p[m.team2[0]];
+                    stats.forEach(e=>{
+                        if(e.ids.some(id=>m.team1.includes(id))){e.points+=s1;e.diff+=(s1-s2);e.played++;if(s1>s2)e.wins++;else if(s1<s2)e.losses++;e.history.push({opp:t2N,scored:s1,conceded:s2,diff:s1-s2})}
+                        if(e.ids.some(id=>m.team2.includes(id))){e.points+=s2;e.diff+=(s2-s1);e.played++;if(s2>s1)e.wins++;else if(s2<s1)e.losses++;e.history.push({opp:t1N,scored:s2,conceded:s1,diff:s2-s1})}
+                    })
+                }
             }
         })
     });
@@ -502,7 +546,7 @@ function updateBot(stats,totalMatches,playedMatches,focus){
             L.push(`<div style="font-size:13px;margin-bottom:10px">${isTeam?'Eure':'Deine'} Form: ${form}</div>`);
         }
         
-        const next=stats.find(s=>s.name!==focus&&!me.history.some(h=>h.opp===s.name));
+        const next=stats.find(s=>s.name!==focus&&!me.history.some(h=>h.opp===s.name||h.opp==="(Finale)"));
         if(next){
             const nextLast3=next.history.slice(-3);
             const nextRecentWins=nextLast3.filter(g=>g.diff>0).length;
@@ -510,16 +554,4 @@ function updateBot(stats,totalMatches,playedMatches,focus){
             L.push(`<div style="border-top:1px solid rgba(255,255,255,.1);padding-top:12px">
                 <div style="font-size:13px;margin-bottom:6px">⚔️ Nächster Gegner: <strong>${next.name}</strong></div>
                 <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${next.points} Pkt · ${next.wins}W/${next.losses}L · Diff ${next.diff>0?'+':''}${next.diff}</div>
-                <div style="font-size:13px">${isTeam?'Deren':'Ihre'} Form: ${nextForm}</div>
-            </div>`)
-        }
-    }
-    
-    bot.innerHTML=L.join('');
-    status.innerText=allDone?'Abgeschlossen':`${progress}% · Aktiv`;
-}
-
-init();
-</script>
-</body>
-</html>
+                <div style="f
