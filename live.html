@@ -166,7 +166,6 @@ async function loadTournament(){
         }
         
         // Round-Robin (default)
-        if(error||!data||!data[0])throw new Error('Nicht gefunden');
         tournamentData=data[0].data;
         document.getElementById('tournamentTitle').innerText=data[0].id.toUpperCase();
         document.getElementById('offlineWarning').style.display='none';
