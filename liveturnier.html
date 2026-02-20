@@ -137,6 +137,7 @@ if(error)throw error;
 tournamentData=data.data;
 document.getElementById('tournamentName').textContent=tournamentId;
 document.getElementById('tournamentMeta').textContent=`${tournamentData.koTeamCount} Teams · ${tournamentData.koCourts} Courts · Start: ${tournamentData.koStartTime}`;
+ensureR1Placeholders();
 renderMatches();renderBracket();
 }catch(e){alert('Fehler: '+e.message)}
 }
@@ -158,6 +159,7 @@ function teamLabel(team){
 if(!team)return'?';
 if(team.a&&team.b)return`${team.a}/${team.b}`;
 if(team.name)return team.name;
+if(team.source==='rank')return`Platz ${team.rank}`;
 return'Wartet...';
 }
 
@@ -235,6 +237,24 @@ const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 bracket.r1.forEach((m,i)=>{
 m.time=addMinutes(start,2*dur+(i>=2?dur:0));
 });
+}
+
+function ensureR1Placeholders(){
+const bracket=tournamentData.koBracket.mainBracket;
+if(!bracket.r1)bracket.r1=[];
+if(bracket.r1.length>0)return;
+
+const start=tournamentData.koStartTime||'09:00';
+const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
+
+const r1Matches=[
+{id:'R1a',court:2,team1:{source:'rank',rank:1},team2:{source:'rank',rank:8},score1:null,score2:null,time:addMinutes(start,2*dur)},
+{id:'R1b',court:3,team1:{source:'rank',rank:2},team2:{source:'rank',rank:7},score1:null,score2:null,time:addMinutes(start,2*dur)},
+{id:'R1c',court:1,team1:{source:'rank',rank:3},team2:{source:'rank',rank:6},score1:null,score2:null,time:addMinutes(start,3*dur)},
+{id:'R1d',court:2,team1:{source:'rank',rank:4},team2:{source:'rank',rank:5},score1:null,score2:null,time:addMinutes(start,3*dur)}
+];
+
+bracket.r1=r1Matches;
 }
 
 function fillSemiFinals(){
