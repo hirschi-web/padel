@@ -82,7 +82,7 @@
 
 <div class="mt-6 anim-in" style="text-align:center;padding:16px;background:var(--bg-card);border:1.5px solid var(--border);border-radius:16px">
 <p style="font-size:12px;color:var(--text-muted)">📧 Fragen? Kontakt:</p>
-<a href="mailto:hirschi77@gmail.com" style="font-size:14px;font-weight:700;color:var(--accent);text-decoration:none">hirschi77@gmail.com</a>
+<a href="/cdn-cgi/l/email-protection#a5cdccd7d6c6cdcc9292e5c2c8c4ccc98bc6cac8" style="font-size:14px;font-weight:700;color:var(--accent);text-decoration:none"><span class="__cf_email__" data-cfemail="b3dbdac1c0d0dbda8484f3d4ded2dadf9dd0dcde">[email&#160;protected]</span></a>
 </div>
 
 </div>
@@ -91,7 +91,7 @@
 
 <div id="floatingBtn" onclick="saveAllDirty()" style="display:none;position:fixed;bottom:calc(var(--safe-bottom) + 80px);left:50%;transform:translateX(-50%);z-index:1000;background:var(--accent);color:#fff;padding:16px 28px;border-radius:16px;font-size:15px;font-weight:800;box-shadow:0 8px 32px rgba(0,0,0,.3);cursor:pointer;transition:all .3s">💾 Speichern (0)</div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const SB_URL="https://vjcvchczbyvhweiwrunp.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
 const supabaseClient=supabase.createClient(SB_URL,SB_KEY);
@@ -584,29 +584,6 @@ function updateBot(stats,totalMatches,playedMatches,focus){
 }
 
 function initKnockout(tournamentRecord){
-    // K.O. System Implementation (Coming Soon)
-    tournamentData=tournamentRecord.data;
-    
-    document.getElementById('matchesArea').innerHTML=`
-        <div style="text-align:center;padding:60px 20px">
-            <div style="font-size:48px;margin-bottom:16px">🏆</div>
-            <div style="font-size:20px;font-weight:800;margin-bottom:8px">K.O.-System</div>
-            <div style="color:var(--text-muted);margin-bottom:24px">Knockout-Turniere werden bald unterstützt</div>
-            <div style="padding:16px;background:var(--bg-card);border-radius:12px;max-width:280px;margin:0 auto">
-                <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Geplante Features:</div>
-                <div style="font-size:12px;color:var(--text);line-height:1.8;text-align:left">
-                    • Turnierbaum-Ansicht<br>
-                    • Automatische Qualifikation<br>
-                    • Live Score-Eingabe<br>
-                    • KI-Gegner-Analyse<br>
-                    • Head-to-Head Stats
-                </div>
-            </div>
-        </div>
-    `;
+    // Redirect to dedicated K.O. page
+    window.location.href = `live-ko.html?id=${encodeURIComponent(tournamentRecord.id)}`;
 }
-
-init();
-</script>
-</body>
-</html>
