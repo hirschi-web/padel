@@ -440,16 +440,16 @@ if(!match)return;
 match.score1=s1;
 match.score2=s2;
 
-if(allPrelimDone()&&!tournamentData.koBracket.ranking){
+if(allPrelimDone()){
 calculateRanking();
 fillRound1();
 }
 
-if(allR1Done()&&!tournamentData.koBracket.mainBracket.hf){
+if(allR1Done()){
 fillSemiFinals();
 }
 
-if(allHFDone()&&!tournamentData.koBracket.mainBracket.finals){
+if(allHFDone()){
 fillFinals();
 }
 
