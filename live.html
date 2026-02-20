@@ -158,9 +158,9 @@ async function loadTournament(){
         }
         
         // Check tournament type and route
-        const tournamentType=data[0].tournament_type||'roundrobin';
+        const tournamentType=data[0].tournament_type||data[0].data?.tournamentType||'roundrobin';
         
-        if(tournamentType==='knockout'){
+        if(tournamentType==='knockout'||tournamentType==='ko'){
             initKnockout(data[0]);
             return;
         }
