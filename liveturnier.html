@@ -6,11 +6,7 @@
 <title>K.O. Turnier Live</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{
---bg:#0f172a;--bg-card:#1e293b;--bg-hover:#334155;
---text:#f1f5f9;--text-muted:#94a3b8;
---blue:#3b82f6;--green:#4ade80;--red:#f87171;--amber:#fbbf24;
-}
+:root{--bg:#0f172a;--bg-card:#1e293b;--bg-hover:#334155;--text:#f1f5f9;--text-muted:#94a3b8;--blue:#3b82f6;--green:#4ade80;--red:#f87171;--amber:#fbbf24}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1rem}
 .container{max-width:600px;margin:0 auto}
@@ -20,6 +16,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 .btn{padding:0.5rem 1rem;border-radius:8px;border:none;font-weight:600;font-size:0.875rem;cursor:pointer;transition:all .2s}
 .btn-primary{background:var(--blue);color:white}
 .btn-primary:hover{opacity:0.9}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed}
 .btn-secondary{background:var(--bg-hover);color:var(--text)}
 .btn-sm{padding:0.375rem 0.75rem;font-size:0.75rem}
 .tabs{display:flex;gap:0.5rem;background:var(--bg-card);border-radius:12px;padding:0.5rem;margin-bottom:1rem}
@@ -27,26 +24,20 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 .tab.active{background:var(--blue);color:white}
 .tab-content{display:none}
 .tab-content.active{display:block}
-.match-card{background:var(--bg-card);border-radius:12px;padding:1rem;margin-bottom:0.75rem}
-.match-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;font-size:0.75rem;color:var(--text-muted)}
+.match-card{background:var(--bg-card);border-radius:12px;padding:1rem;margin-bottom:0.75rem;transition:all .2s}
+.match-card:hover{transform:translateY(-2px)}
+.match-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;font-size:0.75rem;color:var(--text-muted)}
 .match-id{font-weight:800;color:var(--amber)}
-.match-vs{display:flex;align-items:center;gap:0.75rem;font-size:0.875rem}
-.team{flex:1;font-weight:600}
+.team{font-weight:600}
 .team.placeholder{color:var(--text-muted);font-style:italic}
 .vs-divider{color:var(--text-muted);font-weight:800}
-.score-input{display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem}
-.score-input input{width:50px;padding:0.375rem;background:var(--bg-hover);border:1px solid var(--bg-hover);border-radius:6px;color:var(--text);text-align:center;font-weight:700}
-.score-display{font-size:1.25rem;font-weight:800;color:var(--green)}
+.score-display{font-size:1.5rem;font-weight:800;color:var(--green)}
 .status{display:inline-block;padding:0.25rem 0.5rem;border-radius:6px;font-size:0.625rem;font-weight:700;text-transform:uppercase}
 .status-waiting{background:rgba(251,191,36,0.2);color:var(--amber)}
-.status-live{background:rgba(74,222,128,0.2);color:var(--green)}
 .status-done{background:rgba(148,163,184,0.2);color:var(--text-muted)}
 .round-section{margin-bottom:1.5rem}
 .round-title{font-size:1rem;font-weight:800;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem}
-.bracket-compact{background:var(--bg-card);border-radius:12px;padding:1rem;margin-top:1rem}
-.bracket-row{display:flex;gap:0.5rem;margin-bottom:0.5rem;font-size:0.75rem}
-.bracket-team{background:var(--bg-hover);padding:0.5rem;border-radius:6px;flex:1;font-weight:600}
-.bracket-connector{color:var(--text-muted)}
+.bracket-section{background:var(--bg-card);border-radius:12px;padding:1rem;margin-bottom:1rem}
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center}
 .modal.active{display:flex}
 .modal-content{background:var(--bg-card);border-radius:16px;padding:1.5rem;max-width:400px;width:90%}
@@ -54,52 +45,46 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 .input-group{margin-bottom:1rem}
 .input-group label{display:block;font-size:0.875rem;font-weight:600;margin-bottom:0.5rem;color:var(--text-muted)}
 .input-group input{width:100%;padding:0.75rem;background:var(--bg-hover);border:1px solid var(--bg-hover);border-radius:8px;color:var(--text);font-size:1rem}
-.alert{padding:1rem;border-radius:8px;margin-bottom:1rem;font-size:0.875rem}
-.alert-info{background:rgba(59,130,246,0.2);color:var(--blue)}
-.hidden{display:none!important}
 .focus-highlight{border:2px solid var(--green);box-shadow:0 0 12px rgba(74,222,128,0.3)}
+.pw-unlocked{background:rgba(74,222,128,0.2);color:var(--green)}
 </style>
 </head>
 <body>
 <div class="container">
-<!-- Header -->
 <div class="header">
 <div>
 <div class="title" id="tournamentName">K.O. Turnier</div>
 <div class="subtitle" id="tournamentMeta"></div>
 </div>
-<div style="display:flex;gap:0.5rem">
-<button class="btn btn-secondary btn-sm" onclick="refresh()">🔄</button>
-<button class="btn btn-secondary btn-sm" onclick="toggleFocus()" id="focusBtn">👤</button>
+<div style="display:flex;gap:0.5rem;align-items:center">
+<button class="btn btn-secondary btn-sm" onclick="refresh()" title="Aktualisieren">🔄</button>
+<button class="btn btn-secondary btn-sm" onclick="toggleFocus()" id="focusBtn" title="Fokus">👤</button>
+<button class="btn btn-secondary btn-sm" onclick="showPasswordStatus()" id="pwBtn" title="Passwort">🔒</button>
 </div>
 </div>
 
-<!-- Tabs -->
 <div class="tabs">
 <button class="tab active" onclick="switchTab('matches')">🎯 Spiele</button>
 <button class="tab" onclick="switchTab('bracket')">🌳 Baum</button>
 </div>
 
-<!-- Tab 1: Matches -->
 <div class="tab-content active" id="matchesTab">
 <div id="matchesArea"></div>
 </div>
 
-<!-- Tab 2: Bracket -->
 <div class="tab-content" id="bracketTab">
-<div class="alert alert-info">
+<div style="background:var(--bg-card);padding:1rem;border-radius:12px;margin-bottom:1rem;color:var(--text-muted);font-size:0.875rem">
 📱 Für beste Ansicht Handy im Querformat nutzen
 </div>
 <div id="bracketArea"></div>
 </div>
 
-<!-- Password Modal -->
 <div class="modal" id="passwordModal">
 <div class="modal-content">
-<div class="modal-title">Passwort erforderlich</div>
+<div class="modal-title">🔒 Passwort erforderlich</div>
 <div class="input-group">
 <label>Admin-Passwort</label>
-<input type="password" id="passwordInput" placeholder="Passwort">
+<input type="password" id="passwordInput" placeholder="Passwort eingeben">
 </div>
 <div style="display:flex;gap:0.5rem">
 <button class="btn btn-primary" style="flex:1" onclick="checkPassword()">OK</button>
@@ -108,21 +93,20 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min
 </div>
 </div>
 
-<!-- Score Modal -->
 <div class="modal" id="scoreModal">
 <div class="modal-content">
 <div class="modal-title">Score eingeben</div>
 <div id="scoreMatchInfo" style="margin-bottom:1rem;color:var(--text-muted);font-size:0.875rem"></div>
 <div class="input-group">
 <label>Score (z.B. 21:15)</label>
-<div style="display:flex;gap:0.5rem;align-items:center">
-<input type="number" id="score1" placeholder="21" min="0" max="99" style="width:80px">
-<span style="font-weight:800">:</span>
-<input type="number" id="score2" placeholder="15" min="0" max="99" style="width:80px">
+<div style="display:flex;gap:0.5rem;align-items:center;justify-content:center">
+<input type="number" id="score1" placeholder="21" min="0" max="99" style="width:80px;text-align:center;font-size:1.5rem;font-weight:800">
+<span style="font-weight:800;font-size:1.5rem">:</span>
+<input type="number" id="score2" placeholder="15" min="0" max="99" style="width:80px;text-align:center;font-size:1.5rem;font-weight:800">
 </div>
 </div>
 <div style="display:flex;gap:0.5rem">
-<button class="btn btn-primary" style="flex:1" onclick="saveScore()">Speichern</button>
+<button class="btn btn-primary" style="flex:1" onclick="saveScore()">✅ Speichern</button>
 <button class="btn btn-secondary" style="flex:1" onclick="closeModal()">Abbrechen</button>
 </div>
 </div>
@@ -133,18 +117,17 @@ const SB_URL="https://vjcvchczbyvhweiwrunp.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
 const supabaseClient=supabase.createClient(SB_URL,SB_KEY);
 
-let tournamentData=null;
-let tournamentId=null;
-let currentPassword=null;
-let pendingMatchId=null;
-let focusPlayer=null;
+let tournamentData=null,tournamentId=null,currentPassword=null,pendingMatchId=null,focusPlayer=null;
 
-// Init
 async function init(){
 const params=new URLSearchParams(window.location.search);
 tournamentId=params.get('id');
 if(!tournamentId){alert('Kein Turnier ausgewählt');return}
+const savedPw=sessionStorage.getItem('ko_password_'+tournamentId);
+if(savedPw)currentPassword=savedPw;
 await loadTournament();
+updatePasswordButton();
+setInterval(()=>loadTournament(),30000);
 }
 
 async function loadTournament(){
@@ -154,9 +137,8 @@ if(error)throw error;
 tournamentData=data.data;
 document.getElementById('tournamentName').textContent=tournamentId;
 document.getElementById('tournamentMeta').textContent=`${tournamentData.koTeamCount} Teams · ${tournamentData.koCourts} Courts · Start: ${tournamentData.koStartTime}`;
-renderMatches();
-renderBracket();
-}catch(e){alert('Fehler beim Laden: '+e.message)}
+renderMatches();renderBracket();
+}catch(e){alert('Fehler: '+e.message)}
 }
 
 function switchTab(tab){
@@ -166,74 +148,269 @@ event.target.classList.add('active');
 document.getElementById(tab+'Tab').classList.add('active');
 }
 
+function teamId(team){
+if(!team)return null;
+if(team.a&&team.b)return`${team.a}_${team.b}`;
+return JSON.stringify(team);
+}
+
+function teamLabel(team){
+if(!team)return'?';
+if(team.a&&team.b)return`${team.a}/${team.b}`;
+if(team.name)return team.name;
+return'Wartet...';
+}
+
+function getWinner(match){
+if(match.score1==null||match.score2==null)return null;
+return match.score1>match.score2?match.team1:match.team2;
+}
+
+function getLoser(match){
+if(match.score1==null||match.score2==null)return null;
+return match.score1>match.score2?match.team2:match.team1;
+}
+
+function addMinutes(time,minutes){
+const[h,m]=time.split(':').map(Number);
+const totalMin=h*60+m+minutes;
+return`${Math.floor(totalMin/60).toString().padStart(2,'0')}:${(totalMin%60).toString().padStart(2,'0')}`;
+}
+
+function getMatchTimes(match){
+const startTime=match.time||'--:--';
+const matchDuration=tournamentData.koMatchTime||30;
+if(startTime==='--:--')return{start:startTime,end:'--:--',duration:matchDuration};
+const endTime=addMinutes(startTime,matchDuration);
+return{start:startTime,end:endTime,duration:matchDuration};
+}
+
+function calculateRanking(){
+const bracket=tournamentData.koBracket;
+const teams=[];
+
+bracket.prelimMatches.forEach(m=>{
+[m.team1,m.team2].forEach(t=>{
+if(!teams.find(x=>teamId(x.team)===teamId(t))){
+teams.push({id:teamId(t),team:t,points:0,pointsAgainst:0,diff:0,wins:0,losses:0});
+}
+});
+});
+
+bracket.prelimMatches.forEach(m=>{
+if(m.score1==null||m.score2==null)return;
+const t1=teams.find(t=>t.id===teamId(m.team1));
+const t2=teams.find(t=>t.id===teamId(m.team2));
+if(!t1||!t2)return;
+t1.points+=m.score1;t1.pointsAgainst+=m.score2;
+t2.points+=m.score2;t2.pointsAgainst+=m.score1;
+if(m.score1>m.score2){t1.wins++;t2.losses++;}
+else{t2.wins++;t1.losses++;}
+});
+
+teams.forEach(t=>t.diff=t.points-t.pointsAgainst);
+teams.sort((a,b)=>{
+if(b.diff!==a.diff)return b.diff-a.diff;
+return b.points-a.points;
+});
+teams.forEach((t,i)=>t.rank=i+1);
+bracket.ranking=teams;
+}
+
+function fillRound1(){
+const ranking=tournamentData.koBracket.ranking;
+if(!ranking||ranking.length<8)return;
+const bracket=tournamentData.koBracket.mainBracket;
+if(!bracket.r1)bracket.r1=[];
+
+const pairs=[[0,7,'R1a',2],[1,6,'R1b',3],[2,5,'R1c',1],[3,4,'R1d',2]];
+pairs.forEach(([i1,i2,id,court],idx)=>{
+if(!bracket.r1[idx])bracket.r1[idx]={id,court,score1:null,score2:null};
+bracket.r1[idx].team1=ranking[i1].team;
+bracket.r1[idx].team2=ranking[i2].team;
+});
+
+const start=tournamentData.koStartTime||'09:00';
+const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
+bracket.r1.forEach((m,i)=>{
+m.time=addMinutes(start,2*dur+(i>=2?dur:0));
+});
+}
+
+function fillSemiFinals(){
+const b=tournamentData.koBracket.mainBracket;
+const r1=b.r1||[];
+if(!b.hf)b.hf=[];
+if(!b.chf)b.chf=[];
+
+const w=r1.map(getWinner);
+const l=r1.map(getLoser);
+
+if(w[0]&&w[1]){if(!b.hf[0])b.hf[0]={id:'HF1',court:1,score1:null,score2:null};b.hf[0].team1=w[0];b.hf[0].team2=w[1];}
+if(w[2]&&w[3]){if(!b.hf[1])b.hf[1]={id:'HF2',court:2,score1:null,score2:null};b.hf[1].team1=w[2];b.hf[1].team2=w[3];}
+if(l[0]&&l[1]){if(!b.chf[0])b.chf[0]={id:'CHF1',court:3,score1:null,score2:null};b.chf[0].team1=l[0];b.chf[0].team2=l[1];}
+if(l[2]&&l[3]){if(!b.chf[1])b.chf[1]={id:'CHF2',court:4,score1:null,score2:null};b.chf[1].team1=l[2];b.chf[1].team2=l[3];}
+
+const start=tournamentData.koStartTime||'09:00';
+const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
+[...b.hf,...b.chf].forEach(m=>{if(m)m.time=addMinutes(start,3*dur)});
+}
+
+function fillFinals(){
+const b=tournamentData.koBracket.mainBracket;
+if(!b.finals)b.finals=[];
+
+const hw=b.hf.map(getWinner);
+const hl=b.hf.map(getLoser);
+const cw=(b.chf||[]).map(getWinner);
+const cl=(b.chf||[]).map(getLoser);
+
+if(hw[0]&&hw[1]){if(!b.finals[0])b.finals[0]={id:'FINALE',court:2,score1:null,score2:null};b.finals[0].team1=hw[0];b.finals[0].team2=hw[1];}
+if(hl[0]&&hl[1]){if(!b.finals[1])b.finals[1]={id:'KLF',court:1,score1:null,score2:null};b.finals[1].team1=hl[0];b.finals[1].team2=hl[1];}
+if(cw[0]&&cw[1]){if(!b.finals[2])b.finals[2]={id:'CF',court:1,score1:null,score2:null};b.finals[2].team1=cw[0];b.finals[2].team2=cw[1];}
+if(cl[0]&&cl[1]){if(!b.finals[3])b.finals[3]={id:'CKF',court:2,score1:null,score2:null};b.finals[3].team1=cl[0];b.finals[3].team2=cl[1];}
+
+const start=tournamentData.koStartTime||'09:00';
+const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
+[b.finals[2],b.finals[3]].forEach(m=>{if(m)m.time=addMinutes(start,5*dur)});
+[b.finals[0],b.finals[1]].forEach(m=>{if(m)m.time=addMinutes(start,6*dur)});
+}
+
+function allPrelimDone(){return tournamentData.koBracket.prelimMatches.every(m=>m.score1!=null&&m.score2!=null)}
+function allR1Done(){const r1=tournamentData.koBracket.mainBracket.r1||[];return r1.length>0&&r1.every(m=>m.score1!=null&&m.score2!=null)}
+function allHFDone(){const hf=tournamentData.koBracket.mainBracket.hf||[];const chf=tournamentData.koBracket.mainBracket.chf||[];return hf.length>0&&hf.every(m=>m.score1!=null&&m.score2!=null)&&chf.length>0&&chf.every(m=>m.score1!=null&&m.score2!=null)}
+
 function renderMatches(){
 const bracket=tournamentData.koBracket;
-if(!bracket){document.getElementById('matchesArea').innerHTML='<p>Kein Bracket vorhanden</p>';return}
+if(!bracket){document.getElementById('matchesArea').innerHTML='<p>Kein Bracket</p>';return}
 
 let html='';
 
-// Vorrunde
 if(bracket.prelimMatches?.length){
 html+=`<div class="round-section"><div class="round-title">📋 Vorrunde</div>`;
-bracket.prelimMatches.forEach(m=>{
-const hasScore=m.score1!=null&&m.score2!=null;
-const status=hasScore?'done':'waiting';
-html+=renderMatchCard(m,status);
-});
+bracket.prelimMatches.forEach(m=>{html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
 html+=`</div>`;
 }
 
-// Runde 1
-if(bracket.mainBracket?.r1?.length){
+const r1=bracket.mainBracket?.r1||[];
+if(r1.length&&r1[0].team1){
 html+=`<div class="round-section"><div class="round-title">⚡ Runde 1</div>`;
-bracket.mainBracket.r1.forEach(m=>{
-const hasScore=m.score1!=null&&m.score2!=null;
-const status=hasScore?'done':'waiting';
-html+=renderMatchCard(m,status);
-});
+r1.forEach(m=>{html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
 html+=`</div>`;
 }
 
-// Weitere Runden (HF, Finale) ähnlich...
+const hf=bracket.mainBracket?.hf||[];
+if(hf.length&&hf[0].team1){
+html+=`<div class="round-section"><div class="round-title">🎯 Halbfinale</div>`;
+hf.forEach(m=>{html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
+html+=`</div>`;
+}
 
-document.getElementById('matchesArea').innerHTML=html||'<p style="color:var(--text-muted);text-align:center;padding:2rem">Keine Spiele vorhanden</p>';
+const chf=bracket.mainBracket?.chf||[];
+if(chf.length&&chf[0].team1){
+html+=`<div class="round-section"><div class="round-title">🛡️ Consolation HF</div>`;
+chf.forEach(m=>{html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
+html+=`</div>`;
+}
+
+const finals=bracket.mainBracket?.finals||[];
+if(finals.length&&finals[0]&&finals[0].team1){
+html+=`<div class="round-section"><div class="round-title">🏆 Finale</div>`;
+finals.forEach(m=>{if(m&&m.team1)html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
+html+=`</div>`;
+}
+
+document.getElementById('matchesArea').innerHTML=html||'<p style="text-align:center;color:var(--text-muted);padding:2rem">Keine Spiele</p>';
 }
 
 function renderMatchCard(match,status){
-const team1=getTeamLabel(match.team1);
-const team2=getTeamLabel(match.team2);
-const isPlaceholder=team1.includes('Platz')||team2.includes('Platz');
+const team1=teamLabel(match.team1);
+const team2=teamLabel(match.team2);
+const isPlaceholder=team1.includes('Wartet');
 const hasScore=match.score1!=null&&match.score2!=null;
 const isFocused=focusPlayer&&(team1.includes(focusPlayer)||team2.includes(focusPlayer));
 
-const statusLabel=status==='done'?'Fertig':status==='live'?'Läuft':'Wartet';
-const statusClass=`status-${status}`;
-
+const times=getMatchTimes(match);
 const courtNames=tournamentData.koCourtNames||[];
 const courtLabel=courtNames[match.court-1]||match.court;
 
 return`<div class="match-card ${isFocused?'focus-highlight':''}">
 <div class="match-header">
 <span class="match-id">${match.id}</span>
-<span>Court ${courtLabel} · ${match.time||'--:--'}</span>
-<span class="status ${statusClass}">${statusLabel}</span>
+<span class="status status-${status}">${status==='done'?'✅ Fertig':'⏳ Wartet'}</span>
 </div>
-<div class="match-vs">
-<div class="team ${isPlaceholder?'placeholder':''}">${team1}</div>
+<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem">
+Court ${courtLabel} · ${times.start} - ${times.end} (${times.duration} Min)
+</div>
+${hasScore?
+`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0.75rem">
+<div class="team" style="text-align:right">${team1}</div>
+<div class="score-display">${match.score1} : ${match.score2}</div>
+<div class="team">${team2}</div>
+</div>`
+:
+`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+<div class="team ${isPlaceholder?'placeholder':''}" style="text-align:right">${team1}</div>
 <div class="vs-divider">VS</div>
 <div class="team ${isPlaceholder?'placeholder':''}">${team2}</div>
 </div>
-${hasScore?`<div class="score-display">${match.score1}:${match.score2}</div>`
-:`<button class="btn btn-primary btn-sm" style="margin-top:0.5rem" onclick="openScoreModal('${match.id}')" ${isPlaceholder||tournamentData.password?'':'disabled'}>Score eintragen</button>`}
+<button class="btn btn-primary btn-sm" onclick="openScoreModal('${match.id}')" ${isPlaceholder?'disabled':''}>Score eintragen</button>`
+}
 </div>`;
 }
 
-function getTeamLabel(team){
-if(!team)return'?';
-if(team.a&&team.b)return`${team.a}/${team.b}`;
-if(team.name)return team.name;
-if(team.rank)return`Platz ${team.rank}`;
-return'Wartet...';
+function renderBracket(){
+const bracket=tournamentData.koBracket;
+if(!bracket){document.getElementById('bracketArea').innerHTML='';return}
+
+let html='';
+
+html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">📋 Vorrunde</h3><div style="display:grid;gap:0.5rem">`;
+bracket.prelimMatches.forEach(m=>{
+const t=getMatchTimes(m);
+const w=getWinner(m);
+html+=`<div style="background:var(--bg-hover);padding:0.75rem;border-radius:8px;font-size:0.75rem">
+<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
+<span style="font-weight:800;color:var(--amber)">${m.id}</span>
+<span style="color:var(--text-muted)">C${m.court} · ${t.start}</span>
+</div>
+<div style="display:flex;justify-content:space-between">
+<div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">${teamLabel(m.team1)}${w&&teamId(w)===teamId(m.team1)?' ✅':''}</div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">${teamLabel(m.team2)}${w&&teamId(w)===teamId(m.team2)?' ✅':''}</div>
+</div>
+<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
+${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
+</div>
+</div>
+</div>`;
+});
+html+=`</div></div>`;
+
+const ranking=bracket.ranking||[];
+if(ranking.length){
+html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">🏆 Rangierung</h3><div style="display:grid;gap:0.25rem">`;
+ranking.forEach((r,i)=>{
+const m=['🥇','🥈','🥉',''][i]||'';
+html+=`<div style="display:grid;grid-template-columns:auto 1fr auto;gap:0.75rem;padding:0.5rem;background:var(--bg-hover);border-radius:6px;font-size:0.875rem">
+<span style="font-weight:800">${m} ${r.rank}.</span>
+<span style="font-weight:600">${teamLabel(r.team)}</span>
+<span style="color:var(--text-muted)">${r.points} (${r.diff>=0?'+':''}${r.diff})</span>
+</div>`;
+});
+html+=`</div></div>`;
+}
+
+document.getElementById('bracketArea').innerHTML=html;
+}
+
+function findMatch(id){
+const b=tournamentData.koBracket;
+return b.prelimMatches?.find(m=>m.id===id)||
+b.mainBracket?.r1?.find(m=>m.id===id)||
+b.mainBracket?.hf?.find(m=>m.id===id)||
+b.mainBracket?.chf?.find(m=>m.id===id)||
+b.mainBracket?.finals?.find(m=>m.id===id);
 }
 
 function openScoreModal(matchId){
@@ -245,35 +422,17 @@ return;
 pendingMatchId=matchId;
 const match=findMatch(matchId);
 if(!match)return;
-document.getElementById('scoreMatchInfo').textContent=`${match.id}: ${getTeamLabel(match.team1)} vs ${getTeamLabel(match.team2)}`;
+document.getElementById('scoreMatchInfo').textContent=`${match.id}: ${teamLabel(match.team1)} vs ${teamLabel(match.team2)}`;
 document.getElementById('score1').value='';
 document.getElementById('score2').value='';
 document.getElementById('scoreModal').classList.add('active');
-}
-
-function findMatch(id){
-const bracket=tournamentData.koBracket;
-let found=bracket.prelimMatches?.find(m=>m.id===id);
-if(found)return found;
-found=bracket.mainBracket?.r1?.find(m=>m.id===id);
-return found;
-}
-
-function checkPassword(){
-const pw=document.getElementById('passwordInput').value;
-if(pw===tournamentData.password){
-currentPassword=pw;
-closeModal();
-if(pendingMatchId)openScoreModal(pendingMatchId);
-}else{
-alert('Falsches Passwort!');
-}
+document.getElementById('score1').focus();
 }
 
 async function saveScore(){
 const s1=parseInt(document.getElementById('score1').value);
 const s2=parseInt(document.getElementById('score2').value);
-if(isNaN(s1)||isNaN(s2)){alert('Bitte gültige Scores eingeben');return}
+if(isNaN(s1)||isNaN(s2)){alert('Bitte gültige Scores');return}
 
 const match=findMatch(pendingMatchId);
 if(!match)return;
@@ -281,12 +440,18 @@ if(!match)return;
 match.score1=s1;
 match.score2=s2;
 
-// Winner berechnen
-const winner=s1>s2?match.team1:match.team2;
-const loser=s1>s2?match.team2:match.team1;
+if(allPrelimDone()&&!tournamentData.koBracket.ranking){
+calculateRanking();
+fillRound1();
+}
 
-// Nächste Runde füllen (vereinfacht)
-// TODO: Implementiere volle Winner-Logik
+if(allR1Done()&&!tournamentData.koBracket.mainBracket.hf){
+fillSemiFinals();
+}
+
+if(allHFDone()&&!tournamentData.koBracket.mainBracket.finals){
+fillFinals();
+}
 
 try{
 const{error}=await supabaseClient.from('tournaments').update({data:tournamentData}).eq('id',tournamentId);
@@ -294,31 +459,49 @@ if(error)throw error;
 closeModal();
 renderMatches();
 renderBracket();
-}catch(e){alert('Fehler beim Speichern: '+e.message)}
+}catch(e){alert('Fehler: '+e.message)}
 }
 
-function renderBracket(){
-// Phase 2: Voller SVG-Baum
-document.getElementById('bracketArea').innerHTML=`
-<div class="bracket-compact">
-<h3 style="margin-bottom:1rem">🏆 Winner Bracket</h3>
-<p style="color:var(--text-muted)">Voller Turnierbaum kommt in Phase 2</p>
-<div style="margin-top:1rem;font-size:0.75rem;line-height:1.8">
-Vorschau (vereinfacht):<br>
-V1 ──┐<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ R1a<br>
-V2 ──┘<br>
-</div>
-</div>`;
+function checkPassword(){
+const pw=document.getElementById('passwordInput').value;
+if(pw===tournamentData.password){
+currentPassword=pw;
+sessionStorage.setItem('ko_password_'+tournamentId,pw);
+closeModal();
+updatePasswordButton();
+if(pendingMatchId)openScoreModal(pendingMatchId);
+}else{
+alert('Falsches Passwort!');
+}
 }
 
-function closeModal(){
-document.querySelectorAll('.modal').forEach(m=>m.classList.remove('active'));
-document.getElementById('passwordInput').value='';
+function updatePasswordButton(){
+const btn=document.getElementById('pwBtn');
+if(currentPassword){
+btn.classList.add('pw-unlocked');
+btn.textContent='🔓';
+btn.title='Entsperrt';
+}else{
+btn.classList.remove('pw-unlocked');
+btn.textContent='🔒';
+btn.title='Gesperrt';
+}
+}
+
+function showPasswordStatus(){
+if(currentPassword){
+if(confirm('Passwort vergessen?')){
+currentPassword=null;
+sessionStorage.removeItem('ko_password_'+tournamentId);
+updatePasswordButton();
+}
+}else{
+document.getElementById('passwordModal').classList.add('active');
+}
 }
 
 function toggleFocus(){
-const player=prompt('Spielername eingeben:');
+const player=prompt('Spielername:');
 if(player){
 focusPlayer=player;
 document.getElementById('focusBtn').textContent=`👤 ${player}`;
@@ -328,6 +511,11 @@ focusPlayer=null;
 document.getElementById('focusBtn').textContent='👤';
 renderMatches();
 }
+}
+
+function closeModal(){
+document.querySelectorAll('.modal').forEach(m=>m.classList.remove('active'));
+document.getElementById('passwordInput').value='';
 }
 
 function refresh(){
