@@ -138,6 +138,8 @@ tournamentData=data.data;
 document.getElementById('tournamentName').textContent=tournamentId;
 document.getElementById('tournamentMeta').textContent=`${tournamentData.koTeamCount} Teams · ${tournamentData.koCourts} Courts · Start: ${tournamentData.koStartTime}`;
 ensureR1Placeholders();
+ensureHFPlaceholders();
+ensureFinalsPlaceholders();
 renderMatches();renderBracket();
 }catch(e){alert('Fehler: '+e.message)}
 }
@@ -160,6 +162,7 @@ if(!team)return'?';
 if(team.a&&team.b)return`${team.a}/${team.b}`;
 if(team.name)return team.name;
 if(team.source==='rank')return`Platz ${team.rank}`;
+if(team.outlook)return team.outlook;
 return'Wartet...';
 }
 
@@ -247,14 +250,48 @@ if(bracket.r1.length>0)return;
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
-const r1Matches=[
+bracket.r1=[
 {id:'R1a',court:2,team1:{source:'rank',rank:1},team2:{source:'rank',rank:8},score1:null,score2:null,time:addMinutes(start,2*dur)},
 {id:'R1b',court:3,team1:{source:'rank',rank:2},team2:{source:'rank',rank:7},score1:null,score2:null,time:addMinutes(start,2*dur)},
 {id:'R1c',court:1,team1:{source:'rank',rank:3},team2:{source:'rank',rank:6},score1:null,score2:null,time:addMinutes(start,3*dur)},
 {id:'R1d',court:2,team1:{source:'rank',rank:4},team2:{source:'rank',rank:5},score1:null,score2:null,time:addMinutes(start,3*dur)}
 ];
+}
 
-bracket.r1=r1Matches;
+function ensureHFPlaceholders(){
+const bracket=tournamentData.koBracket.mainBracket;
+if(!bracket.hf)bracket.hf=[];
+if(!bracket.chf)bracket.chf=[];
+if(bracket.hf.length>0)return;
+
+const start=tournamentData.koStartTime||'09:00';
+const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
+
+bracket.hf=[
+{id:'HF1',court:1,team1:{outlook:'Winner R1a'},team2:{outlook:'Winner R1b'},score1:null,score2:null,time:addMinutes(start,3*dur)},
+{id:'HF2',court:2,team1:{outlook:'Winner R1c'},team2:{outlook:'Winner R1d'},score1:null,score2:null,time:addMinutes(start,3*dur)}
+];
+
+bracket.chf=[
+{id:'CHF1',court:3,team1:{outlook:'Loser R1a'},team2:{outlook:'Loser R1b'},score1:null,score2:null,time:addMinutes(start,3*dur)},
+{id:'CHF2',court:4,team1:{outlook:'Loser R1c'},team2:{outlook:'Loser R1d'},score1:null,score2:null,time:addMinutes(start,3*dur)}
+];
+}
+
+function ensureFinalsPlaceholders(){
+const bracket=tournamentData.koBracket.mainBracket;
+if(!bracket.finals)bracket.finals=[];
+if(bracket.finals.length>0)return;
+
+const start=tournamentData.koStartTime||'09:00';
+const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
+
+bracket.finals=[
+{id:'FINALE',court:2,team1:{outlook:'Winner HF1'},team2:{outlook:'Winner HF2'},score1:null,score2:null,time:addMinutes(start,6*dur)},
+{id:'KLF',court:1,team1:{outlook:'Loser HF1'},team2:{outlook:'Loser HF2'},score1:null,score2:null,time:addMinutes(start,6*dur)},
+{id:'CF',court:1,team1:{outlook:'Winner CHF1'},team2:{outlook:'Winner CHF2'},score1:null,score2:null,time:addMinutes(start,5*dur)},
+{id:'CKF',court:2,team1:{outlook:'Loser CHF1'},team2:{outlook:'Loser CHF2'},score1:null,score2:null,time:addMinutes(start,5*dur)}
+];
 }
 
 function fillSemiFinals(){
@@ -304,41 +341,99 @@ function renderMatches(){
 const bracket=tournamentData.koBracket;
 if(!bracket){document.getElementById('matchesArea').innerHTML='<p>Kein Bracket</p>';return}
 
-let html='';
+// Gruppierung nach Spielslot (Zeit)
+const slots=[];
 
-if(bracket.prelimMatches?.length){
-html+=`<div class="round-section"><div class="round-title">📋 Vorrunde</div>`;
-bracket.prelimMatches.forEach(m=>{html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
-html+=`</div>`;
+// SLOT 1: V1, V2, V3 (parallel)
+const slot1Matches=bracket.prelimMatches?.slice(0,3)||[];
+if(slot1Matches.length){
+slots.push({
+title:'⏱️ Slot 1: Vorrunde (3 Spiele parallel)',
+time:slot1Matches[0]?.time||'--:--',
+matches:slot1Matches
+});
 }
 
+// SLOT 2: V4 + R1a + R1b (parallel)
+const slot2Matches=[];
+if(bracket.prelimMatches?.[3])slot2Matches.push(bracket.prelimMatches[3]);
 const r1=bracket.mainBracket?.r1||[];
-if(r1.length&&r1[0].team1){
-html+=`<div class="round-section"><div class="round-title">⚡ Runde 1</div>`;
-r1.forEach(m=>{html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
-html+=`</div>`;
+if(r1[0])slot2Matches.push(r1[0]);
+if(r1[1])slot2Matches.push(r1[1]);
+if(slot2Matches.length){
+const firstTime=slot2Matches[0]?.time||'--:--';
+slots.push({
+title:'⏱️ Slot 2: V4 + Runde 1 (3 Spiele parallel)',
+time:firstTime,
+matches:slot2Matches
+});
 }
 
+// SLOT 3: R1c + R1d (parallel)
+const slot3Matches=[];
+if(r1[2])slot3Matches.push(r1[2]);
+if(r1[3])slot3Matches.push(r1[3]);
+if(slot3Matches.length){
+const firstTime=slot3Matches[0]?.time||'--:--';
+slots.push({
+title:'⏱️ Slot 3: Runde 1 (2 Spiele)',
+time:firstTime,
+matches:slot3Matches
+});
+}
+
+// SLOT 4: HF (4 Spiele parallel)
+const slot4Matches=[];
 const hf=bracket.mainBracket?.hf||[];
-if(hf.length&&hf[0].team1){
-html+=`<div class="round-section"><div class="round-title">🎯 Halbfinale</div>`;
-hf.forEach(m=>{html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
-html+=`</div>`;
-}
-
 const chf=bracket.mainBracket?.chf||[];
-if(chf.length&&chf[0].team1){
-html+=`<div class="round-section"><div class="round-title">🛡️ Consolation HF</div>`;
-chf.forEach(m=>{html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
-html+=`</div>`;
+hf.forEach(m=>{if(m&&m.team1)slot4Matches.push(m)});
+chf.forEach(m=>{if(m&&m.team1)slot4Matches.push(m)});
+if(slot4Matches.length){
+const firstTime=slot4Matches[0]?.time||'--:--';
+slots.push({
+title:'⏱️ Slot 4: Halbfinale',
+time:firstTime,
+matches:slot4Matches
+});
 }
 
+// SLOT 5: Finals
 const finals=bracket.mainBracket?.finals||[];
-if(finals.length&&finals[0]&&finals[0].team1){
-html+=`<div class="round-section"><div class="round-title">🏆 Finale</div>`;
-finals.forEach(m=>{if(m&&m.team1)html+=renderMatchCard(m,m.score1!=null?'done':'waiting')});
-html+=`</div>`;
+const slot5Matches=finals.filter(m=>m&&m.team1&&(m.id==='CF'||m.id==='CKF'));
+if(slot5Matches.length){
+const firstTime=slot5Matches[0]?.time||'--:--';
+slots.push({
+title:'⏱️ Slot 5: Consolation Finals',
+time:firstTime,
+matches:slot5Matches
+});
 }
+
+// SLOT 6: Finals (Hauptfinale)
+const slot6Matches=finals.filter(m=>m&&m.team1&&(m.id==='FINALE'||m.id==='KLF'));
+if(slot6Matches.length){
+const firstTime=slot6Matches[0]?.time||'--:--';
+slots.push({
+title:'⏱️ Slot 6: Finale',
+time:firstTime,
+matches:slot6Matches
+});
+}
+
+// Render
+let html='';
+slots.forEach(slot=>{
+const times=getMatchTimes(slot.matches[0]);
+html+=`<div class="round-section">
+<div class="round-title">${slot.title}</div>
+<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem">
+🕐 ${times.start} - ${times.end}
+</div>`;
+slot.matches.forEach(m=>{
+html+=renderMatchCard(m,m.score1!=null?'done':'waiting');
+});
+html+=`</div>`;
+});
 
 document.getElementById('matchesArea').innerHTML=html||'<p style="text-align:center;color:var(--text-muted);padding:2rem">Keine Spiele</p>';
 }
@@ -385,6 +480,7 @@ if(!bracket){document.getElementById('bracketArea').innerHTML='';return}
 
 let html='';
 
+// VORRUNDE
 html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">📋 Vorrunde</h3><div style="display:grid;gap:0.5rem">`;
 bracket.prelimMatches.forEach(m=>{
 const t=getMatchTimes(m);
@@ -392,7 +488,7 @@ const w=getWinner(m);
 html+=`<div style="background:var(--bg-hover);padding:0.75rem;border-radius:8px;font-size:0.75rem">
 <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
 <span style="font-weight:800;color:var(--amber)">${m.id}</span>
-<span style="color:var(--text-muted)">C${m.court} · ${t.start}</span>
+<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
 </div>
 <div style="display:flex;justify-content:space-between">
 <div>
@@ -407,6 +503,7 @@ ${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
 });
 html+=`</div></div>`;
 
+// RANKING
 const ranking=bracket.ranking||[];
 if(ranking.length){
 html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">🏆 Rangierung</h3><div style="display:grid;gap:0.25rem">`;
@@ -416,6 +513,152 @@ html+=`<div style="display:grid;grid-template-columns:auto 1fr auto;gap:0.75rem;
 <span style="font-weight:800">${m} ${r.rank}.</span>
 <span style="font-weight:600">${teamLabel(r.team)}</span>
 <span style="color:var(--text-muted)">${r.points} (${r.diff>=0?'+':''}${r.diff})</span>
+</div>`;
+});
+html+=`</div></div>`;
+}
+
+// RUNDE 1
+const r1=bracket.mainBracket?.r1||[];
+if(r1.length){
+html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">⚡ Runde 1</h3><div style="display:grid;gap:0.5rem">`;
+r1.forEach(m=>{
+const t=getMatchTimes(m);
+const w=getWinner(m);
+const t1=teamLabel(m.team1);
+const t2=teamLabel(m.team2);
+html+=`<div style="background:var(--bg-hover);padding:0.75rem;border-radius:8px;font-size:0.75rem">
+<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
+<span style="font-weight:800;color:var(--blue)">${m.id}</span>
+<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
+</div>
+<div style="display:flex;justify-content:space-between">
+<div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
+${t1}${w&&teamId(w)===teamId(m.team1)?' ✅':''}
+</div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">
+${t2}${w&&teamId(w)===teamId(m.team2)?' ✅':''}
+</div>
+</div>
+<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
+${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
+</div>
+</div>
+</div>`;
+});
+html+=`</div></div>`;
+}
+
+// HALBFINALE MIT AUSBLICK
+const hf=bracket.mainBracket?.hf||[];
+const chf=bracket.mainBracket?.chf||[];
+if(hf.length||chf.length){
+html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">🎯 Halbfinale</h3>`;
+
+// Winner Bracket HF
+if(hf.length){
+html+=`<div style="margin-bottom:1rem"><strong style="font-size:0.875rem">🏆 Winner Bracket</strong></div>`;
+html+=`<div style="display:grid;gap:0.5rem">`;
+hf.forEach((m,idx)=>{
+const t=getMatchTimes(m);
+const w=getWinner(m);
+const outlook=!m.team1?`Winner R1${String.fromCharCode(97+idx*2)} vs Winner R1${String.fromCharCode(97+idx*2+1)}`:'';
+html+=`<div style="background:var(--bg-hover);padding:0.75rem;border-radius:8px;font-size:0.75rem">
+<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
+<span style="font-weight:800;color:var(--green)">${m.id}</span>
+<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
+</div>
+${outlook?`<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">${outlook}</div>`:''}
+<div style="display:flex;justify-content:space-between">
+<div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
+${teamLabel(m.team1)}${w&&teamId(w)===teamId(m.team1)?' ✅':''}
+</div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">
+${teamLabel(m.team2)}${w&&teamId(w)===teamId(m.team2)?' ✅':''}
+</div>
+</div>
+<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
+${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
+</div>
+</div>
+</div>`;
+});
+html+=`</div>`;
+}
+
+// Consolation HF
+if(chf.length){
+html+=`<div style="margin:1rem 0 0.5rem"><strong style="font-size:0.875rem">🛡️ Consolation Bracket</strong></div>`;
+html+=`<div style="display:grid;gap:0.5rem">`;
+chf.forEach((m,idx)=>{
+const t=getMatchTimes(m);
+const w=getWinner(m);
+const outlook=!m.team1?`Loser R1${String.fromCharCode(97+idx*2)} vs Loser R1${String.fromCharCode(97+idx*2+1)}`:'';
+html+=`<div style="background:rgba(248,113,113,0.1);padding:0.75rem;border-radius:8px;font-size:0.75rem;border:1px solid rgba(248,113,113,0.2)">
+<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
+<span style="font-weight:800;color:var(--red)">${m.id}</span>
+<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
+</div>
+${outlook?`<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">${outlook}</div>`:''}
+<div style="display:flex;justify-content:space-between">
+<div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
+${teamLabel(m.team1)}${w&&teamId(w)===teamId(m.team1)?' ✅':''}
+</div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">
+${teamLabel(m.team2)}${w&&teamId(w)===teamId(m.team2)?' ✅':''}
+</div>
+</div>
+<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
+${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
+</div>
+</div>
+</div>`;
+});
+html+=`</div>`;
+}
+
+html+=`</div>`;
+}
+
+// FINALE
+const finals=bracket.mainBracket?.finals||[];
+if(finals.length){
+html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">🏆 Finale</h3><div style="display:grid;gap:0.5rem">`;
+finals.forEach(m=>{
+if(!m||!m.team1)return;
+const t=getMatchTimes(m);
+const w=getWinner(m);
+const isMain=m.id==='FINALE'||m.id==='KLF';
+const outlook=!m.team1||teamLabel(m.team1).includes('Winner')||teamLabel(m.team1).includes('Loser')?
+(m.id==='FINALE'?'Winner HF1 vs Winner HF2':
+m.id==='KLF'?'Loser HF1 vs Loser HF2':
+m.id==='CF'?'Winner CHF1 vs Winner CHF2':
+'Loser CHF1 vs Loser CHF2'):'';
+
+html+=`<div style="background:${isMain?'var(--bg-hover)':'rgba(248,113,113,0.1)'};padding:0.75rem;border-radius:8px;font-size:0.75rem;${!isMain?'border:1px solid rgba(248,113,113,0.2)':''}">
+<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
+<span style="font-weight:800;color:${isMain?'var(--gold)':'var(--red)'}">
+${m.id==='FINALE'?'🥇 ':m.id==='KLF'?'🥉 ':''}${m.id}
+</span>
+<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
+</div>
+${outlook?`<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">${outlook}</div>`:''}
+<div style="display:flex;justify-content:space-between">
+<div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
+${teamLabel(m.team1)}${w&&teamId(w)===teamId(m.team1)?' ✅':''}
+</div>
+<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">
+${teamLabel(m.team2)}${w&&teamId(w)===teamId(m.team2)?' ✅':''}
+</div>
+</div>
+<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
+${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
+</div>
+</div>
 </div>`;
 });
 html+=`</div></div>`;
