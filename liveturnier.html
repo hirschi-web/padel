@@ -140,7 +140,8 @@ document.getElementById('tournamentMeta').textContent=`${tournamentData.koTeamCo
 ensureR1Placeholders();
 ensureHFPlaceholders();
 ensureFinalsPlaceholders();
-renderMatches();renderBracket();
+renderMatches();
+renderBracket();
 }catch(e){alert('Fehler: '+e.message)}
 }
 
@@ -161,18 +162,17 @@ function teamLabel(team){
 if(!team)return'?';
 if(team.a&&team.b)return`${team.a}/${team.b}`;
 if(team.name)return team.name;
-if(team.source==='rank')return`Platz ${team.rank}`;
 if(team.outlook)return team.outlook;
 return'Wartet...';
 }
 
 function getWinner(match){
-if(match.score1==null||match.score2==null)return null;
+if(!match||match.score1==null||match.score2==null)return null;
 return match.score1>match.score2?match.team1:match.team2;
 }
 
 function getLoser(match){
-if(match.score1==null||match.score2==null)return null;
+if(!match||match.score1==null||match.score2==null)return null;
 return match.score1>match.score2?match.team2:match.team1;
 }
 
@@ -190,28 +190,6 @@ const endTime=addMinutes(startTime,matchDuration);
 return{start:startTime,end:endTime,duration:matchDuration};
 }
 
-
-
-bracket.prelimMatches.forEach(m=>{
-if(m.score1==null||m.score2==null)return;
-const t1=teams.find(t=>t.id===teamId(m.team1));
-const t2=teams.find(t=>t.id===teamId(m.team2));
-if(!t1||!t2)return;
-t1.points+=m.score1;t1.pointsAgainst+=m.score2;
-t2.points+=m.score2;t2.pointsAgainst+=m.score1;
-if(m.score1>m.score2){t1.wins++;t2.losses++;}
-else{t2.wins++;t1.losses++;}
-});
-
-teams.forEach(t=>t.diff=t.points-t.pointsAgainst);
-teams.sort((a,b)=>{
-if(b.diff!==a.diff)return b.diff-a.diff;
-return b.points-a.points;
-});
-teams.forEach((t,i)=>t.rank=i+1);
-bracket.ranking=teams;
-}
-
 function fillRound1(){
 const bracket=tournamentData.koBracket.mainBracket;
 if(!bracket.r1)bracket.r1=[];
@@ -220,26 +198,18 @@ const prelim=tournamentData.koBracket.prelimMatches;
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
-// Helper: get winner/loser from prelim match
-const getWinner=m=>m.score1!=null&&m.score1>m.score2?m.team1:m.score1!=null?m.team2:null;
-const getLoser=m=>m.score1!=null&&m.score1>m.score2?m.team2:m.score1!=null?m.team1:null;
-
-// R1a: Winner V1 vs Winner V2 (Slot 2)
 if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
 bracket.r1[0].team1=getWinner(prelim[0])||{outlook:'Winner V1'};
 bracket.r1[0].team2=getWinner(prelim[1])||{outlook:'Winner V2'};
 
-// R1b: Winner V3 vs Loser V1 (Slot 2)
 if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,2*dur)};
 bracket.r1[1].team1=getWinner(prelim[2])||{outlook:'Winner V3'};
 bracket.r1[1].team2=getLoser(prelim[0])||{outlook:'Loser V1'};
 
-// R1c: Loser V2 vs Loser V3 (Slot 3)
 if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,3*dur)};
 bracket.r1[2].team1=getLoser(prelim[1])||{outlook:'Loser V2'};
 bracket.r1[2].team2=getLoser(prelim[2])||{outlook:'Loser V3'};
 
-// R1d: Winner V4 vs Loser V4 (Slot 3) - WILDCARD!
 if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,3*dur)};
 bracket.r1[3].team1=getWinner(prelim[3])||{outlook:'Winner V4'};
 bracket.r1[3].team2=getLoser(prelim[3])||{outlook:'Loser V4'};
@@ -261,7 +231,7 @@ bracket.r1=[
 ];
 }
 
-  function ensureHFPlaceholders(){
+function ensureHFPlaceholders(){
 const bracket=tournamentData.koBracket.mainBracket;
 if(!bracket.hf)bracket.hf=[];
 if(!bracket.chf)bracket.chf=[];
@@ -271,13 +241,13 @@ const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
 bracket.hf=[
-{id:'HF1',court:1,team1:{outlook:'Winner R1a'},team2:{outlook:'Winner R1b'},score1:null,score2:null,time:addMinutes(start,3*dur)},
-{id:'HF2',court:2,team1:{outlook:'Winner R1c'},team2:{outlook:'Winner R1d'},score1:null,score2:null,time:addMinutes(start,3*dur)}
+{id:'HF1',court:1,team1:{outlook:'Winner R1a'},team2:{outlook:'Winner R1b'},score1:null,score2:null,time:addMinutes(start,4*dur)},
+{id:'HF2',court:2,team1:{outlook:'Winner R1c'},team2:{outlook:'Winner R1d'},score1:null,score2:null,time:addMinutes(start,4*dur)}
 ];
 
 bracket.chf=[
 {id:'CHF1',court:3,team1:{outlook:'Loser R1a'},team2:{outlook:'Loser R1b'},score1:null,score2:null,time:addMinutes(start,3*dur)},
-{id:'CHF2',court:4,team1:{outlook:'Loser R1c'},team2:{outlook:'Loser R1d'},score1:null,score2:null,time:addMinutes(start,3*dur)}
+{id:'CHF2',court:4,team1:{outlook:'Loser R1c'},team2:{outlook:'Loser R1d'},score1:null,score2:null,time:addMinutes(start,4*dur)}
 ];
 }
 
@@ -313,7 +283,8 @@ if(l[2]&&l[3]){if(!b.chf[1])b.chf[1]={id:'CHF2',court:4,score1:null,score2:null}
 
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
-[...b.hf,...b.chf].forEach(m=>{if(m)m.time=addMinutes(start,3*dur)});
+[b.chf[0]].forEach(m=>{if(m)m.time=addMinutes(start,3*dur)});
+[b.hf[0],b.hf[1],b.chf[1]].forEach(m=>{if(m)m.time=addMinutes(start,4*dur)});
 }
 
 function fillFinals(){
@@ -344,10 +315,8 @@ function renderMatches(){
 const bracket=tournamentData.koBracket;
 if(!bracket){document.getElementById('matchesArea').innerHTML='<p>Kein Bracket</p>';return}
 
-// Gruppierung nach Spielslot (Zeit)
 const slots=[];
 
-// SLOT 1: V1, V2, V3 (parallel)
 const slot1Matches=bracket.prelimMatches?.slice(0,3)||[];
 if(slot1Matches.length){
 slots.push({
@@ -357,7 +326,6 @@ matches:slot1Matches
 });
 }
 
-// SLOT 2: V4 + R1a + R1b (parallel)
 const slot2Matches=[];
 if(bracket.prelimMatches?.[3])slot2Matches.push(bracket.prelimMatches[3]);
 const r1=bracket.mainBracket?.r1||[];
@@ -372,25 +340,24 @@ matches:slot2Matches
 });
 }
 
-// SLOT 3: R1c + R1d (parallel)
 const slot3Matches=[];
+const chf=bracket.mainBracket?.chf||[];
+if(chf[0])slot3Matches.push(chf[0]);
 if(r1[2])slot3Matches.push(r1[2]);
 if(r1[3])slot3Matches.push(r1[3]);
 if(slot3Matches.length){
 const firstTime=slot3Matches[0]?.time||'--:--';
 slots.push({
-title:'⏱️ Slot 3: Runde 1 (2 Spiele)',
+title:'⏱️ Slot 3: Runde 1 (2 Spiele) + CHF1',
 time:firstTime,
 matches:slot3Matches
 });
 }
 
-// SLOT 4: HF (4 Spiele parallel)
 const slot4Matches=[];
 const hf=bracket.mainBracket?.hf||[];
-const chf=bracket.mainBracket?.chf||[];
 hf.forEach(m=>{if(m&&m.team1)slot4Matches.push(m)});
-chf.forEach(m=>{if(m&&m.team1)slot4Matches.push(m)});
+if(chf[1]&&chf[1].team1)slot4Matches.push(chf[1]);
 if(slot4Matches.length){
 const firstTime=slot4Matches[0]?.time||'--:--';
 slots.push({
@@ -400,7 +367,6 @@ matches:slot4Matches
 });
 }
 
-// SLOT 5: Finals
 const finals=bracket.mainBracket?.finals||[];
 const slot5Matches=finals.filter(m=>m&&m.team1&&(m.id==='CF'||m.id==='CKF'));
 if(slot5Matches.length){
@@ -412,7 +378,6 @@ matches:slot5Matches
 });
 }
 
-// SLOT 6: Finals (Hauptfinale)
 const slot6Matches=finals.filter(m=>m&&m.team1&&(m.id==='FINALE'||m.id==='KLF'));
 if(slot6Matches.length){
 const firstTime=slot6Matches[0]?.time||'--:--';
@@ -423,7 +388,6 @@ matches:slot6Matches
 });
 }
 
-// Render
 let html='';
 slots.forEach(slot=>{
 const times=getMatchTimes(slot.matches[0]);
@@ -444,7 +408,7 @@ document.getElementById('matchesArea').innerHTML=html||'<p style="text-align:cen
 function renderMatchCard(match,status){
 const team1=teamLabel(match.team1);
 const team2=teamLabel(match.team2);
-const isPlaceholder=team1.includes('Wartet');
+const isPlaceholder=team1.includes('Winner')||team1.includes('Loser')||team1.includes('Wartet');
 const hasScore=match.score1!=null&&match.score2!=null;
 const isFocused=focusPlayer&&(team1.includes(focusPlayer)||team2.includes(focusPlayer));
 
@@ -483,7 +447,6 @@ if(!bracket){document.getElementById('bracketArea').innerHTML='';return}
 
 let html='';
 
-// VORRUNDE
 html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">📋 Vorrunde</h3><div style="display:grid;gap:0.5rem">`;
 bracket.prelimMatches.forEach(m=>{
 const t=getMatchTimes(m);
@@ -506,149 +469,17 @@ ${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
 });
 html+=`</div></div>`;
 
-// RANKING
-const ranking=bracket.ranking||[];
-if(ranking.length){
-html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">🏆 Rangierung</h3><div style="display:grid;gap:0.25rem">`;
-ranking.forEach((r,i)=>{
-const m=['🥇','🥈','🥉',''][i]||'';
-html+=`<div style="display:grid;grid-template-columns:auto 1fr auto;gap:0.75rem;padding:0.5rem;background:var(--bg-hover);border-radius:6px;font-size:0.875rem">
-<span style="font-weight:800">${m} ${r.rank}.</span>
-<span style="font-weight:600">${teamLabel(r.team)}</span>
-<span style="color:var(--text-muted)">${r.points} (${r.diff>=0?'+':''}${r.diff})</span>
-</div>`;
-});
-html+=`</div></div>`;
-}
-
-// RUNDE 1
 const r1=bracket.mainBracket?.r1||[];
 if(r1.length){
 html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">⚡ Runde 1</h3><div style="display:grid;gap:0.5rem">`;
 r1.forEach(m=>{
 const t=getMatchTimes(m);
 const w=getWinner(m);
-const t1=teamLabel(m.team1);
-const t2=teamLabel(m.team2);
 html+=`<div style="background:var(--bg-hover);padding:0.75rem;border-radius:8px;font-size:0.75rem">
 <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
 <span style="font-weight:800;color:var(--blue)">${m.id}</span>
 <span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
 </div>
-<div style="display:flex;justify-content:space-between">
-<div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
-${t1}${w&&teamId(w)===teamId(m.team1)?' ✅':''}
-</div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">
-${t2}${w&&teamId(w)===teamId(m.team2)?' ✅':''}
-</div>
-</div>
-<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
-${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
-</div>
-</div>
-</div>`;
-});
-html+=`</div></div>`;
-}
-
-// HALBFINALE MIT AUSBLICK
-const hf=bracket.mainBracket?.hf||[];
-const chf=bracket.mainBracket?.chf||[];
-if(hf.length||chf.length){
-html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">🎯 Halbfinale</h3>`;
-
-// Winner Bracket HF
-if(hf.length){
-html+=`<div style="margin-bottom:1rem"><strong style="font-size:0.875rem">🏆 Winner Bracket</strong></div>`;
-html+=`<div style="display:grid;gap:0.5rem">`;
-hf.forEach((m,idx)=>{
-const t=getMatchTimes(m);
-const w=getWinner(m);
-const outlook=!m.team1?`Winner R1${String.fromCharCode(97+idx*2)} vs Winner R1${String.fromCharCode(97+idx*2+1)}`:'';
-html+=`<div style="background:var(--bg-hover);padding:0.75rem;border-radius:8px;font-size:0.75rem">
-<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
-<span style="font-weight:800;color:var(--green)">${m.id}</span>
-<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
-</div>
-${outlook?`<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">${outlook}</div>`:''}
-<div style="display:flex;justify-content:space-between">
-<div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
-${teamLabel(m.team1)}${w&&teamId(w)===teamId(m.team1)?' ✅':''}
-</div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">
-${teamLabel(m.team2)}${w&&teamId(w)===teamId(m.team2)?' ✅':''}
-</div>
-</div>
-<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
-${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
-</div>
-</div>
-</div>`;
-});
-html+=`</div>`;
-}
-
-// Consolation HF
-if(chf.length){
-html+=`<div style="margin:1rem 0 0.5rem"><strong style="font-size:0.875rem">🛡️ Consolation Bracket</strong></div>`;
-html+=`<div style="display:grid;gap:0.5rem">`;
-chf.forEach((m,idx)=>{
-const t=getMatchTimes(m);
-const w=getWinner(m);
-const outlook=!m.team1?`Loser R1${String.fromCharCode(97+idx*2)} vs Loser R1${String.fromCharCode(97+idx*2+1)}`:'';
-html+=`<div style="background:rgba(248,113,113,0.1);padding:0.75rem;border-radius:8px;font-size:0.75rem;border:1px solid rgba(248,113,113,0.2)">
-<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
-<span style="font-weight:800;color:var(--red)">${m.id}</span>
-<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
-</div>
-${outlook?`<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">${outlook}</div>`:''}
-<div style="display:flex;justify-content:space-between">
-<div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
-${teamLabel(m.team1)}${w&&teamId(w)===teamId(m.team1)?' ✅':''}
-</div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">
-${teamLabel(m.team2)}${w&&teamId(w)===teamId(m.team2)?' ✅':''}
-</div>
-</div>
-<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
-${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
-</div>
-</div>
-</div>`;
-});
-html+=`</div>`;
-}
-
-html+=`</div>`;
-}
-
-// FINALE
-const finals=bracket.mainBracket?.finals||[];
-if(finals.length){
-html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">🏆 Finale</h3><div style="display:grid;gap:0.5rem">`;
-finals.forEach(m=>{
-if(!m||!m.team1)return;
-const t=getMatchTimes(m);
-const w=getWinner(m);
-const isMain=m.id==='FINALE'||m.id==='KLF';
-const outlook=!m.team1||teamLabel(m.team1).includes('Winner')||teamLabel(m.team1).includes('Loser')?
-(m.id==='FINALE'?'Winner HF1 vs Winner HF2':
-m.id==='KLF'?'Loser HF1 vs Loser HF2':
-m.id==='CF'?'Winner CHF1 vs Winner CHF2':
-'Loser CHF1 vs Loser CHF2'):'';
-
-html+=`<div style="background:${isMain?'var(--bg-hover)':'rgba(248,113,113,0.1)'};padding:0.75rem;border-radius:8px;font-size:0.75rem;${!isMain?'border:1px solid rgba(248,113,113,0.2)':''}">
-<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
-<span style="font-weight:800;color:${isMain?'var(--gold)':'var(--red)'}">
-${m.id==='FINALE'?'🥇 ':m.id==='KLF'?'🥉 ':''}${m.id}
-</span>
-<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
-</div>
-${outlook?`<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">${outlook}</div>`:''}
 <div style="display:flex;justify-content:space-between">
 <div>
 <div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
@@ -707,7 +538,6 @@ match.score1=s1;
 match.score2=s2;
 
 if(allPrelimDone()){
-calculateRanking();
 fillRound1();
 }
 
