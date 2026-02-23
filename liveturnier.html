@@ -135,7 +135,7 @@ try{
 const{data,error}=await supabaseClient.from('tournaments').select('*').eq('id',tournamentId).single();
 if(error)throw error;
 tournamentData=data.data;
-document.getElementById('tournamentName').textContent=tournamentId;
+document.getElementById('tournamentName').textContent=tournamentId.toUpperCase();
 document.getElementById('tournamentMeta').textContent=`${tournamentData.koTeamCount} Teams · ${tournamentData.koCourts} Courts · Start: ${tournamentData.koStartTime}`;
 ensureR1Placeholders();
 ensureHFPlaceholders();
@@ -505,60 +505,102 @@ function renderBracket(){
 const bracket=tournamentData.koBracket;
 if(!bracket){document.getElementById('bracketArea').innerHTML='';return}
 
-let html='';
-
-html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">📋 Vorrunde</h3><div style="display:grid;gap:0.5rem">`;
-bracket.prelimMatches.forEach(m=>{
-const t=getMatchTimes(m);
-const w=getWinner(m);
-html+=`<div style="background:var(--bg-hover);padding:0.75rem;border-radius:8px;font-size:0.75rem">
-<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
-<span style="font-weight:800;color:var(--amber)">${m.id}</span>
-<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
-</div>
-<div style="display:flex;justify-content:space-between">
-<div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">${teamLabel(m.team1)}${w&&teamId(w)===teamId(m.team1)?' ✅':''}</div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">${teamLabel(m.team2)}${w&&teamId(w)===teamId(m.team2)?' ✅':''}</div>
-</div>
-<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
-${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
-</div>
-</div>
-</div>`;
-});
-html+=`</div></div>`;
-
+const w=900,h=700;
+const mW=180,mH=50;
+const colX=[20,240,460,680];
+const prelim=bracket.prelimMatches||[];
 const r1=bracket.mainBracket?.r1||[];
-if(r1.length){
-html+=`<div class="bracket-section"><h3 style="margin-bottom:1rem">⚡ Runde 1</h3><div style="display:grid;gap:0.5rem">`;
-r1.forEach(m=>{
-const t=getMatchTimes(m);
-const w=getWinner(m);
-html+=`<div style="background:var(--bg-hover);padding:0.75rem;border-radius:8px;font-size:0.75rem">
-<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
-<span style="font-weight:800;color:var(--blue)">${m.id}</span>
-<span style="color:var(--text-muted)">C${m.court} · ${t.start}-${t.end}</span>
-</div>
-<div style="display:flex;justify-content:space-between">
-<div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team1)?'color:var(--green)':''}">
-${teamLabel(m.team1)}${w&&teamId(w)===teamId(m.team1)?' ✅':''}
-</div>
-<div style="font-weight:600;${w&&teamId(w)===teamId(m.team2)?'color:var(--green)':''}">
-${teamLabel(m.team2)}${w&&teamId(w)===teamId(m.team2)?' ✅':''}
-</div>
-</div>
-<div style="font-size:1.25rem;font-weight:800;color:${m.score1!=null?'var(--green)':'var(--text-muted)'}">
-${m.score1!=null?`${m.score1}:${m.score2}`:'-:-'}
-</div>
-</div>
-</div>`;
-});
-html+=`</div></div>`;
-}
+const hf=bracket.mainBracket?.hf||[];
+const chf=bracket.mainBracket?.chf||[];
+const finals=bracket.mainBracket?.finals||[];
 
-document.getElementById('bracketArea').innerHTML=html;
+let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="background:#0f172a;border-radius:12px;max-width:100%;height:auto">`;
+
+// Title
+svg+=`<text x="10" y="20" style="font-size:14px;font-weight:800;fill:#3b82f6">K.O. TURNIER BRACKET</text>`;
+
+// Vorrunde
+svg+=`<text x="10" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">VORRUNDE</text>`;
+prelim.forEach((m,i)=>{
+const y=65+i*60;
+const t1=teamLabel(m.team1);
+const t2=teamLabel(m.team2);
+const score=m.score1!=null?`${m.score1}:${m.score2}`:'vs';
+const w1=m.score1!=null&&m.score1>m.score2;
+const w2=m.score1!=null&&m.score2>m.score1;
+svg+=`<g transform="translate(10,${y})">
+<rect width="200" height="45" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+<text x="8" y="15" style="font-size:10px;font-weight:800;fill:#fbbf24">${m.id}</text>
+<text x="8" y="28" style="font-size:10px;fill:${w1?'#4ade80':'#f1f5f9'}">${t1}</text>
+<text x="8" y="38" style="font-size:10px;fill:${w2?'#4ade80':'#f1f5f9'}">${t2}</text>
+<text x="190" y="33" text-anchor="end" style="font-size:14px;font-weight:800;fill:#4ade80">${score}</text>
+</g>`;
+});
+
+// R1
+svg+=`<text x="230" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">RUNDE 1</text>`;
+r1.forEach((m,i)=>{
+const y=65+i*60;
+const t1=teamLabel(m.team1);
+const t2=teamLabel(m.team2);
+const score=m.score1!=null?`${m.score1}:${m.score2}`:'vs';
+const w1=m.score1!=null&&m.score1>m.score2;
+const w2=m.score1!=null&&m.score2>m.score1;
+const isPlaceholder=t1.includes('Winner')||t1.includes('Loser');
+svg+=`<g transform="translate(230,${y})">
+<rect width="200" height="45" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+<text x="8" y="15" style="font-size:10px;font-weight:800;fill:#3b82f6">${m.id}</text>
+<text x="8" y="28" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w1?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t1}</text>
+<text x="8" y="38" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w2?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t2}</text>
+<text x="190" y="33" text-anchor="end" style="font-size:14px;font-weight:800;fill:#4ade80">${score}</text>
+</g>`;
+});
+
+// HF
+svg+=`<text x="450" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">HALBFINALE</text>`;
+[...hf,...chf].forEach((m,i)=>{
+if(!m)return;
+const y=65+i*60;
+const t1=teamLabel(m.team1);
+const t2=teamLabel(m.team2);
+const score=m.score1!=null?`${m.score1}:${m.score2}`:'vs';
+const w1=m.score1!=null&&m.score1>m.score2;
+const w2=m.score1!=null&&m.score2>m.score1;
+const isPlaceholder=t1.includes('Winner')||t1.includes('Loser');
+const isCons=m.id.includes('CHF');
+svg+=`<g transform="translate(450,${y})">
+<rect width="200" height="45" rx="6" fill="#1e293b" stroke="${isCons?'#f87171':'#334155'}" stroke-width="1.5"/>
+<text x="8" y="15" style="font-size:10px;font-weight:800;fill:${isCons?'#f87171':'#4ade80'}">${m.id}</text>
+<text x="8" y="28" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w1?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t1}</text>
+<text x="8" y="38" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w2?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t2}</text>
+<text x="190" y="33" text-anchor="end" style="font-size:14px;font-weight:800;fill:#4ade80">${score}</text>
+</g>`;
+});
+
+// Finals
+svg+=`<text x="670" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">FINALE</text>`;
+finals.forEach((m,i)=>{
+if(!m||!m.team1)return;
+const y=65+i*60;
+const t1=teamLabel(m.team1);
+const t2=teamLabel(m.team2);
+const score=m.score1!=null?`${m.score1}:${m.score2}`:'vs';
+const w1=m.score1!=null&&m.score1>m.score2;
+const w2=m.score1!=null&&m.score2>m.score1;
+const isPlaceholder=t1.includes('Winner')||t1.includes('Loser');
+const isMain=m.id==='FINALE'||m.id==='KLF';
+svg+=`<g transform="translate(670,${y})">
+<rect width="200" height="45" rx="6" fill="#1e293b" stroke="${isMain?'#fbbf24':'#f87171'}" stroke-width="2"/>
+<text x="8" y="15" style="font-size:10px;font-weight:800;fill:${isMain?'#fbbf24':'#f87171'}">${m.id==='FINALE'?'🥇 '+m.id:m.id==='KLF'?'🥉 '+m.id:m.id}</text>
+<text x="8" y="28" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w1?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t1}</text>
+<text x="8" y="38" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w2?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t2}</text>
+<text x="190" y="33" text-anchor="end" style="font-size:14px;font-weight:800;fill:#4ade80">${score}</text>
+</g>`;
+});
+
+svg+=`</svg>`;
+
+document.getElementById('bracketArea').innerHTML=svg;
 }
 
 function findMatch(id){
