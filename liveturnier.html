@@ -198,21 +198,49 @@ const prelim=tournamentData.koBracket.prelimMatches;
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
+// R1a: Winner V1 vs Winner V2 - kann gefüllt werden sobald V1+V2 fertig
 if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
-bracket.r1[0].team1=getWinner(prelim[0])||{outlook:'Winner V1'};
-bracket.r1[0].team2=getWinner(prelim[1])||{outlook:'Winner V2'};
+const v1Done=prelim[0]&&prelim[0].score1!=null;
+const v2Done=prelim[1]&&prelim[1].score1!=null;
+if(v1Done&&v2Done){
+bracket.r1[0].team1=getWinner(prelim[0]);
+bracket.r1[0].team2=getWinner(prelim[1]);
+}else{
+bracket.r1[0].team1={outlook:'Winner V1'};
+bracket.r1[0].team2={outlook:'Winner V2'};
+}
 
+// R1b: Winner V3 vs Loser V1 - kann gefüllt werden sobald V1+V3 fertig
 if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,2*dur)};
-bracket.r1[1].team1=getWinner(prelim[2])||{outlook:'Winner V3'};
-bracket.r1[1].team2=getLoser(prelim[0])||{outlook:'Loser V1'};
+const v3Done=prelim[2]&&prelim[2].score1!=null;
+if(v1Done&&v3Done){
+bracket.r1[1].team1=getWinner(prelim[2]);
+bracket.r1[1].team2=getLoser(prelim[0]);
+}else{
+bracket.r1[1].team1={outlook:'Winner V3'};
+bracket.r1[1].team2={outlook:'Loser V1'};
+}
 
+// R1c: Loser V2 vs Loser V3 - braucht V2+V3
 if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,3*dur)};
-bracket.r1[2].team1=getLoser(prelim[1])||{outlook:'Loser V2'};
-bracket.r1[2].team2=getLoser(prelim[2])||{outlook:'Loser V3'};
+if(v2Done&&v3Done){
+bracket.r1[2].team1=getLoser(prelim[1]);
+bracket.r1[2].team2=getLoser(prelim[2]);
+}else{
+bracket.r1[2].team1={outlook:'Loser V2'};
+bracket.r1[2].team2={outlook:'Loser V3'};
+}
 
+// R1d: Winner V4 vs Loser V4 - braucht V4 (Wildcard!)
 if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,3*dur)};
-bracket.r1[3].team1=getWinner(prelim[3])||{outlook:'Winner V4'};
-bracket.r1[3].team2=getLoser(prelim[3])||{outlook:'Loser V4'};
+const v4Done=prelim[3]&&prelim[3].score1!=null;
+if(v4Done){
+bracket.r1[3].team1=getWinner(prelim[3]);
+bracket.r1[3].team2=getLoser(prelim[3]);
+}else{
+bracket.r1[3].team1={outlook:'Winner V4'};
+bracket.r1[3].team2={outlook:'Loser V4'};
+}
 }
 
 function ensureR1Placeholders(){
@@ -537,9 +565,8 @@ if(!match)return;
 match.score1=s1;
 match.score2=s2;
 
-if(allPrelimDone()){
+// IMMER R1 updaten (füllt was möglich ist)
 fillRound1();
-}
 
 if(allR1Done()){
 fillSemiFinals();
