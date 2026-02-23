@@ -190,17 +190,7 @@ const endTime=addMinutes(startTime,matchDuration);
 return{start:startTime,end:endTime,duration:matchDuration};
 }
 
-function calculateRanking(){
-const bracket=tournamentData.koBracket;
-const teams=[];
 
-bracket.prelimMatches.forEach(m=>{
-[m.team1,m.team2].forEach(t=>{
-if(!teams.find(x=>teamId(x.team)===teamId(t))){
-teams.push({id:teamId(t),team:t,points:0,pointsAgainst:0,diff:0,wins:0,losses:0});
-}
-});
-});
 
 bracket.prelimMatches.forEach(m=>{
 if(m.score1==null||m.score2==null)return;
@@ -264,14 +254,14 @@ const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
 bracket.r1=[
-{id:'R1a',court:2,team1:{source:'rank',rank:1},team2:{source:'rank',rank:8},score1:null,score2:null,time:addMinutes(start,2*dur)},
-{id:'R1b',court:3,team1:{source:'rank',rank:2},team2:{source:'rank',rank:7},score1:null,score2:null,time:addMinutes(start,2*dur)},
-{id:'R1c',court:1,team1:{source:'rank',rank:3},team2:{source:'rank',rank:6},score1:null,score2:null,time:addMinutes(start,3*dur)},
-{id:'R1d',court:2,team1:{source:'rank',rank:4},team2:{source:'rank',rank:5},score1:null,score2:null,time:addMinutes(start,3*dur)}
+{id:'R1a',court:2,team1:{outlook:'Winner V1'},team2:{outlook:'Winner V2'},score1:null,score2:null,time:addMinutes(start,2*dur)},
+{id:'R1b',court:3,team1:{outlook:'Winner V3'},team2:{outlook:'Loser V1'},score1:null,score2:null,time:addMinutes(start,2*dur)},
+{id:'R1c',court:1,team1:{outlook:'Loser V2'},team2:{outlook:'Loser V3'},score1:null,score2:null,time:addMinutes(start,3*dur)},
+{id:'R1d',court:2,team1:{outlook:'Winner V4'},team2:{outlook:'Loser V4'},score1:null,score2:null,time:addMinutes(start,3*dur)}
 ];
 }
 
-function ensureHFPlaceholders(){
+  function ensureHFPlaceholders(){
 const bracket=tournamentData.koBracket.mainBracket;
 if(!bracket.hf)bracket.hf=[];
 if(!bracket.chf)bracket.chf=[];
