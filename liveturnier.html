@@ -140,6 +140,15 @@ document.getElementById('tournamentMeta').textContent=`${tournamentData.koTeamCo
 ensureR1Placeholders();
 ensureHFPlaceholders();
 ensureFinalsPlaceholders();
+
+// Ranking berechnen wenn alle Vorrunden fertig sind
+const prelim=tournamentData.koBracket.prelimMatches||[];
+const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
+if(allPrelimDone){
+calculateRanking();
+fillRound1();
+}
+
 renderMatches();
 renderBracket();
 }catch(e){alert('Fehler: '+e.message)}
