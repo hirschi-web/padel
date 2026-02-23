@@ -238,16 +238,26 @@ function koGenerateBracket() {
 
 function koGenerate8() {
     const teams = koTeams.slice(0, 8);
+    const startTime = document.getElementById('koStartTime').value || '09:00';
+    const matchTime = parseInt(document.getElementById('koMatchTime').value) || 30;
+    const pause = parseInt(document.getElementById('koPause').value) || 5;
+    const slotDur = matchTime + pause;
+    
+    function addMin(time, min) {
+        const [h, m] = time.split(':').map(Number);
+        const total = h * 60 + m + min;
+        return `${Math.floor(total/60).toString().padStart(2,'0')}:${(total%60).toString().padStart(2,'0')}`;
+    }
 
     // Random prelim pairings: shuffle teams, pair them
     const shuffled = [...teams].sort(() => Math.random() - 0.5);
     // V1: shuffled[0] vs shuffled[1], V2: shuffled[2] vs shuffled[3]
     // V3: shuffled[4] vs shuffled[5], V4: shuffled[6] vs shuffled[7]
     const prelimMatches = [
-        { id: 'V1', team1: shuffled[0], team2: shuffled[1], score1: null, score2: null, court: 1 },
-        { id: 'V2', team1: shuffled[2], team2: shuffled[3], score1: null, score2: null, court: 2 },
-        { id: 'V3', team1: shuffled[4], team2: shuffled[5], score1: null, score2: null, court: 3 },
-        { id: 'V4', team1: shuffled[6], team2: shuffled[7], score1: null, score2: null, court: 1, parallel: true },
+        { id: 'V1', team1: shuffled[0], team2: shuffled[1], score1: null, score2: null, court: 1, time: startTime },
+        { id: 'V2', team1: shuffled[2], team2: shuffled[3], score1: null, score2: null, court: 2, time: startTime },
+        { id: 'V3', team1: shuffled[4], team2: shuffled[5], score1: null, score2: null, court: 3, time: startTime },
+        { id: 'V4', team1: shuffled[6], team2: shuffled[7], score1: null, score2: null, court: 1, time: addMin(startTime, slotDur), parallel: true },
     ];
 
     koBracketData = {
@@ -630,13 +640,12 @@ function ko8BuildAndRenderBracket() {
     if (!koBracketData) return;
 
     // R1 always shows placeholders here (real names assigned after prelim on results page)
-   const r1 = [
-    { id: 'R1a', t1: null, t2: null, court: 2, label: 'Winner V1 vs Winner V2', source1: 'V1-winner', source2: 'V2-winner' },
-    { id: 'R1b', t1: null, t2: null, court: 3, label: 'Winner V3 vs Loser V1', source1: 'V3-winner', source2: 'V1-loser' },
-    { id: 'R1c', t1: null, t2: null, court: 1, label: 'Loser V2 vs Loser V3', source1: 'V2-loser', source2: 'V3-loser' },
-    { id: 'R1d', t1: null, t2: null, court: 2, label: 'Winner V4 vs Loser V4', source1: 'V4-winner', source2: 'V4-loser' },
-];
-    
+    const r1 = [
+        { id: 'R1a', t1: null, t2: null, court: 2, label: 'P1 vs P8' },
+        { id: 'R1b', t1: null, t2: null, court: 3, label: 'P2 vs P7' },
+        { id: 'R1c', t1: null, t2: null, court: 1, label: 'P3 vs P6' },
+        { id: 'R1d', t1: null, t2: null, court: 2, label: 'P4 vs P5' },
+    ];
     const bracket = koBracketData.mainBracket || {};
     koBracketData.mainBracket = { r1, results: bracket.results || {} };
     ko8RenderBracketSVG();
