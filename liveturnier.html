@@ -292,33 +292,36 @@ const ranking=tournamentData.koBracket.ranking;
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
-// WENN RANKING DA: Nutze Ranking
-if(ranking&&ranking.length>=8){
+// Ensure all 4 R1 matches exist
 if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,score1:null,score2:null,time:addMinutes(start,1*dur)};
+if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,1*dur)};
+if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,2*dur)};
+if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
+
+// WENN RANKING DA: Update mit echten Teams
+if(ranking&&ranking.length>=8){
 bracket.r1[0].team1=ranking[0].team;
 bracket.r1[0].team2=ranking[7].team;
-
-if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,1*dur)};
 bracket.r1[1].team1=ranking[1].team;
 bracket.r1[1].team2=ranking[6].team;
-
-if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,2*dur)};
 bracket.r1[2].team1=ranking[2].team;
 bracket.r1[2].team2=ranking[5].team;
-
-if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
 bracket.r1[3].team1=ranking[3].team;
 bracket.r1[3].team2=ranking[4].team;
-
 console.log('[R1 from Ranking]',bracket.r1.map(m=>`${m.id}: ${teamLabel(m.team1)} vs ${teamLabel(m.team2)}`));
-return;
+} else {
+// KEIN RANKING: Zeige Platzhalter
+if(!bracket.r1[0].team1||!bracket.r1[0].team1.a){
+bracket.r1[0].team1={outlook:'Platz 1'};
+bracket.r1[0].team2={outlook:'Platz 8'};
+bracket.r1[1].team1={outlook:'Platz 2'};
+bracket.r1[1].team2={outlook:'Platz 7'};
+bracket.r1[2].team1={outlook:'Platz 3'};
+bracket.r1[2].team2={outlook:'Platz 6'};
+bracket.r1[3].team1={outlook:'Platz 4'};
+bracket.r1[3].team2={outlook:'Platz 5'};
 }
-
-// FALLBACK: Zeige Platzhalter
-if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,team1:{outlook:'Platz 1'},team2:{outlook:'Platz 8'},score1:null,score2:null,time:addMinutes(start,1*dur)};
-if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,team1:{outlook:'Platz 2'},team2:{outlook:'Platz 7'},score1:null,score2:null,time:addMinutes(start,1*dur)};
-if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,team1:{outlook:'Platz 3'},team2:{outlook:'Platz 6'},score1:null,score2:null,time:addMinutes(start,2*dur)};
-if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,team1:{outlook:'Platz 4'},team2:{outlook:'Platz 5'},score1:null,score2:null,time:addMinutes(start,2*dur)};
+}
 }
 
 function ensureR1Placeholders(){
