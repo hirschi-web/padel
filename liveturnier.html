@@ -199,7 +199,7 @@ const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
 // R1a: Winner V1 vs Winner V2 - kann gefüllt werden sobald V1+V2 fertig
-if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
+if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,score1:null,score2:null,time:addMinutes(start,1*dur)};
 const v1Done=prelim[0]&&prelim[0].score1!=null;
 const v2Done=prelim[1]&&prelim[1].score1!=null;
 if(v1Done&&v2Done){
@@ -211,7 +211,7 @@ bracket.r1[0].team2={outlook:'Winner V2'};
 }
 
 // R1b: Winner V3 vs Loser V1 - kann gefüllt werden sobald V1+V3 fertig
-if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,2*dur)};
+if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,1*dur)};
 const v3Done=prelim[2]&&prelim[2].score1!=null;
 if(v1Done&&v3Done){
 bracket.r1[1].team1=getWinner(prelim[2]);
@@ -222,7 +222,7 @@ bracket.r1[1].team2={outlook:'Loser V1'};
 }
 
 // R1c: Loser V2 vs Loser V3 - braucht V2+V3
-if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,3*dur)};
+if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,2*dur)};
 if(v2Done&&v3Done){
 bracket.r1[2].team1=getLoser(prelim[1]);
 bracket.r1[2].team2=getLoser(prelim[2]);
@@ -232,7 +232,7 @@ bracket.r1[2].team2={outlook:'Loser V3'};
 }
 
 // R1d: Winner V4 vs Loser V4 - braucht V4 (Wildcard!)
-if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,3*dur)};
+if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
 const v4Done=prelim[3]&&prelim[3].score1!=null;
 if(v4Done){
 bracket.r1[3].team1=getWinner(prelim[3]);
@@ -252,10 +252,10 @@ const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
 bracket.r1=[
-{id:'R1a',court:2,team1:{outlook:'Winner V1'},team2:{outlook:'Winner V2'},score1:null,score2:null,time:addMinutes(start,2*dur)},
-{id:'R1b',court:3,team1:{outlook:'Winner V3'},team2:{outlook:'Loser V1'},score1:null,score2:null,time:addMinutes(start,2*dur)},
-{id:'R1c',court:1,team1:{outlook:'Loser V2'},team2:{outlook:'Loser V3'},score1:null,score2:null,time:addMinutes(start,3*dur)},
-{id:'R1d',court:2,team1:{outlook:'Winner V4'},team2:{outlook:'Loser V4'},score1:null,score2:null,time:addMinutes(start,3*dur)}
+{id:'R1a',court:2,team1:{outlook:'Winner V1'},team2:{outlook:'Winner V2'},score1:null,score2:null,time:addMinutes(start,1*dur)},
+{id:'R1b',court:3,team1:{outlook:'Winner V3'},team2:{outlook:'Loser V1'},score1:null,score2:null,time:addMinutes(start,1*dur)},
+{id:'R1c',court:1,team1:{outlook:'Loser V2'},team2:{outlook:'Loser V3'},score1:null,score2:null,time:addMinutes(start,2*dur)},
+{id:'R1d',court:2,team1:{outlook:'Winner V4'},team2:{outlook:'Loser V4'},score1:null,score2:null,time:addMinutes(start,2*dur)}
 ];
 }
 
@@ -269,13 +269,13 @@ const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
 bracket.hf=[
-{id:'HF1',court:1,team1:{outlook:'Winner R1a'},team2:{outlook:'Winner R1b'},score1:null,score2:null,time:addMinutes(start,4*dur)},
-{id:'HF2',court:2,team1:{outlook:'Winner R1c'},team2:{outlook:'Winner R1d'},score1:null,score2:null,time:addMinutes(start,4*dur)}
+{id:'HF1',court:1,team1:{outlook:'Winner R1a'},team2:{outlook:'Winner R1b'},score1:null,score2:null,time:addMinutes(start,3*dur)},
+{id:'HF2',court:2,team1:{outlook:'Winner R1c'},team2:{outlook:'Winner R1d'},score1:null,score2:null,time:addMinutes(start,3*dur)}
 ];
 
 bracket.chf=[
-{id:'CHF1',court:3,team1:{outlook:'Loser R1a'},team2:{outlook:'Loser R1b'},score1:null,score2:null,time:addMinutes(start,3*dur)},
-{id:'CHF2',court:4,team1:{outlook:'Loser R1c'},team2:{outlook:'Loser R1d'},score1:null,score2:null,time:addMinutes(start,4*dur)}
+{id:'CHF1',court:3,team1:{outlook:'Loser R1a'},team2:{outlook:'Loser R1b'},score1:null,score2:null,time:addMinutes(start,2*dur)},
+{id:'CHF2',court:4,team1:{outlook:'Loser R1c'},team2:{outlook:'Loser R1d'},score1:null,score2:null,time:addMinutes(start,3*dur)}
 ];
 }
 
@@ -288,10 +288,10 @@ const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
 bracket.finals=[
-{id:'FINALE',court:2,team1:{outlook:'Winner HF1'},team2:{outlook:'Winner HF2'},score1:null,score2:null,time:addMinutes(start,6*dur)},
-{id:'KLF',court:1,team1:{outlook:'Loser HF1'},team2:{outlook:'Loser HF2'},score1:null,score2:null,time:addMinutes(start,6*dur)},
-{id:'CF',court:1,team1:{outlook:'Winner CHF1'},team2:{outlook:'Winner CHF2'},score1:null,score2:null,time:addMinutes(start,5*dur)},
-{id:'CKF',court:2,team1:{outlook:'Loser CHF1'},team2:{outlook:'Loser CHF2'},score1:null,score2:null,time:addMinutes(start,5*dur)}
+{id:'FINALE',court:2,team1:{outlook:'Winner HF1'},team2:{outlook:'Winner HF2'},score1:null,score2:null,time:addMinutes(start,5*dur)},
+{id:'KLF',court:1,team1:{outlook:'Loser HF1'},team2:{outlook:'Loser HF2'},score1:null,score2:null,time:addMinutes(start,5*dur)},
+{id:'CF',court:1,team1:{outlook:'Winner CHF1'},team2:{outlook:'Winner CHF2'},score1:null,score2:null,time:addMinutes(start,4*dur)},
+{id:'CKF',court:2,team1:{outlook:'Loser CHF1'},team2:{outlook:'Loser CHF2'},score1:null,score2:null,time:addMinutes(start,4*dur)}
 ];
 }
 
@@ -304,15 +304,46 @@ if(!b.chf)b.chf=[];
 const w=r1.map(getWinner);
 const l=r1.map(getLoser);
 
-if(w[0]&&w[1]){if(!b.hf[0])b.hf[0]={id:'HF1',court:1,score1:null,score2:null};b.hf[0].team1=w[0];b.hf[0].team2=w[1];}
-if(w[2]&&w[3]){if(!b.hf[1])b.hf[1]={id:'HF2',court:2,score1:null,score2:null};b.hf[1].team1=w[2];b.hf[1].team2=w[3];}
-if(l[0]&&l[1]){if(!b.chf[0])b.chf[0]={id:'CHF1',court:3,score1:null,score2:null};b.chf[0].team1=l[0];b.chf[0].team2=l[1];}
-if(l[2]&&l[3]){if(!b.chf[1])b.chf[1]={id:'CHF2',court:4,score1:null,score2:null};b.chf[1].team1=l[2];b.chf[1].team2=l[3];}
+// HF1: Winner R1a vs Winner R1b (braucht R1a + R1b fertig)
+if(w[0]&&w[1]){
+if(!b.hf[0])b.hf[0]={id:'HF1',court:1,score1:null,score2:null};
+b.hf[0].team1=w[0];
+b.hf[0].team2=w[1];
+}else if(!b.hf[0]){
+b.hf[0]={id:'HF1',court:1,team1:{outlook:'Winner R1a'},team2:{outlook:'Winner R1b'},score1:null,score2:null};
+}
+
+// HF2: Winner R1c vs Winner R1d (braucht R1c + R1d fertig)
+if(w[2]&&w[3]){
+if(!b.hf[1])b.hf[1]={id:'HF2',court:2,score1:null,score2:null};
+b.hf[1].team1=w[2];
+b.hf[1].team2=w[3];
+}else if(!b.hf[1]){
+b.hf[1]={id:'HF2',court:2,team1:{outlook:'Winner R1c'},team2:{outlook:'Winner R1d'},score1:null,score2:null};
+}
+
+// CHF1: Loser R1a vs Loser R1b (braucht R1a + R1b fertig) - WICHTIG FÜR SLOT 3!
+if(l[0]&&l[1]){
+if(!b.chf[0])b.chf[0]={id:'CHF1',court:3,score1:null,score2:null};
+b.chf[0].team1=l[0];
+b.chf[0].team2=l[1];
+}else if(!b.chf[0]){
+b.chf[0]={id:'CHF1',court:3,team1:{outlook:'Loser R1a'},team2:{outlook:'Loser R1b'},score1:null,score2:null};
+}
+
+// CHF2: Loser R1c vs Loser R1d (braucht R1c + R1d fertig)
+if(l[2]&&l[3]){
+if(!b.chf[1])b.chf[1]={id:'CHF2',court:4,score1:null,score2:null};
+b.chf[1].team1=l[2];
+b.chf[1].team2=l[3];
+}else if(!b.chf[1]){
+b.chf[1]={id:'CHF2',court:4,team1:{outlook:'Loser R1c'},team2:{outlook:'Loser R1d'},score1:null,score2:null};
+}
 
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
-[b.chf[0]].forEach(m=>{if(m)m.time=addMinutes(start,3*dur)});
-[b.hf[0],b.hf[1],b.chf[1]].forEach(m=>{if(m)m.time=addMinutes(start,4*dur)});
+[b.chf[0]].forEach(m=>{if(m)m.time=addMinutes(start,2*dur)});
+[b.hf[0],b.hf[1],b.chf[1]].forEach(m=>{if(m)m.time=addMinutes(start,3*dur)});
 }
 
 function fillFinals(){
@@ -331,8 +362,8 @@ if(cl[0]&&cl[1]){if(!b.finals[3])b.finals[3]={id:'CKF',court:2,score1:null,score
 
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
-[b.finals[2],b.finals[3]].forEach(m=>{if(m)m.time=addMinutes(start,5*dur)});
-[b.finals[0],b.finals[1]].forEach(m=>{if(m)m.time=addMinutes(start,6*dur)});
+[b.finals[2],b.finals[3]].forEach(m=>{if(m)m.time=addMinutes(start,4*dur)});
+[b.finals[0],b.finals[1]].forEach(m=>{if(m)m.time=addMinutes(start,5*dur)});
 }
 
 function allPrelimDone(){return tournamentData.koBracket.prelimMatches.every(m=>m.score1!=null&&m.score2!=null)}
@@ -453,11 +484,12 @@ return`<div class="match-card ${isFocused?'focus-highlight':''}">
 Court ${courtLabel} · ${times.start} - ${times.end} (${times.duration} Min)
 </div>
 ${hasScore?
-`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0.75rem">
+`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
 <div class="team" style="text-align:right">${team1}</div>
 <div class="score-display">${match.score1} : ${match.score2}</div>
 <div class="team">${team2}</div>
-</div>`
+</div>
+<button class="btn btn-secondary btn-sm" onclick="openScoreModal('${match.id}')" style="font-size:0.7rem">Score ändern</button>`
 :
 `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
 <div class="team ${isPlaceholder?'placeholder':''}" style="text-align:right">${team1}</div>
@@ -565,12 +597,9 @@ if(!match)return;
 match.score1=s1;
 match.score2=s2;
 
-// IMMER R1 updaten (füllt was möglich ist)
+// IMMER updaten (füllt was möglich ist)
 fillRound1();
-
-if(allR1Done()){
-fillSemiFinals();
-}
+fillSemiFinals(); // CHF1 kann schon nach R1a+R1b gefüllt werden!
 
 if(allHFDone()){
 fillFinals();
