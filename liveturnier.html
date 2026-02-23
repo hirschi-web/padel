@@ -240,10 +240,20 @@ teams.forEach((t,i)=>t.rank=i+1);
 function swapIfSameMatch(idx1,idx2){
 if(!teams[idx1]||!teams[idx2])return false;
 if(teams[idx1].sourceMatch===teams[idx2].sourceMatch){
-// Swap idx2 mit nächstem verfügbaren
-const swapWith=idx2<teams.length-1?idx2+1:idx2-1;
-if(swapWith>=0&&swapWith<teams.length){
-console.log(`[SWAP] Platz ${idx2+1} (${teamLabel(teams[idx2].team)}) <-> Platz ${swapWith+1} (${teamLabel(teams[swapWith].team)}) - beide aus ${teams[idx1].sourceMatch}`);
+// Finde besten Swap-Partner
+let swapWith=-1;
+for(let offset=1;offset<=3;offset++){
+const c1=idx2+offset;
+const c2=idx2-offset;
+if(c1<teams.length&&teams[c1].sourceMatch!==teams[idx1].sourceMatch){
+swapWith=c1;break;
+}
+if(c2>=0&&c2>idx1&&teams[c2].sourceMatch!==teams[idx1].sourceMatch){
+swapWith=c2;break;
+}
+}
+if(swapWith>=0){
+console.log(`[SWAP] ${idx2+1}↔${swapWith+1}: ${teamLabel(teams[idx2].team)} ↔ ${teamLabel(teams[swapWith].team)}`);
 [teams[idx2],teams[swapWith]]=[teams[swapWith],teams[idx2]];
 return true;
 }
@@ -251,17 +261,16 @@ return true;
 return false;
 }
 
-// Check Paarungen: 1vs8, 2vs7, 3vs6, 4vs5
-swapIfSameMatch(0,7); // Platz 1 vs 8
-swapIfSameMatch(1,6); // Platz 2 vs 7
-swapIfSameMatch(2,5); // Platz 3 vs 6
-swapIfSameMatch(3,4); // Platz 4 vs 5
+// Check R1 Paarungen
+swapIfSameMatch(0,7);
+swapIfSameMatch(1,6);
+swapIfSameMatch(2,5);
+swapIfSameMatch(3,4); // WICHTIG FÜR V4!
 
-// Finales Ranking setzen
+// Finales Ranking
 teams.forEach((t,i)=>t.rank=i+1);
-
 bracket.ranking=teams;
-console.log('[Final Ranking]',teams.map(t=>`${t.rank}. ${teamLabel(t.team)} (${t.diff>=0?'+':''}${t.diff})`));
+console.log('[Ranking]',teams.map(t=>`${t.rank}. ${teamLabel(t.team)} (${t.diff>=0?'+':''}${t.diff})`));
 }
 
 function fillRound1(){
@@ -584,11 +593,14 @@ let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" view
 
 svg+=`<text x="10" y="20" style="font-size:14px;font-weight:800;fill:#3b82f6">K.O. TURNIER BRACKET</text>`;
 
-// Helper: Draw line
-function drawLine(x1,y1,x2,y2,color,dashed){
-const mid=(x1+x2)/2;
-const path=`M${x1},${y1} L${mid},${y1} L${mid},${y2} L${x2},${y2}`;
-svg+=`<path d="${path}" stroke="${color}" stroke-width="2" fill="none" ${dashed?'stroke-dasharray="4,4"':''} opacity="0.6"/>`;
+// Helper: Draw curved line with offset
+function drawCurvedLine(x1,y1,x2,y2,color,dashed,offset=0){
+const dx=x2-x1;
+const dy=y2-y1+offset;
+const cx1=x1+dx*0.3;
+const cx2=x1+dx*0.7;
+const path=`M${x1},${y1} C${cx1},${y1} ${cx2},${y2+offset} ${x2},${y2+offset}`;
+svg+=`<path d="${path}" stroke="${color}" stroke-width="2.5" fill="none" ${dashed?'stroke-dasharray="6,4"':''} opacity="0.8"/>`;
 }
 
 // VORRUNDE
@@ -621,27 +633,27 @@ svg+=`<g transform="translate(240,${y})">
 <text x="170" y="23" text-anchor="end" style="font-size:9px;fill:#64748b">${r.diff>=0?'+':''}${r.diff}</text>
 </g>`;
 
-// Linien von Vorrunde zu Ranking
+// Linien von Vorrunde zu Ranking (verschiedene Grautöne)
 prelim.forEach(m=>{
 if(m.score1!=null){
 const t1Rank=ranking.findIndex(t=>teamId(t.team)===teamId(m.team1));
 const t2Rank=ranking.findIndex(t=>teamId(t.team)===teamId(m.team2));
 const mIdx=prelim.indexOf(m);
-if(t1Rank>=0)drawLine(210,prelimY[mIdx]+15,240,rankY[t1Rank]+17,'#64748b',false);
-if(t2Rank>=0)drawLine(210,prelimY[mIdx]+30,240,rankY[t2Rank]+17,'#64748b',false);
+if(t1Rank>=0)drawCurvedLine(210,prelimY[mIdx]+15,240,rankY[t1Rank]+17,'#475569',false,0);
+if(t2Rank>=0)drawCurvedLine(210,prelimY[mIdx]+30,240,rankY[t2Rank]+17,'#64748b',false,0);
 }
 });
 
-// Linien von Ranking zu R1
+// Linien von Ranking zu R1 (grüne Abstufungen)
 if(r1.length&&r1[0].team1){
-drawLine(420,rankY[0]+17,460,r1Y[0]+15,'#4ade80',false); // 1→R1a top
-drawLine(420,rankY[7]+17,460,r1Y[0]+30,'#4ade80',false); // 8→R1a bottom
-drawLine(420,rankY[1]+17,460,r1Y[1]+15,'#4ade80',false); // 2→R1b top
-drawLine(420,rankY[6]+17,460,r1Y[1]+30,'#4ade80',false); // 7→R1b bottom
-drawLine(420,rankY[2]+17,460,r1Y[2]+15,'#4ade80',false); // 3→R1c top
-drawLine(420,rankY[5]+17,460,r1Y[2]+30,'#4ade80',false); // 6→R1c bottom
-drawLine(420,rankY[3]+17,460,r1Y[3]+15,'#4ade80',false); // 4→R1d top
-drawLine(420,rankY[4]+17,460,r1Y[3]+30,'#4ade80',false); // 5→R1d bottom
+drawCurvedLine(420,rankY[0]+17,460,r1Y[0]+15,'#22c55e',false,0); // 1→R1a top
+drawCurvedLine(420,rankY[7]+17,460,r1Y[0]+30,'#4ade80',false,0); // 8→R1a bottom
+drawCurvedLine(420,rankY[1]+17,460,r1Y[1]+15,'#22c55e',false,0); // 2→R1b top
+drawCurvedLine(420,rankY[6]+17,460,r1Y[1]+30,'#4ade80',false,0); // 7→R1b bottom
+drawCurvedLine(420,rankY[2]+17,460,r1Y[2]+15,'#22c55e',false,0); // 3→R1c top
+drawCurvedLine(420,rankY[5]+17,460,r1Y[2]+30,'#4ade80',false,0); // 6→R1c bottom
+drawCurvedLine(420,rankY[3]+17,460,r1Y[3]+15,'#22c55e',false,0); // 4→R1d top
+drawCurvedLine(420,rankY[4]+17,460,r1Y[3]+30,'#4ade80',false,0); // 5→R1d bottom
 }
 });
 }
@@ -665,22 +677,22 @@ svg+=`<g transform="translate(460,${y})">
 </g>`;
 });
 
-// Lines R1 to HF
+// Lines R1 to HF (geschwungen + Offsets)
 if(hf[0]){
-drawLine(660,r1Y[0]+22,680,hfY[0]+22,'#4ade80',false);
-drawLine(660,r1Y[1]+22,680,hfY[0]+22,'#4ade80',false);
+drawCurvedLine(660,r1Y[0]+22,680,hfY[0]+15,'#22c55e',false,-5);
+drawCurvedLine(660,r1Y[1]+22,680,hfY[0]+30,'#22c55e',false,5);
 }
 if(hf[1]){
-drawLine(660,r1Y[2]+22,680,hfY[1]+22,'#4ade80',false);
-drawLine(660,r1Y[3]+22,680,hfY[1]+22,'#4ade80',false);
+drawCurvedLine(660,r1Y[2]+22,680,hfY[1]+15,'#22c55e',false,-5);
+drawCurvedLine(660,r1Y[3]+22,680,hfY[1]+30,'#22c55e',false,5);
 }
 if(chf[0]){
-drawLine(660,r1Y[0]+22,680,hfY[2]+22,'#f87171',true);
-drawLine(660,r1Y[1]+22,680,hfY[2]+22,'#f87171',true);
+drawCurvedLine(660,r1Y[0]+22,680,hfY[2]+15,'#ef4444',true,-10);
+drawCurvedLine(660,r1Y[1]+22,680,hfY[2]+30,'#f87171',true,10);
 }
 if(chf[1]){
-drawLine(660,r1Y[2]+22,680,hfY[3]+22,'#f87171',true);
-drawLine(660,r1Y[3]+22,680,hfY[3]+22,'#f87171',true);
+drawCurvedLine(660,r1Y[2]+22,680,hfY[3]+15,'#ef4444',true,-10);
+drawCurvedLine(660,r1Y[3]+22,680,hfY[3]+30,'#f87171',true,10);
 }
 
 // HF
@@ -704,22 +716,22 @@ svg+=`<g transform="translate(680,${y})">
 </g>`;
 });
 
-// Lines HF to Finals
+// Lines HF to Finals (geschwungen + Offsets)
 if(finals[0]){
-drawLine(880,hfY[0]+22,900,finalsY[0]+22,'#4ade80',false);
-drawLine(880,hfY[1]+22,900,finalsY[0]+22,'#4ade80',false);
+drawCurvedLine(880,hfY[0]+22,900,finalsY[0]+15,'#fbbf24',false,-5);
+drawCurvedLine(880,hfY[1]+22,900,finalsY[0]+30,'#fbbf24',false,5);
 }
 if(finals[1]){
-drawLine(880,hfY[0]+22,900,finalsY[1]+22,'#f87171',true);
-drawLine(880,hfY[1]+22,900,finalsY[1]+22,'#f87171',true);
+drawCurvedLine(880,hfY[0]+22,900,finalsY[1]+15,'#f59e0b',true,-10);
+drawCurvedLine(880,hfY[1]+22,900,finalsY[1]+30,'#f59e0b',true,10);
 }
 if(finals[2]){
-drawLine(880,hfY[2]+22,900,finalsY[2]+22,'#4ade80',false);
-drawLine(880,hfY[3]+22,900,finalsY[2]+22,'#4ade80',false);
+drawCurvedLine(880,hfY[2]+22,900,finalsY[2]+15,'#ef4444',false,-5);
+drawCurvedLine(880,hfY[3]+22,900,finalsY[2]+30,'#ef4444',false,5);
 }
 if(finals[3]){
-drawLine(880,hfY[2]+22,900,finalsY[3]+22,'#f87171',true);
-drawLine(880,hfY[3]+22,900,finalsY[3]+22,'#f87171',true);
+drawCurvedLine(880,hfY[2]+22,900,finalsY[3]+15,'#f87171',true,-10);
+drawCurvedLine(880,hfY[3]+22,900,finalsY[3]+30,'#f87171',true,10);
 }
 
 // Finals
