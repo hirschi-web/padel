@@ -619,7 +619,7 @@ function renderBracket(){
 const bracket=tournamentData.koBracket;
 if(!bracket){document.getElementById('bracketArea').innerHTML='';return}
 
-const w=1300,h=700;
+const w=1500,h=700;
 const mW=180,mH=50;
 const colX=[20,240,460,680,900]; // 5 Spalten: V, Rank, R1, HF, Finals
 const prelim=bracket.prelimMatches||[];
@@ -677,7 +677,6 @@ const medal=['🥇','🥈','🥉',''][i]||'';
 svg+=`<g transform="translate(240,${y})">
 <rect width="180" height="35" rx="6" fill="#1e293b" stroke="${i<3?'#fbbf24':'#334155'}" stroke-width="${i<3?2:1}"/>
 <text x="8" y="23" style="font-size:11px;font-weight:800;fill:${i<3?'#fbbf24':'#f1f5f9'}">${medal} ${r.rank}. ${teamLabel(r.team)}</text>
-<text x="170" y="23" text-anchor="end" style="font-size:9px;fill:#64748b">${r.diff>=0?'+':''}${r.diff}</text>
 </g>`;
 
 // Linien von Vorrunde zu Ranking (verschiedene Grautöne)
@@ -877,19 +876,17 @@ match.score2=s2;
 const prelim=tournamentData.koBracket.prelimMatches;
 const v123Done=prelim[0].score1!=null&&prelim[1].score1!=null&&prelim[2].score1!=null;
 
-// NUR WENN V1-V3 FERTIG: Ranking + R1
+// NUR WENN V1-V3 FERTIG und Ranking noch NICHT da: Ranking + R1 (EINMALIG!)
 if(v123Done&&!tournamentData.koBracket.ranking){
-console.log('[V1-V3 Done] Calculating ranking with V4 simulation...');
+console.log('[V1-V3 Done] Calculating ranking with V4 simulation - LOCKED!');
 calculateRanking();
-fillRound1(); // LOCKED!
+fillRound1();
 }
 
-// WENN V4 fertig: Ranking updated (ABER R1 bleibt locked!)
+// V4 fertig: Ranking NICHT ändern! (bleibt wie nach V3)
 const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
-if(allPrelimDone&&tournamentData.koBracket.ranking){
-console.log('[V4 Done] Re-calculating ranking (R1 stays locked!)...');
-calculateRanking(); // Updated mit echtem V4
-// fillRound1() NICHT aufrufen → R1 bleibt!
+if(allPrelimDone){
+console.log('[V4 Done] Ranking stays LOCKED (not recalculating)');
 }
 
 fillSemiFinals();
