@@ -146,8 +146,10 @@ const prelim=tournamentData.koBracket.prelimMatches||[];
 const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
 if(allPrelimDone){
 calculateRanking();
-fillRound1();
 }
+
+// R1 füllen (mit Ranking wenn vorhanden, sonst Platzhalter)
+fillRound1();
 
 renderMatches();
 renderBracket();
@@ -287,36 +289,36 @@ const bracket=tournamentData.koBracket.mainBracket;
 if(!bracket.r1)bracket.r1=[];
 
 const ranking=tournamentData.koBracket.ranking;
-if(!ranking||ranking.length<8){
-console.log('[fillRound1] Ranking fehlt oder unvollständig');
-return;
-}
-
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
-// R1 basierend auf RANKING (nicht mehr auf V-Winner/Loser!)
-// R1a: Platz 1 vs Platz 8 (Slot 2)
+// WENN RANKING DA: Nutze Ranking
+if(ranking&&ranking.length>=8){
 if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,score1:null,score2:null,time:addMinutes(start,1*dur)};
 bracket.r1[0].team1=ranking[0].team;
 bracket.r1[0].team2=ranking[7].team;
 
-// R1b: Platz 2 vs Platz 7 (Slot 2)
 if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,1*dur)};
 bracket.r1[1].team1=ranking[1].team;
 bracket.r1[1].team2=ranking[6].team;
 
-// R1c: Platz 3 vs Platz 6 (Slot 3)
 if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,2*dur)};
 bracket.r1[2].team1=ranking[2].team;
 bracket.r1[2].team2=ranking[5].team;
 
-// R1d: Platz 4 vs Platz 5 (Slot 3)
 if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
 bracket.r1[3].team1=ranking[3].team;
 bracket.r1[3].team2=ranking[4].team;
 
-console.log('[R1 filled]',bracket.r1.map(m=>`${m.id}: ${teamLabel(m.team1)} vs ${teamLabel(m.team2)}`));
+console.log('[R1 from Ranking]',bracket.r1.map(m=>`${m.id}: ${teamLabel(m.team1)} vs ${teamLabel(m.team2)}`));
+return;
+}
+
+// FALLBACK: Zeige Platzhalter
+if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,team1:{outlook:'Platz 1'},team2:{outlook:'Platz 8'},score1:null,score2:null,time:addMinutes(start,1*dur)};
+if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,team1:{outlook:'Platz 2'},team2:{outlook:'Platz 7'},score1:null,score2:null,time:addMinutes(start,1*dur)};
+if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,team1:{outlook:'Platz 3'},team2:{outlook:'Platz 6'},score1:null,score2:null,time:addMinutes(start,2*dur)};
+if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,team1:{outlook:'Platz 4'},team2:{outlook:'Platz 5'},score1:null,score2:null,time:addMinutes(start,2*dur)};
 }
 
 function ensureR1Placeholders(){
@@ -836,13 +838,15 @@ if(!match)return;
 match.score1=s1;
 match.score2=s2;
 
-// Wenn alle Vorrunden fertig: Ranking berechnen + R1 füllen
+// Wenn alle Vorrunden fertig: Ranking berechnen
 const prelim=tournamentData.koBracket.prelimMatches;
 const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
 if(allPrelimDone){
 calculateRanking();
-fillRound1();
 }
+
+// IMMER R1 updaten (zeigt Platzhalter oder echte Namen)
+fillRound1();
 
 // Rest wie gehabt
 fillSemiFinals();
