@@ -190,57 +190,115 @@ const endTime=addMinutes(startTime,matchDuration);
 return{start:startTime,end:endTime,duration:matchDuration};
 }
 
+function calculateRanking(){
+const bracket=tournamentData.koBracket;
+const teams=[];
+
+// Sammle alle Teams aus Vorrunde mit Source-Info
+bracket.prelimMatches.forEach(m=>{
+[m.team1,m.team2].forEach(t=>{
+if(!teams.find(x=>teamId(x.team)===teamId(t))){
+teams.push({
+id:teamId(t),
+team:t,
+points:0,
+pointsAgainst:0,
+diff:0,
+wins:0,
+losses:0,
+sourceMatch:m.id // Wichtig für Swap-Logik!
+});
+}
+});
+});
+
+// Auswerten
+bracket.prelimMatches.forEach(m=>{
+if(m.score1==null||m.score2==null)return;
+const t1=teams.find(t=>t.id===teamId(m.team1));
+const t2=teams.find(t=>t.id===teamId(m.team2));
+if(!t1||!t2)return;
+
+t1.points+=m.score1;t1.pointsAgainst+=m.score2;
+t2.points+=m.score2;t2.pointsAgainst+=m.score1;
+
+if(m.score1>m.score2){t1.wins++;t2.losses++;}
+else{t2.wins++;t1.losses++;}
+});
+
+// Sortieren nach Diff, dann Punkte
+teams.forEach(t=>t.diff=t.points-t.pointsAgainst);
+teams.sort((a,b)=>{
+if(b.diff!==a.diff)return b.diff-a.diff;
+return b.points-a.points;
+});
+
+// Vorläufiges Ranking setzen
+teams.forEach((t,i)=>t.rank=i+1);
+
+// SWAP-LOGIK: Verhindere Rematch aus gleichem V-Spiel
+function swapIfSameMatch(idx1,idx2){
+if(!teams[idx1]||!teams[idx2])return false;
+if(teams[idx1].sourceMatch===teams[idx2].sourceMatch){
+// Swap idx2 mit nächstem verfügbaren
+const swapWith=idx2<teams.length-1?idx2+1:idx2-1;
+if(swapWith>=0&&swapWith<teams.length){
+console.log(`[SWAP] Platz ${idx2+1} (${teamLabel(teams[idx2].team)}) <-> Platz ${swapWith+1} (${teamLabel(teams[swapWith].team)}) - beide aus ${teams[idx1].sourceMatch}`);
+[teams[idx2],teams[swapWith]]=[teams[swapWith],teams[idx2]];
+return true;
+}
+}
+return false;
+}
+
+// Check Paarungen: 1vs8, 2vs7, 3vs6, 4vs5
+swapIfSameMatch(0,7); // Platz 1 vs 8
+swapIfSameMatch(1,6); // Platz 2 vs 7
+swapIfSameMatch(2,5); // Platz 3 vs 6
+swapIfSameMatch(3,4); // Platz 4 vs 5
+
+// Finales Ranking setzen
+teams.forEach((t,i)=>t.rank=i+1);
+
+bracket.ranking=teams;
+console.log('[Final Ranking]',teams.map(t=>`${t.rank}. ${teamLabel(t.team)} (${t.diff>=0?'+':''}${t.diff})`));
+}
+
 function fillRound1(){
 const bracket=tournamentData.koBracket.mainBracket;
 if(!bracket.r1)bracket.r1=[];
 
-const prelim=tournamentData.koBracket.prelimMatches;
+const ranking=tournamentData.koBracket.ranking;
+if(!ranking||ranking.length<8){
+console.log('[fillRound1] Ranking fehlt oder unvollständig');
+return;
+}
+
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
-// R1a: Winner V1 vs Winner V2 - kann gefüllt werden sobald V1+V2 fertig
+// R1 basierend auf RANKING (nicht mehr auf V-Winner/Loser!)
+// R1a: Platz 1 vs Platz 8 (Slot 2)
 if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,score1:null,score2:null,time:addMinutes(start,1*dur)};
-const v1Done=prelim[0]&&prelim[0].score1!=null;
-const v2Done=prelim[1]&&prelim[1].score1!=null;
-if(v1Done&&v2Done){
-bracket.r1[0].team1=getWinner(prelim[0]);
-bracket.r1[0].team2=getWinner(prelim[1]);
-}else{
-bracket.r1[0].team1={outlook:'Winner V1'};
-bracket.r1[0].team2={outlook:'Winner V2'};
-}
+bracket.r1[0].team1=ranking[0].team;
+bracket.r1[0].team2=ranking[7].team;
 
-// R1b: Winner V3 vs Loser V1 - kann gefüllt werden sobald V1+V3 fertig
+// R1b: Platz 2 vs Platz 7 (Slot 2)
 if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,1*dur)};
-const v3Done=prelim[2]&&prelim[2].score1!=null;
-if(v1Done&&v3Done){
-bracket.r1[1].team1=getWinner(prelim[2]);
-bracket.r1[1].team2=getLoser(prelim[0]);
-}else{
-bracket.r1[1].team1={outlook:'Winner V3'};
-bracket.r1[1].team2={outlook:'Loser V1'};
-}
+bracket.r1[1].team1=ranking[1].team;
+bracket.r1[1].team2=ranking[6].team;
 
-// R1c: Loser V2 vs Loser V3 - braucht V2+V3
+// R1c: Platz 3 vs Platz 6 (Slot 3)
 if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,2*dur)};
-if(v2Done&&v3Done){
-bracket.r1[2].team1=getLoser(prelim[1]);
-bracket.r1[2].team2=getLoser(prelim[2]);
-}else{
-bracket.r1[2].team1={outlook:'Loser V2'};
-bracket.r1[2].team2={outlook:'Loser V3'};
-}
+bracket.r1[2].team1=ranking[2].team;
+bracket.r1[2].team2=ranking[5].team;
 
-// R1d: Winner V4 vs Loser V4 - braucht V4 (Wildcard!)
+// R1d: Platz 4 vs Platz 5 (Slot 3)
 if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
-const v4Done=prelim[3]&&prelim[3].score1!=null;
-if(v4Done){
-bracket.r1[3].team1=getWinner(prelim[3]);
-bracket.r1[3].team2=getLoser(prelim[3]);
-}else{
-bracket.r1[3].team1={outlook:'Winner V4'};
-bracket.r1[3].team2={outlook:'Loser V4'};
-}
+bracket.r1[3].team1=ranking[3].team;
+bracket.r1[3].team2=ranking[4].team;
+
+console.log('[R1 filled]',bracket.r1.map(m=>`${m.id}: ${teamLabel(m.team1)} vs ${teamLabel(m.team2)}`));
 }
 
 function ensureR1Placeholders(){
@@ -252,10 +310,10 @@ const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
 bracket.r1=[
-{id:'R1a',court:2,team1:{outlook:'Winner V1'},team2:{outlook:'Winner V2'},score1:null,score2:null,time:addMinutes(start,1*dur)},
-{id:'R1b',court:3,team1:{outlook:'Winner V3'},team2:{outlook:'Loser V1'},score1:null,score2:null,time:addMinutes(start,1*dur)},
-{id:'R1c',court:1,team1:{outlook:'Loser V2'},team2:{outlook:'Loser V3'},score1:null,score2:null,time:addMinutes(start,2*dur)},
-{id:'R1d',court:2,team1:{outlook:'Winner V4'},team2:{outlook:'Loser V4'},score1:null,score2:null,time:addMinutes(start,2*dur)}
+{id:'R1a',court:2,team1:{outlook:'Platz 1'},team2:{outlook:'Platz 8'},score1:null,score2:null,time:addMinutes(start,1*dur)},
+{id:'R1b',court:3,team1:{outlook:'Platz 2'},team2:{outlook:'Platz 7'},score1:null,score2:null,time:addMinutes(start,1*dur)},
+{id:'R1c',court:1,team1:{outlook:'Platz 3'},team2:{outlook:'Platz 6'},score1:null,score2:null,time:addMinutes(start,2*dur)},
+{id:'R1d',court:2,team1:{outlook:'Platz 4'},team2:{outlook:'Platz 5'},score1:null,score2:null,time:addMinutes(start,2*dur)}
 ];
 }
 
@@ -505,34 +563,35 @@ function renderBracket(){
 const bracket=tournamentData.koBracket;
 if(!bracket){document.getElementById('bracketArea').innerHTML='';return}
 
-const w=1100,h=700;
+const w=1300,h=700;
 const mW=180,mH=50;
-const colX=[20,240,460,680];
+const colX=[20,240,460,680,900]; // 5 Spalten: V, Rank, R1, HF, Finals
 const prelim=bracket.prelimMatches||[];
+const ranking=bracket.ranking||[];
 const r1=bracket.mainBracket?.r1||[];
 const hf=bracket.mainBracket?.hf||[];
 const chf=bracket.mainBracket?.chf||[];
 const finals=bracket.mainBracket?.finals||[];
 
-// Calculate match positions
+// Match positions
 const prelimY=[65,125,185,245];
-const r1Y=[65,125,185,245];
-const hfY=[95,155,275,335];
-const finalsY=[125,185,305,365];
+const rankY=[65,105,145,185,225,265,305,345]; // 8 Plätze
+const r1Y=[95,155,275,335];
+const hfY=[125,185,335,395];
+const finalsY=[155,215,365,425];
 
 let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="background:#0f172a;border-radius:12px;max-width:100%;height:auto">`;
 
-// Title
 svg+=`<text x="10" y="20" style="font-size:14px;font-weight:800;fill:#3b82f6">K.O. TURNIER BRACKET</text>`;
 
-// Helper: Draw line from match to match
+// Helper: Draw line
 function drawLine(x1,y1,x2,y2,color,dashed){
 const mid=(x1+x2)/2;
 const path=`M${x1},${y1} L${mid},${y1} L${mid},${y2} L${x2},${y2}`;
 svg+=`<path d="${path}" stroke="${color}" stroke-width="2" fill="none" ${dashed?'stroke-dasharray="4,4"':''} opacity="0.6"/>`;
 }
 
-// Vorrunde
+// VORRUNDE
 svg+=`<text x="10" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">VORRUNDE</text>`;
 prelim.forEach((m,i)=>{
 const y=prelimY[i];
@@ -550,30 +609,45 @@ svg+=`<g transform="translate(10,${y})">
 </g>`;
 });
 
-// Lines from Vorrunde to R1
-// V1 winner → R1a top, V1 loser → R1b bottom
-if(r1[0]){
-drawLine(210,prelimY[0]+15,230,r1Y[0]+15,'#4ade80',false); // V1 winner → R1a
-drawLine(210,prelimY[0]+30,230,r1Y[1]+30,'#f87171',true);  // V1 loser → R1b
+// RANKING (nur wenn vorhanden)
+if(ranking.length){
+svg+=`<text x="240" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">🏆 RANKING</text>`;
+ranking.forEach((r,i)=>{
+const y=rankY[i];
+const medal=['🥇','🥈','🥉',''][i]||'';
+svg+=`<g transform="translate(240,${y})">
+<rect width="180" height="35" rx="6" fill="#1e293b" stroke="${i<3?'#fbbf24':'#334155'}" stroke-width="${i<3?2:1}"/>
+<text x="8" y="23" style="font-size:11px;font-weight:800;fill:${i<3?'#fbbf24':'#f1f5f9'}">${medal} ${r.rank}. ${teamLabel(r.team)}</text>
+<text x="170" y="23" text-anchor="end" style="font-size:9px;fill:#64748b">${r.diff>=0?'+':''}${r.diff}</text>
+</g>`;
+
+// Linien von Vorrunde zu Ranking
+prelim.forEach(m=>{
+if(m.score1!=null){
+const t1Rank=ranking.findIndex(t=>teamId(t.team)===teamId(m.team1));
+const t2Rank=ranking.findIndex(t=>teamId(t.team)===teamId(m.team2));
+const mIdx=prelim.indexOf(m);
+if(t1Rank>=0)drawLine(210,prelimY[mIdx]+15,240,rankY[t1Rank]+17,'#64748b',false);
+if(t2Rank>=0)drawLine(210,prelimY[mIdx]+30,240,rankY[t2Rank]+17,'#64748b',false);
 }
-// V2 winner → R1a bottom, V2 loser → R1c top
-if(r1[0]&&r1[2]){
-drawLine(210,prelimY[1]+15,230,r1Y[0]+30,'#4ade80',false); // V2 winner → R1a
-drawLine(210,prelimY[1]+30,230,r1Y[2]+15,'#f87171',true);  // V2 loser → R1c
+});
+
+// Linien von Ranking zu R1
+if(r1.length&&r1[0].team1){
+drawLine(420,rankY[0]+17,460,r1Y[0]+15,'#4ade80',false); // 1→R1a top
+drawLine(420,rankY[7]+17,460,r1Y[0]+30,'#4ade80',false); // 8→R1a bottom
+drawLine(420,rankY[1]+17,460,r1Y[1]+15,'#4ade80',false); // 2→R1b top
+drawLine(420,rankY[6]+17,460,r1Y[1]+30,'#4ade80',false); // 7→R1b bottom
+drawLine(420,rankY[2]+17,460,r1Y[2]+15,'#4ade80',false); // 3→R1c top
+drawLine(420,rankY[5]+17,460,r1Y[2]+30,'#4ade80',false); // 6→R1c bottom
+drawLine(420,rankY[3]+17,460,r1Y[3]+15,'#4ade80',false); // 4→R1d top
+drawLine(420,rankY[4]+17,460,r1Y[3]+30,'#4ade80',false); // 5→R1d bottom
 }
-// V3 winner → R1b top, V3 loser → R1c bottom
-if(r1[1]&&r1[2]){
-drawLine(210,prelimY[2]+15,230,r1Y[1]+15,'#4ade80',false); // V3 winner → R1b
-drawLine(210,prelimY[2]+30,230,r1Y[2]+30,'#f87171',true);  // V3 loser → R1c
-}
-// V4 winner → R1d top, V4 loser → R1d bottom (Wildcard!)
-if(r1[3]){
-drawLine(210,prelimY[3]+15,230,r1Y[3]+15,'#4ade80',false); // V4 winner → R1d
-drawLine(210,prelimY[3]+30,230,r1Y[3]+30,'#f87171',true);  // V4 loser → R1d
+});
 }
 
 // R1
-svg+=`<text x="230" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">RUNDE 1</text>`;
+svg+=`<text x="460" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">RUNDE 1</text>`;
 r1.forEach((m,i)=>{
 const y=r1Y[i];
 const t1=teamLabel(m.team1);
@@ -581,8 +655,8 @@ const t2=teamLabel(m.team2);
 const score=m.score1!=null?`${m.score1}:${m.score2}`:'vs';
 const w1=m.score1!=null&&m.score1>m.score2;
 const w2=m.score1!=null&&m.score2>m.score1;
-const isPlaceholder=t1.includes('Winner')||t1.includes('Loser');
-svg+=`<g transform="translate(230,${y})">
+const isPlaceholder=t1.includes('Platz');
+svg+=`<g transform="translate(460,${y})">
 <rect width="200" height="45" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
 <text x="8" y="15" style="font-size:10px;font-weight:800;fill:#3b82f6">${m.id}</text>
 <text x="8" y="28" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w1?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t1}</text>
@@ -591,38 +665,26 @@ svg+=`<g transform="translate(230,${y})">
 </g>`;
 });
 
-// Lines from R1 to HF
-// R1a winner → HF1, loser → CHF1
+// Lines R1 to HF
 if(hf[0]){
-drawLine(430,r1Y[0]+22,450,hfY[0]+22,'#4ade80',false); // R1a winner → HF1
+drawLine(660,r1Y[0]+22,680,hfY[0]+22,'#4ade80',false);
+drawLine(660,r1Y[1]+22,680,hfY[0]+22,'#4ade80',false);
+}
+if(hf[1]){
+drawLine(660,r1Y[2]+22,680,hfY[1]+22,'#4ade80',false);
+drawLine(660,r1Y[3]+22,680,hfY[1]+22,'#4ade80',false);
 }
 if(chf[0]){
-drawLine(430,r1Y[0]+22,450,hfY[2]+22,'#f87171',true); // R1a loser → CHF1
-}
-// R1b winner → HF1, loser → CHF1
-if(hf[0]){
-drawLine(430,r1Y[1]+22,450,hfY[0]+22,'#4ade80',false); // R1b winner → HF1
-}
-if(chf[0]){
-drawLine(430,r1Y[1]+22,450,hfY[2]+22,'#f87171',true); // R1b loser → CHF1
-}
-// R1c winner → HF2, loser → CHF2
-if(hf[1]){
-drawLine(430,r1Y[2]+22,450,hfY[1]+22,'#4ade80',false); // R1c winner → HF2
+drawLine(660,r1Y[0]+22,680,hfY[2]+22,'#f87171',true);
+drawLine(660,r1Y[1]+22,680,hfY[2]+22,'#f87171',true);
 }
 if(chf[1]){
-drawLine(430,r1Y[2]+22,450,hfY[3]+22,'#f87171',true); // R1c loser → CHF2
-}
-// R1d winner → HF2, loser → CHF2
-if(hf[1]){
-drawLine(430,r1Y[3]+22,450,hfY[1]+22,'#4ade80',false); // R1d winner → HF2
-}
-if(chf[1]){
-drawLine(430,r1Y[3]+22,450,hfY[3]+22,'#f87171',true); // R1d loser → CHF2
+drawLine(660,r1Y[2]+22,680,hfY[3]+22,'#f87171',true);
+drawLine(660,r1Y[3]+22,680,hfY[3]+22,'#f87171',true);
 }
 
 // HF
-svg+=`<text x="450" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">HALBFINALE</text>`;
+svg+=`<text x="680" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">HALBFINALE</text>`;
 [...hf,...chf].forEach((m,i)=>{
 if(!m)return;
 const y=hfY[i];
@@ -633,7 +695,7 @@ const w1=m.score1!=null&&m.score1>m.score2;
 const w2=m.score1!=null&&m.score2>m.score1;
 const isPlaceholder=t1.includes('Winner')||t1.includes('Loser');
 const isCons=m.id.includes('CHF');
-svg+=`<g transform="translate(450,${y})">
+svg+=`<g transform="translate(680,${y})">
 <rect width="200" height="45" rx="6" fill="#1e293b" stroke="${isCons?'#f87171':'#334155'}" stroke-width="1.5"/>
 <text x="8" y="15" style="font-size:10px;font-weight:800;fill:${isCons?'#f87171':'#4ade80'}">${m.id}</text>
 <text x="8" y="28" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w1?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t1}</text>
@@ -642,38 +704,26 @@ svg+=`<g transform="translate(450,${y})">
 </g>`;
 });
 
-// Lines from HF to Finals
-// HF1 winner → FINALE, loser → KLF
+// Lines HF to Finals
 if(finals[0]){
-drawLine(650,hfY[0]+22,670,finalsY[0]+22,'#4ade80',false);
+drawLine(880,hfY[0]+22,900,finalsY[0]+22,'#4ade80',false);
+drawLine(880,hfY[1]+22,900,finalsY[0]+22,'#4ade80',false);
 }
 if(finals[1]){
-drawLine(650,hfY[0]+22,670,finalsY[1]+22,'#f87171',true);
+drawLine(880,hfY[0]+22,900,finalsY[1]+22,'#f87171',true);
+drawLine(880,hfY[1]+22,900,finalsY[1]+22,'#f87171',true);
 }
-// HF2 winner → FINALE, loser → KLF
-if(finals[0]){
-drawLine(650,hfY[1]+22,670,finalsY[0]+22,'#4ade80',false);
-}
-if(finals[1]){
-drawLine(650,hfY[1]+22,670,finalsY[1]+22,'#f87171',true);
-}
-// CHF1 winner → CF, loser → CKF
 if(finals[2]){
-drawLine(650,hfY[2]+22,670,finalsY[2]+22,'#4ade80',false);
+drawLine(880,hfY[2]+22,900,finalsY[2]+22,'#4ade80',false);
+drawLine(880,hfY[3]+22,900,finalsY[2]+22,'#4ade80',false);
 }
 if(finals[3]){
-drawLine(650,hfY[2]+22,670,finalsY[3]+22,'#f87171',true);
-}
-// CHF2 winner → CF, loser → CKF
-if(finals[2]){
-drawLine(650,hfY[3]+22,670,finalsY[2]+22,'#4ade80',false);
-}
-if(finals[3]){
-drawLine(650,hfY[3]+22,670,finalsY[3]+22,'#f87171',true);
+drawLine(880,hfY[2]+22,900,finalsY[3]+22,'#f87171',true);
+drawLine(880,hfY[3]+22,900,finalsY[3]+22,'#f87171',true);
 }
 
 // Finals
-svg+=`<text x="670" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">FINALE</text>`;
+svg+=`<text x="900" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">FINALE</text>`;
 finals.forEach((m,i)=>{
 if(!m||!m.team1)return;
 const y=finalsY[i];
@@ -684,7 +734,7 @@ const w1=m.score1!=null&&m.score1>m.score2;
 const w2=m.score1!=null&&m.score2>m.score1;
 const isPlaceholder=t1.includes('Winner')||t1.includes('Loser');
 const isMain=m.id==='FINALE'||m.id==='KLF';
-svg+=`<g transform="translate(670,${y})">
+svg+=`<g transform="translate(900,${y})">
 <rect width="200" height="45" rx="6" fill="#1e293b" stroke="${isMain?'#fbbf24':'#f87171'}" stroke-width="2"/>
 <text x="8" y="15" style="font-size:10px;font-weight:800;fill:${isMain?'#fbbf24':'#f87171'}">${m.id==='FINALE'?'🥇 '+m.id:m.id==='KLF'?'🥉 '+m.id:m.id}</text>
 <text x="8" y="28" style="font-size:${isPlaceholder?'8':'10'}px;fill:${w1?'#4ade80':isPlaceholder?'#64748b':'#f1f5f9'}">${t1}</text>
@@ -693,72 +743,39 @@ svg+=`<g transform="translate(670,${y})">
 </g>`;
 });
 
-// RANKING (nur wenn FINALE fertig)
+// Final Ranking (rechts, wenn Finale fertig)
 const finale=finals.find(m=>m.id==='FINALE');
+if(finale&&finale.score1!=null){
+svg+=`<text x="1130" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">🏆 PLATZIERUNG</text>`;
+const finalRanking=[
+{rank:1,team:getWinner(finale),emoji:'🥇',color:'#fbbf24'},
+{rank:2,team:getLoser(finale),emoji:'🥈',color:'#94a3b8'}
+];
 const klf=finals.find(m=>m.id==='KLF');
+if(klf&&klf.score1!=null){
+finalRanking.push({rank:3,team:getWinner(klf),emoji:'🥉',color:'#d97706'});
+finalRanking.push({rank:4,team:getLoser(klf),emoji:'',color:'#64748b'});
+}
 const cf=finals.find(m=>m.id==='CF');
 const ckf=finals.find(m=>m.id==='CKF');
-
-if(finale&&finale.score1!=null){
-svg+=`<text x="920" y="50" style="font-size:11px;font-weight:700;fill:#94a3b8">🏆 RANKING</text>`;
-
-const ranking=[];
-// Platz 1
-ranking.push({rank:1,team:getWinner(finale),emoji:'🥇',color:'#fbbf24'});
-// Platz 2
-ranking.push({rank:2,team:getLoser(finale),emoji:'🥈',color:'#94a3b8'});
-// Platz 3
-if(klf&&klf.score1!=null){
-ranking.push({rank:3,team:getWinner(klf),emoji:'🥉',color:'#d97706'});
-ranking.push({rank:4,team:getLoser(klf),emoji:'',color:'#64748b'});
-}
-// Platz 5-8
 if(cf&&cf.score1!=null){
-ranking.push({rank:5,team:getWinner(cf),emoji:'',color:'#64748b'});
-ranking.push({rank:6,team:getLoser(cf),emoji:'',color:'#64748b'});
+finalRanking.push({rank:5,team:getWinner(cf),emoji:'',color:'#64748b'});
+finalRanking.push({rank:6,team:getLoser(cf),emoji:'',color:'#64748b'});
 }
 if(ckf&&ckf.score1!=null){
-ranking.push({rank:7,team:getWinner(ckf),emoji:'',color:'#64748b'});
-ranking.push({rank:8,team:getLoser(ckf),emoji:'',color:'#64748b'});
+finalRanking.push({rank:7,team:getWinner(ckf),emoji:'',color:'#64748b'});
+finalRanking.push({rank:8,team:getLoser(ckf),emoji:'',color:'#64748b'});
 }
-
-ranking.forEach((r,i)=>{
+finalRanking.forEach((r,i)=>{
 const y=65+i*40;
-svg+=`<g transform="translate(920,${y})">
-<rect width="160" height="35" rx="6" fill="#1e293b" stroke="${r.color}" stroke-width="${r.rank<=3?2:1}"/>
-<text x="8" y="23" style="font-size:14px;font-weight:800;fill:${r.color}">${r.emoji} ${r.rank}. ${teamLabel(r.team)}</text>
+svg+=`<g transform="translate(1130,${y})">
+<rect width="150" height="35" rx="6" fill="#1e293b" stroke="${r.color}" stroke-width="${r.rank<=3?2:1}"/>
+<text x="8" y="23" style="font-size:11px;font-weight:800;fill:${r.color}">${r.emoji} ${r.rank}. ${teamLabel(r.team)}</text>
 </g>`;
-
-// Lines from finals to ranking
-if(i===0&&finale){
-drawLine(870,finalsY[0]+22,920,y+17,'#fbbf24',false);
-}
-if(i===1&&finale){
-drawLine(870,finalsY[0]+22,920,y+17,'#94a3b8',true);
-}
-if(i===2&&klf){
-drawLine(870,finalsY[1]+22,920,y+17,'#d97706',false);
-}
-if(i===3&&klf){
-drawLine(870,finalsY[1]+22,920,y+17,'#64748b',true);
-}
-if(i===4&&cf){
-drawLine(870,finalsY[2]+22,920,y+17,'#64748b',false);
-}
-if(i===5&&cf){
-drawLine(870,finalsY[2]+22,920,y+17,'#64748b',true);
-}
-if(i===6&&ckf){
-drawLine(870,finalsY[3]+22,920,y+17,'#64748b',false);
-}
-if(i===7&&ckf){
-drawLine(870,finalsY[3]+22,920,y+17,'#64748b',true);
-}
 });
 }
 
 svg+=`</svg>`;
-
 document.getElementById('bracketArea').innerHTML=svg;
 }
 
@@ -798,9 +815,16 @@ if(!match)return;
 match.score1=s1;
 match.score2=s2;
 
-// IMMER updaten (füllt was möglich ist)
+// Wenn alle Vorrunden fertig: Ranking berechnen + R1 füllen
+const prelim=tournamentData.koBracket.prelimMatches;
+const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
+if(allPrelimDone){
+calculateRanking();
 fillRound1();
-fillSemiFinals(); // CHF1 kann schon nach R1a+R1b gefüllt werden!
+}
+
+// Rest wie gehabt
+fillSemiFinals();
 
 if(allHFDone()){
 fillFinals();
