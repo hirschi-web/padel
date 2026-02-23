@@ -630,12 +630,13 @@ function ko8BuildAndRenderBracket() {
     if (!koBracketData) return;
 
     // R1 always shows placeholders here (real names assigned after prelim on results page)
-    const r1 = [
-        { id: 'R1a', t1: null, t2: null, court: 2, label: 'P1 vs P8' },
-        { id: 'R1b', t1: null, t2: null, court: 3, label: 'P2 vs P7' },
-        { id: 'R1c', t1: null, t2: null, court: 1, label: 'P3 vs P6' },
-        { id: 'R1d', t1: null, t2: null, court: 2, label: 'P4 vs P5' },
-    ];
+   const r1 = [
+    { id: 'R1a', t1: null, t2: null, court: 2, label: 'Winner V1 vs Winner V2', source1: 'V1-winner', source2: 'V2-winner' },
+    { id: 'R1b', t1: null, t2: null, court: 3, label: 'Winner V3 vs Loser V1', source1: 'V3-winner', source2: 'V1-loser' },
+    { id: 'R1c', t1: null, t2: null, court: 1, label: 'Loser V2 vs Loser V3', source1: 'V2-loser', source2: 'V3-loser' },
+    { id: 'R1d', t1: null, t2: null, court: 2, label: 'Winner V4 vs Loser V4', source1: 'V4-winner', source2: 'V4-loser' },
+];
+    
     const bracket = koBracketData.mainBracket || {};
     koBracketData.mainBracket = { r1, results: bracket.results || {} };
     ko8RenderBracketSVG();
