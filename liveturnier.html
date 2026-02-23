@@ -309,15 +309,42 @@ const prelim=tournamentData.koBracket.prelimMatches;
 const start=tournamentData.koStartTime||'09:00';
 const dur=(tournamentData.koMatchTime||30)+(tournamentData.koPause||5);
 
-// Ensure all 4 R1 matches exist
+// CHECK: Sind V1-V3 fertig?
+const v123Done=prelim[0]?.score1!=null&&prelim[1]?.score1!=null&&prelim[2]?.score1!=null;
+
+// WENN V1-V3 NICHT fertig: R1 hat KEINE Teams
+if(!v123Done){
+if(bracket.r1.length===0){
+bracket.r1=[
+{id:'R1a',court:2,team1:null,team2:null,score1:null,score2:null,time:addMinutes(start,1*dur)},
+{id:'R1b',court:3,team1:null,team2:null,score1:null,score2:null,time:addMinutes(start,1*dur)},
+{id:'R1c',court:1,team1:null,team2:null,score1:null,score2:null,time:addMinutes(start,2*dur)},
+{id:'R1d',court:2,team1:null,team2:null,score1:null,score2:null,time:addMinutes(start,2*dur)}
+];
+}
+console.log('[R1] Waiting for V1-V3...');
+return;
+}
+
+// CHECK: Ist R1 schon LOCKED?
+const r1Locked=bracket.r1[0]?.team1&&(bracket.r1[0].team1.a||bracket.r1[0].team1.name);
+if(r1Locked){
+console.log('[R1] LOCKED - teams already set!');
+return;
+}
+
+// V1-V3 FERTIG + R1 noch NICHT locked → Jetzt füllen mit Ranking!
+const ranking=tournamentData.koBracket.ranking;
+if(!ranking||ranking.length<8){
+console.log('[R1] ERROR: V1-V3 done but no ranking!');
+return;
+}
+
 if(!bracket.r1[0])bracket.r1[0]={id:'R1a',court:2,score1:null,score2:null,time:addMinutes(start,1*dur)};
 if(!bracket.r1[1])bracket.r1[1]={id:'R1b',court:3,score1:null,score2:null,time:addMinutes(start,1*dur)};
 if(!bracket.r1[2])bracket.r1[2]={id:'R1c',court:1,score1:null,score2:null,time:addMinutes(start,2*dur)};
 if(!bracket.r1[3])bracket.r1[3]={id:'R1d',court:2,score1:null,score2:null,time:addMinutes(start,2*dur)};
 
-// WENN RANKING DA (nach ALLEN Vorrunden): Nutze Ranking
-const ranking=tournamentData.koBracket.ranking;
-if(ranking&&ranking.length>=8){
 bracket.r1[0].team1=ranking[0].team;
 bracket.r1[0].team2=ranking[7].team;
 bracket.r1[1].team1=ranking[1].team;
@@ -326,53 +353,8 @@ bracket.r1[2].team1=ranking[2].team;
 bracket.r1[2].team2=ranking[5].team;
 bracket.r1[3].team1=ranking[3].team;
 bracket.r1[3].team2=ranking[4].team;
-console.log('[R1 from Ranking]',bracket.r1.map(m=>`${m.id}: ${teamLabel(m.team1)} vs ${teamLabel(m.team2)}`));
-return;
-}
 
-// INKREMENTELL: Fülle was möglich ist
-const v1Done=prelim[0]&&prelim[0].score1!=null;
-const v2Done=prelim[1]&&prelim[1].score1!=null;
-const v3Done=prelim[2]&&prelim[2].score1!=null;
-const v4Done=prelim[3]&&prelim[3].score1!=null;
-
-// R1a: Winner V1 vs Winner V2 (sobald V1+V2 fertig)
-if(v1Done&&v2Done){
-bracket.r1[0].team1=getWinner(prelim[0]);
-bracket.r1[0].team2=getWinner(prelim[1]);
-}else{
-bracket.r1[0].team1={outlook:'Winner V1'};
-bracket.r1[0].team2={outlook:'Winner V2'};
-}
-
-// R1b: Winner V3 vs Loser V1 (sobald V1+V3 fertig)
-if(v1Done&&v3Done){
-bracket.r1[1].team1=getWinner(prelim[2]);
-bracket.r1[1].team2=getLoser(prelim[0]);
-}else{
-bracket.r1[1].team1={outlook:'Winner V3'};
-bracket.r1[1].team2={outlook:'Loser V1'};
-}
-
-// R1c: Loser V2 vs Loser V3 (sobald V2+V3 fertig)
-if(v2Done&&v3Done){
-bracket.r1[2].team1=getLoser(prelim[1]);
-bracket.r1[2].team2=getLoser(prelim[2]);
-}else{
-bracket.r1[2].team1={outlook:'Loser V2'};
-bracket.r1[2].team2={outlook:'Loser V3'};
-}
-
-// R1d: Winner V4 vs Loser V4 (sobald V4 fertig) - WILDCARD!
-if(v4Done){
-bracket.r1[3].team1=getWinner(prelim[3]);
-bracket.r1[3].team2=getLoser(prelim[3]);
-}else{
-bracket.r1[3].team1={outlook:'Winner V4'};
-bracket.r1[3].team2={outlook:'Loser V4'};
-}
-
-console.log('[R1 incremental]',bracket.r1.map(m=>`${m.id}: ${teamLabel(m.team1)} vs ${teamLabel(m.team2)}`));
+console.log('[R1 LOCKED]',bracket.r1.map(m=>`${m.id}: ${teamLabel(m.team1)} vs ${teamLabel(m.team2)}`));
 }
 
 function ensureR1Placeholders(){
@@ -893,28 +875,21 @@ match.score1=s1;
 match.score2=s2;
 
 const prelim=tournamentData.koBracket.prelimMatches;
-
-// Check: Sind V1, V2, V3 fertig? (V4 egal!)
 const v123Done=prelim[0].score1!=null&&prelim[1].score1!=null&&prelim[2].score1!=null;
 
-// WENN V1-V3 FERTIG und Ranking noch nicht da: Berechne mit V4-Simulation
+// NUR WENN V1-V3 FERTIG: Ranking + R1
 if(v123Done&&!tournamentData.koBracket.ranking){
 console.log('[V1-V3 Done] Calculating ranking with V4 simulation...');
-calculateRanking(); // Simuliert V4 als Unentschieden
-fillRound1(); // Setzt R1 basierend auf Ranking (LOCKED!)
+calculateRanking();
+fillRound1(); // LOCKED!
 }
 
-// WENN V4 jetzt auch fertig: Ranking NEU berechnen (diesmal mit echtem V4)
+// WENN V4 fertig: Ranking updated (ABER R1 bleibt locked!)
 const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
-if(allPrelimDone){
-console.log('[All Prelim Done] Re-calculating ranking with real V4 result...');
-calculateRanking(); // Jetzt mit echtem V4
-// ABER: R1 NICHT neu füllen! R1 bleibt wie es ist!
-}
-
-// Immer R1 updaten (falls noch nicht locked)
-if(!tournamentData.koBracket.ranking){
-fillRound1();
+if(allPrelimDone&&tournamentData.koBracket.ranking){
+console.log('[V4 Done] Re-calculating ranking (R1 stays locked!)...');
+calculateRanking(); // Updated mit echtem V4
+// fillRound1() NICHT aufrufen → R1 bleibt!
 }
 
 fillSemiFinals();
