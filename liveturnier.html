@@ -141,14 +141,16 @@ ensureR1Placeholders();
 ensureHFPlaceholders();
 ensureFinalsPlaceholders();
 
-// Ranking berechnen wenn alle Vorrunden fertig sind
+// Ranking berechnen wenn V1-V3 fertig sind (V4 egal!)
 const prelim=tournamentData.koBracket.prelimMatches||[];
+const v123Done=prelim[0]?.score1!=null&&prelim[1]?.score1!=null&&prelim[2]?.score1!=null;
 const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
-if(allPrelimDone){
-calculateRanking();
+
+if(v123Done){
+calculateRanking(); // Mit V4-Simulation wenn V4 noch offen
 }
 
-// R1 füllen (mit Ranking wenn vorhanden, sonst Platzhalter)
+// R1 füllen (mit Ranking wenn vorhanden, sonst inkrementell)
 fillRound1();
 
 renderMatches();
@@ -217,13 +219,13 @@ pointsAgainst:0,
 diff:0,
 wins:0,
 losses:0,
-sourceMatch:m.id // Wichtig für Swap-Logik!
+sourceMatch:m.id
 });
 }
 });
 });
 
-// Auswerten
+// Auswerten (nur fertige Spiele)
 bracket.prelimMatches.forEach(m=>{
 if(m.score1==null||m.score2==null)return;
 const t1=teams.find(t=>t.id===teamId(m.team1));
@@ -237,21 +239,37 @@ if(m.score1>m.score2){t1.wins++;t2.losses++;}
 else{t2.wins++;t1.losses++;}
 });
 
-// Sortieren nach Diff, dann Punkte
+// SIMULATION: V4 Teams als Unentschieden wenn noch nicht gespielt
+const v4=bracket.prelimMatches[3];
+if(v4&&v4.score1==null){
+const t1=teams.find(t=>t.id===teamId(v4.team1));
+const t2=teams.find(t=>t.id===teamId(v4.team2));
+if(t1&&t2){
+// Simuliere Unentschieden (z.B. 15:15)
+t1.points+=15;t1.pointsAgainst+=15;
+t2.points+=15;t2.pointsAgainst+=15;
+t1.simulated=true;
+t2.simulated=true;
+console.log('[SIMULATION] V4 teams simulated as draw (15:15)');
+}
+}
+
+// Diff berechnen
 teams.forEach(t=>t.diff=t.points-t.pointsAgainst);
+
+// Sortieren nach Diff, dann Punkte
 teams.sort((a,b)=>{
 if(b.diff!==a.diff)return b.diff-a.diff;
 return b.points-a.points;
 });
 
-// Vorläufiges Ranking setzen
+// Vorläufiges Ranking
 teams.forEach((t,i)=>t.rank=i+1);
 
-// SWAP-LOGIK: Verhindere Rematch aus gleichem V-Spiel
+// SWAP-LOGIK
 function swapIfSameMatch(idx1,idx2){
 if(!teams[idx1]||!teams[idx2])return false;
 if(teams[idx1].sourceMatch===teams[idx2].sourceMatch){
-// Finde besten Swap-Partner
 let swapWith=-1;
 for(let offset=1;offset<=3;offset++){
 const c1=idx2+offset;
@@ -272,16 +290,15 @@ return true;
 return false;
 }
 
-// Check R1 Paarungen
 swapIfSameMatch(0,7);
 swapIfSameMatch(1,6);
 swapIfSameMatch(2,5);
-swapIfSameMatch(3,4); // WICHTIG FÜR V4!
+swapIfSameMatch(3,4);
 
 // Finales Ranking
 teams.forEach((t,i)=>t.rank=i+1);
 bracket.ranking=teams;
-console.log('[Ranking]',teams.map(t=>`${t.rank}. ${teamLabel(t.team)} (${t.diff>=0?'+':''}${t.diff})`));
+console.log('[Ranking]',teams.map(t=>`${t.rank}. ${teamLabel(t.team)} (${t.diff>=0?'+':''}${t.diff})${t.simulated?' [SIM]':''}`));
 }
 
 function fillRound1(){
@@ -875,19 +892,31 @@ if(!match)return;
 match.score1=s1;
 match.score2=s2;
 
-// IMMER R1 updaten (inkrementell oder mit Ranking)
-fillRound1();
-
-// Wenn ALLE Vorrunden fertig: Ranking berechnen UND R1 überschreiben
 const prelim=tournamentData.koBracket.prelimMatches;
-const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
-if(allPrelimDone){
-console.log('[All Prelim Done] Calculating final ranking with swap logic...');
-calculateRanking();
-fillRound1(); // Überschreibt mit Ranking (inkl. Swap!)
+
+// Check: Sind V1, V2, V3 fertig? (V4 egal!)
+const v123Done=prelim[0].score1!=null&&prelim[1].score1!=null&&prelim[2].score1!=null;
+
+// WENN V1-V3 FERTIG und Ranking noch nicht da: Berechne mit V4-Simulation
+if(v123Done&&!tournamentData.koBracket.ranking){
+console.log('[V1-V3 Done] Calculating ranking with V4 simulation...');
+calculateRanking(); // Simuliert V4 als Unentschieden
+fillRound1(); // Setzt R1 basierend auf Ranking (LOCKED!)
 }
 
-// Rest
+// WENN V4 jetzt auch fertig: Ranking NEU berechnen (diesmal mit echtem V4)
+const allPrelimDone=prelim.every(m=>m.score1!=null&&m.score2!=null);
+if(allPrelimDone){
+console.log('[All Prelim Done] Re-calculating ranking with real V4 result...');
+calculateRanking(); // Jetzt mit echtem V4
+// ABER: R1 NICHT neu füllen! R1 bleibt wie es ist!
+}
+
+// Immer R1 updaten (falls noch nicht locked)
+if(!tournamentData.koBracket.ranking){
+fillRound1();
+}
+
 fillSemiFinals();
 
 if(allHFDone()){
