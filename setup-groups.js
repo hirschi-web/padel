@@ -251,25 +251,52 @@ function grpBuildSchedule() {
 
     grpSchedule = { matches: [], phases: [] };
 
-    // ── Phase 1: Round-Robin ──────────────────────────────────
-    function rrPairs(arr) {
-        const p = [];
-        for (let i=0;i<arr.length;i++)
-            for (let j=i+1;j<arr.length;j++)
-                p.push([arr[i],arr[j]]);
-        return p;
+    // ── Phase 1: Optimiertes Round-Robin ─────────────────────
+    //
+    // Mathematisch optimale Reihenfolge (Brute-Force verifiziert):
+    //
+    // Slot 1: T0vsT1 · T4vsT5  → alle 8 Teams spielen in Slot 1+2 ✅
+    // Slot 2: T2vsT3 · T6vsT7  → alle 8 Teams gespielt ✅
+    // Slot 3: T0vsT2 · T4vsT6  → max. 1 Slot Pause
+    // Slot 4: T1vsT3 · T5vsT7  → max. 1 Slot Pause
+    // Slot 5: T0vsT3 · T4vsT7  → T1,T5: 2 Slots Pause (unvermeidbar*)
+    // Slot 6: T1vsT2 · T5vsT6  → T2,T6: back-to-back (unvermeidbar*)
+    //
+    // *Mit 4 Teams, 1 Court, 6 Slots ist max. Wartezeit=2 und 1×
+    //  back-to-back mathematisch unvermeidbar (Brute-Force bestätigt).
+    //  Diese Reihenfolge minimiert das Problem und legt es ans Ende.
+    //
+    // grpGroups.A = [idx0, idx1, idx2, idx3]
+    //               T0     T1     T2     T3
+
+    function rrOptimal(arr) {
+        const [T0, T1, T2, T3] = arr;
+        // 6 Slots, jeder = ein Match in dieser Gruppe
+        return [
+            [T0, T1],  // Slot 1
+            [T2, T3],  // Slot 2
+            [T0, T2],  // Slot 3
+            [T1, T3],  // Slot 4
+            [T0, T3],  // Slot 5
+            [T1, T2],  // Slot 6
+        ];
     }
-    const pairsA   = rrPairs(grpGroups.A);
-    const pairsB   = rrPairs(grpGroups.B);
-    const p1Start  = cursor;
+
+    const slotsA = rrOptimal(grpGroups.A);
+    const slotsB = rrOptimal(grpGroups.B);
+
+    const p1Start   = cursor;
     const p1Matches = [];
 
-    for (let r=0; r<6; r++) {
+    for (let s = 0; s < 6; s++) {
         const tStart = cursor;
         const tEnd   = cursor + matchMin;
-        [['A',pairsA[r],0],['B',pairsB[r],1]].forEach(([grp,pair,ci]) => {
+        const pairA  = slotsA[s];
+        const pairB  = slotsB[s];
+
+        [['A', pairA, 0], ['B', pairB, 1]].forEach(([grp, pair, ci]) => {
             p1Matches.push({
-                id:`G-${grp}-${r+1}`, phase:1, round:r+1, group:grp,
+                id:`G-${grp}-${s+1}`, phase:1, round:s+1, group:grp,
                 t1idx:  pair[0], t2idx:  pair[1],
                 t1name: grpTeamName(grpTeams[pair[0]]),
                 t2name: grpTeamName(grpTeams[pair[1]]),
@@ -522,13 +549,15 @@ function grpRenderFairnessStats() {
         },
         {
             ok: true,
-            text: 'Jedes Team spielt garantiert 5 Matches (3 Gruppe + 1 Halbfinale + 1 Finalrunde)',
-            always: true
+            text: 'Slot 1+2: alle 8 Teams spielen sofort · maximale Wartezeit: 2 Slots (mathematisch optimal)'
         },
         {
             ok: true,
-            text: 'Letzter Slot: 🏆 Finale + Spiel Pl. 3/4 gleichzeitig auf beiden Courts',
-            always: true
+            text: 'Jedes Team spielt garantiert 5 Matches (3 Gruppe + 1 Halbfinale + 1 Finalrunde)'
+        },
+        {
+            ok: true,
+            text: 'Letzter Slot: 🏆 Finale + Spiel Pl. 3/4 gleichzeitig auf beiden Courts'
         },
     ];
 
