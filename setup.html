@@ -920,9 +920,9 @@
 
             <!-- RIGHT: TEAM LIST -->
             <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:14px; padding:18px;">
-                <label class="lbl" style="margin-bottom:10px;">Teams (8 fixe 2er-Paarungen)</label>
-                <div id="grpTeamList" style="display:flex; flex-direction:column; gap:7px; max-height:440px; overflow-y:auto; padding-right:4px;"></div>
-            </div>
+                 <label class="lbl" style="margin-bottom:4px;">Teams · 8 Paare</label>
+                <p style="font-size:10px;color:var(--muted);margin-bottom:8px;">Teamname wird automatisch: <em>Spieler A / Spieler B</em></p>
+            <div id="grpTeamList" ...></div>
 
         </div>
 
@@ -969,6 +969,11 @@
 
             <div class="section-divider">Spielplan <span class="badge badge-slate" style="margin-left:8px;">Alle 3 Phasen</span></div>
             <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:16px; padding:18px;" id="grpScheduleContainer"></div>
+
+            <div class="section-divider">Fairness &amp; Auswertung <span class="badge badge-green" style="margin-left:8px;">Automatisch</span></div>
+            <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:16px; padding:18px;" id="grpFairnessContainer">
+            <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">⏳ Wird nach Auslosung berechnet…</div>
+        </div>
 
             <!-- SAVE -->
             <button id="grpSaveBtn" onclick="grpSaveTournament()" class="btn btn-success" style="margin-top:20px;">
