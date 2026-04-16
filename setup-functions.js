@@ -26,12 +26,17 @@ function switchMode(mode) {
     currentAppMode = mode;
     document.getElementById('modeBtn_americano').classList.toggle('active', mode === 'americano');
     document.getElementById('modeBtn_ko').classList.toggle('active', mode === 'ko');
+    document.getElementById('modeBtn_groups').classList.toggle('active', mode === 'groups');          // NEU
     document.getElementById('americanoSection').classList.toggle('hidden', mode !== 'americano');
     document.getElementById('koSection').classList.toggle('hidden', mode !== 'ko');
-    document.getElementById('headerSubtitle').textContent = mode === 'americano'
-        ? 'Smart-Mix Engine v2.0 · Americano Optimizer'
-        : 'K.O. System · 8 oder 16 Teams · Vorrunde + Bracket';
-    if (mode === 'ko') koUpdateTeamInputs();
+    document.getElementById('groupsSection').classList.toggle('hidden', mode !== 'groups');           // NEU
+    document.getElementById('headerSubtitle').textContent = {
+        americano: 'Smart-Mix Engine v2.0 · Americano Optimizer',
+        ko:        'K.O. System · 8 oder 16 Teams · Vorrunde + Bracket',
+        groups:    'Gruppen-System · 8 Teams · 2 Gruppen · 5h'             // NEU
+    }[mode] || '';
+    if (mode === 'ko')     koUpdateTeamInputs();
+    if (mode === 'groups') grpInit();                                       // NEU
 }
 
 // ============================================================
@@ -115,6 +120,13 @@ async function loadTournament(id) {
         return;
     }
 
+// GRUPPEN TOURNAMENT
+    if (d.tournament_type === 'groups') {
+        grpLoadTournament(d, id);
+        document.getElementById('deleteBtn').classList.remove('hidden');
+        return;
+    }
+    
     // AMERICANO TOURNAMENT
     switchMode('americano');
     document.getElementById('tName').value = id;
