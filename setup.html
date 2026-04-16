@@ -838,6 +838,147 @@
 
 </div>
 
+    <!-- ══════ GRUPPEN SYSTEM SECTION ══════ -->
+    <div id="groupsSection" class="hidden">
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;" class="two-col">
+
+            <!-- LEFT: SETTINGS -->
+            <div style="display:flex; flex-direction:column; gap:16px;">
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label class="lbl">Turnier Name</label>
+                        <input type="text" id="grpTName">
+                    </div>
+                    <div style="position:relative;">
+                        <label class="lbl">Admin-PW</label>
+                        <input type="password" id="grpTPassword" placeholder="Optional">
+                        <button onclick="grpTogglePw()" style="position:absolute; right:10px; top:32px; background:none; border:none; cursor:pointer; font-size:13px; opacity:.4;">👁️</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--slate); cursor:pointer;">
+                        <input type="checkbox" id="grpExpiryEnabled" onchange="grpToggleExpiry()" style="width:16px; height:16px;">
+                        Turnier-Ablaufdatum setzen
+                    </label>
+                    <div id="grpExpiryDateSection" class="hidden" style="margin-top:8px;">
+                        <input type="datetime-local" id="grpExpiryDate" style="font-size:12px;">
+                    </div>
+                </div>
+
+                <div class="alert alert-info" style="font-size:11px;">
+                    👥 <strong>8 Teams · 2 Gruppen à 4</strong> — Gruppenphase → Halbfinale → Finalrunde. Jedes Team spielt exakt <strong>5 Matches</strong>.
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label class="lbl">Plätze</label>
+                        <input type="number" id="grpCourts" value="2" min="1" max="4" onchange="grpUpdateCourtNames(); grpRecalc();">
+                    </div>
+                    <div>
+                        <label class="lbl">Startzeit</label>
+                        <input type="time" id="grpStartTime" value="14:30" onchange="grpRecalc()">
+                    </div>
+                </div>
+
+                <div id="grpCourtNamesSection">
+                    <label class="lbl">Court-Namen <span style="font-size:9px; opacity:.7;">(z.B. 1, 2)</span></label>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <input type="text" id="grpCourt1Name" placeholder="1" value="1" style="font-size:12px; text-align:center;">
+                        <input type="text" id="grpCourt2Name" placeholder="2" value="2" style="font-size:12px; text-align:center;">
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label class="lbl">Match-Dauer (Min)</label>
+                        <input type="number" id="grpMatchTime" value="16" min="5" onchange="grpRecalc()">
+                    </div>
+                    <div>
+                        <label class="lbl">Pause zw. Matches (Min)</label>
+                        <input type="number" id="grpPause" value="3" min="0" onchange="grpRecalc()">
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label class="lbl">Platzbuchung (Std)</label>
+                        <input type="number" id="grpCourtHours" value="5" min="0.5" max="12" step="0.5" onchange="grpRecalc()">
+                    </div>
+                    <div style="display:flex; align-items:flex-end; padding-bottom:2px;">
+                        <div style="font-size:10px; color:var(--muted); padding:8px 10px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:10px; width:100%; line-height:1.5;">
+                            2 Courts · Tennis-Score<br>Format: 6:4, 8:5, etc.
+                        </div>
+                    </div>
+                </div>
+
+                <div id="grpInputError" class="alert alert-error hidden"></div>
+
+            </div>
+
+            <!-- RIGHT: TEAM LIST -->
+            <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:14px; padding:18px;">
+                <label class="lbl" style="margin-bottom:10px;">Teams (8 fixe 2er-Paarungen)</label>
+                <div id="grpTeamList" style="display:flex; flex-direction:column; gap:7px; max-height:440px; overflow-y:auto; padding-right:4px;"></div>
+            </div>
+
+        </div>
+
+        <!-- TIME PROPOSAL -->
+        <div class="section-divider">Zeitplan-Vorschau <span class="badge badge-blue" style="margin-left:8px;">Live-Kalkulation</span></div>
+        <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:16px; padding:18px;" id="grpTimeProposal">
+            <div style="text-align:center; padding:20px; color:var(--muted); font-size:12px;">⏳ Eingaben ausfüllen für Zeitplan-Vorschau…</div>
+        </div>
+
+        <!-- GENERATE BUTTON -->
+        <button onclick="grpGenerate()" class="btn btn-primary" style="margin-top:16px;">
+            🎲 Gruppen auslosen &amp; Bracket generieren
+        </button>
+
+        <!-- BRACKET / SCHEDULE AREA (shown after generate) -->
+        <div id="grpBracketArea" class="hidden">
+
+            <div class="section-divider">Gruppenauslosung <span class="badge badge-purple" style="margin-left:8px;">Drag &amp; Drop zum Anpassen</span></div>
+
+            <div class="alert alert-info" style="margin-bottom:16px;">
+                📌 Zufällige Auslosung. Teams zwischen Gruppen tauschen: einfach rüberziehen (Drag &amp; Drop).
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;" class="two-col">
+                <div class="card" style="padding:16px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                        <span class="display" style="font-size:18px; font-weight:900; color:var(--blue);">Gruppe A</span>
+                        <span class="badge badge-blue">4 Teams</span>
+                    </div>
+                    <div id="grpGroupATeams"
+                         style="display:flex; flex-direction:column; gap:6px; min-height:160px; padding:6px; border-radius:8px; border:2px dashed transparent; transition:border-color .2s, background .2s;">
+                    </div>
+                </div>
+                <div class="card" style="padding:16px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                        <span class="display" style="font-size:18px; font-weight:900; color:var(--purple);">Gruppe B</span>
+                        <span class="badge badge-purple">4 Teams</span>
+                    </div>
+                    <div id="grpGroupBTeams"
+                         style="display:flex; flex-direction:column; gap:6px; min-height:160px; padding:6px; border-radius:8px; border:2px dashed transparent; transition:border-color .2s, background .2s;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-divider">Spielplan <span class="badge badge-slate" style="margin-left:8px;">Alle 3 Phasen</span></div>
+            <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:16px; padding:18px;" id="grpScheduleContainer"></div>
+
+            <!-- SAVE -->
+            <button id="grpSaveBtn" onclick="grpSaveTournament()" class="btn btn-success" style="margin-top:20px;">
+                ✅ Gruppen-Turnier speichern
+            </button>
+
+        </div>
+
+    </div>
+    
 <!-- PRINT-ONLY bracket area -->
 <div id="printBracketArea">
     <div style="padding:20px;">
