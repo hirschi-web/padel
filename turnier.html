@@ -187,8 +187,34 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .res-score{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;color:var(--accent);min-width:44px;text-align:center;}
 
 /* ── BRACKET ─────────────────────────── */
-#bracketWrap{overflow-x:auto;padding:8px 0;}
+#bracketWrap{padding:0;}
 .alert-info{font-size:11px;font-weight:500;padding:9px 12px;border-radius:10px;line-height:1.5;background:rgba(59,130,246,.08);border:1.5px solid rgba(59,130,246,.2);color:var(--accent);margin-bottom:12px;}
+
+/* Bracket outer layout: standings left + SVG right */
+.bracket-layout{display:grid;grid-template-columns:155px 1fr;gap:10px;align-items:start;}
+@media(max-width:560px){.bracket-layout{grid-template-columns:1fr;}}
+
+/* Mini standings sidebar */
+.bst-wrap{display:flex;flex-direction:column;gap:8px;position:sticky;top:110px;}
+.bst-card{background:var(--bgCard);border-radius:10px;border:1.5px solid var(--border);overflow:hidden;}
+.bst-head{padding:5px 9px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bgCardSolid);}
+.bst-row{display:flex;align-items:center;gap:5px;padding:5px 9px;border-bottom:1px solid var(--border);font-size:10px;}
+.bst-row:last-child{border-bottom:none;}
+.bst-row.bq{border-left:3px solid var(--green);}
+.bst-row.bp{border-left:3px solid var(--gold);}
+.bst-rank{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;color:var(--accent);width:13px;flex-shrink:0;}
+.bst-name{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;}
+.bst-dest{font-family:'Barlow Condensed',sans-serif;font-size:7px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;padding:1px 4px;border-radius:3px;flex-shrink:0;white-space:nowrap;}
+.bst-dest.dg{background:rgba(34,197,94,.15);color:var(--green);}
+.bst-dest.da{background:rgba(245,158,11,.15);color:var(--gold);}
+.bst-prov{font-family:'Barlow Condensed',sans-serif;font-size:8px;color:var(--gold);padding:4px 9px;border-top:1px solid var(--border);background:rgba(245,158,11,.06);}
+
+/* Bracket SVG scroll */
+.bracket-svg-wrap{overflow-x:auto;padding:4px 0;}
+
+/* Sperren button */
+.btn-lock{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;background:rgba(100,116,139,.1);color:var(--textMuted);border:1.5px solid rgba(100,116,139,.25);border-radius:7px;padding:6px 12px;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:5px;}
+.btn-lock:hover{background:rgba(100,116,139,.2);}
 
 /* ── MODAL ───────────────────────────── */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(6px);padding:16px;}
@@ -394,7 +420,10 @@ function switchTab(tab) {
     if(el){el.style.display='block';el.classList.add('active');}
     if(tab==='bracket') renderBracket();
 }
-function renderAll(){renderStandings();renderLive();renderResults();}
+function renderAll(){
+    renderStandings();renderLive();renderResults();
+    if(document.getElementById('tab-bracket')?.classList.contains('active')) renderBracket();
+}
 
 /* ── STANDINGS + QUAL CHIPS ──────────── */
 function computeStandings(grp) {
@@ -557,7 +586,8 @@ function renderLive(){
         html+=`<div class="lock-bar">
             <span class="lock-status">${canEdit?'🔓 Score-Eingabe entsperrt':'🔒 Score-Eingabe gesperrt'}</span>
             <div style="display:flex;gap:8px;align-items:center;">
-                ${canEdit?`<button class="btn-reset" onclick="resetAllScores()">🗑️ Reset</button>`:''}
+                ${canEdit&&appConfig.showResetButton?`<button class="btn-reset" onclick="resetAllScores()">🗑️ Reset</button>`:''}
+                ${canEdit?`<button class="btn-lock" onclick="lockScores()">🔒 Sperren</button>`:''}
                 ${canEdit?'':` <button class="btn-unlock" onclick="openPwModal()">🔓 Entsperren</button>`}
             </div>
         </div>`;
@@ -690,18 +720,25 @@ function startEdit(matchId){
 }
 function cancelEdit(matchId){editSet.delete(matchId);renderLive();}
 
-/* ── RESET ALL SCORES ────────────────────────────────────────────
-   SQL: UPDATE tournaments SET live_data = '{}' WHERE id = '<turnier_id>';
-   ──────────────────────────────────────────────────────────────── */
-async function resetAllScores(){
-    if(!confirm('⚠️ Alle Ergebnisse löschen?\n\nDieser Vorgang kann nicht rückgängig gemacht werden.')) return;
-    if(!confirm('Wirklich alle Scores zurücksetzen? Letzte Chance!')) return;
+/* ── LOCK SCORES ─────────────────────── */
+function lockScores(){
+    isUnlocked=false;
+    editSet.clear();
+    renderAll();
+}
+
+/* ── CONFIG (config.json toggle) ────────
+   Lege config.json im selben Ordner ab:
+   { "showResetButton": 1 }
+   → 1 = Reset-Button sichtbar (wenn entsperrt)
+   → 0 = Reset-Button immer versteckt
+   ──────────────────────────────────────── */
+let appConfig={ showResetButton:1 };
+async function loadConfig(){
     try{
-        const{error}=await db.from('tournaments').update({live_data:{}}).eq('id',tournamentId);
-        if(error) throw error;
-        liveData={}; editSet.clear();
-        renderAll(); renderBracket();
-    }catch(e){ alert('Fehler beim Reset: '+e.message); }
+        const r=await fetch('./config.json?_='+Date.now());
+        if(r.ok) appConfig=await r.json();
+    }catch(e){}
 }
 
 /* ── RESULTS ─────────────────────────── */
@@ -736,11 +773,25 @@ function renderResults(){
 function renderBracket(){
     const container=document.getElementById('bracketWrap');
     if(!tournament) return;
-    const sA=computeStandings('A'),sB=computeStandings('B');
-    const seeds={A1:sA[0]?.team?.name||'A1',A2:sA[1]?.team?.name||'A2',A3:sA[2]?.team?.name||'A3',A4:sA[3]?.team?.name||'A4',B1:sB[0]?.team?.name||'B1',B2:sB[1]?.team?.name||'B2',B3:sB[2]?.team?.name||'B3',B4:sB[3]?.team?.name||'B4'};
+
+    const sA=computeStandings('A'), sB=computeStandings('B');
+    const allP1=(tournament.data?.schedule?.matches||[]).filter(m=>m.phase===1);
+    const doneP1=allP1.filter(m=>liveData[m.id]).length;
+    const totalP1=allP1.length;
+    const hasAny=doneP1>0;
+    const isProvisional=hasAny&&doneP1<totalP1;
+
+    // Seeds from live standings
+    const seeds={
+        A1:sA[0]?.team?.name||'A1', A2:sA[1]?.team?.name||'A2',
+        A3:sA[2]?.team?.name||'A3', A4:sA[3]?.team?.name||'A4',
+        B1:sB[0]?.team?.name||'B1', B2:sB[1]?.team?.name||'B2',
+        B3:sB[2]?.team?.name||'B3', B4:sB[3]?.team?.name||'B4',
+    };
+
     const allM=tournament.data?.schedule?.matches||[];
-    const p2m=allM.filter(m=>m.phase===2),p3m=allM.filter(m=>m.phase===3);
-    const sfIds=p2m.map(m=>m.id),fIds=p3m.map(m=>m.id);
+    const p2m=allM.filter(m=>m.phase===2), p3m=allM.filter(m=>m.phase===3);
+    const sfIds=p2m.map(m=>m.id), fIds=p3m.map(m=>m.id);
 
     const cs=getComputedStyle(document.documentElement);
     const C={
@@ -752,12 +803,43 @@ function renderBracket(){
         border: cs.getPropertyValue('--border').trim()||'#e2e8f0',
         card:   cs.getPropertyValue('--bgCard').trim()||'#f8fafc',
         solid:  cs.getPropertyValue('--bgCardSolid').trim()||'#f1f5f9',
+        text2:  cs.getPropertyValue('--textMuted').trim()||'#64748b',
     };
 
     function W(id){const sc=liveData[id];if(!sc)return null;const[s1,s2]=sc.split(':').map(Number);const m=allM.find(x=>x.id===id);if(!m)return null;const{t1,t2}=getTeams(m);return s1>=s2?t1:t2;}
     function L(id){const sc=liveData[id];if(!sc)return null;const[s1,s2]=sc.split(':').map(Number);const m=allM.find(x=>x.id===id);if(!m)return null;const{t1,t2}=getTeams(m);return s1<s2?t1:t2;}
 
-    const mW=190,mH=50,gapX=55,gapY=12,padL=8,padT=26;
+    // ── MINI STANDINGS SIDEBAR ──
+    const DEST_A=[
+        {l:'HF1',cls:'dg'},{l:'HF2',cls:'dg'},{l:'Pl5/6',cls:'da'},{l:'Pl7/8',cls:'da'}
+    ];
+    const DEST_B=[
+        {l:'HF2',cls:'dg'},{l:'HF1',cls:'dg'},{l:'Pl5/6',cls:'da'},{l:'Pl7/8',cls:'da'}
+    ];
+
+    function miniTable(grp, st, dests, color){
+        const rows=st.map((s,i)=>`
+            <div class="bst-row ${i<2?'bq':'bp'}">
+                <span class="bst-rank">${i+1}</span>
+                <span class="bst-name" title="${esc(s.team?.name||'?')}">${esc((s.team?.name||'?').substring(0,12))}</span>
+                ${hasAny?`<span class="bst-dest ${dests[i].cls}">${dests[i].l}</span>`:''}
+            </div>`).join('');
+        const prov=isProvisional?`<div class="bst-prov">⏳ vorläufig · ${doneP1}/${totalP1}</div>`:'';
+        return`<div class="bst-card">
+            <div class="bst-head" style="color:${color};">Gruppe ${grp}</div>
+            ${rows}
+            ${prov}
+        </div>`;
+    }
+
+    const sidebar=`<div class="bst-wrap">
+        ${miniTable('A', sA, DEST_A, C.accent)}
+        ${miniTable('B', sB, DEST_B, '#a78bfa')}
+        ${isProvisional?`<div style="font-size:9px;color:${C.text2};line-height:1.4;padding:4px 2px;">Bracket aktualisiert sich live nach jedem Ergebnis.</div>`:''}
+    </div>`;
+
+    // ── SVG BRACKET ──
+    const mW=185,mH=50,gapX=52,gapY=12,padL=8,padT=26;
     const colX=[padL,padL+mW+gapX];
     const sfY=[padT+28,padT+28+mH+gapY,padT+28+2*(mH+gapY)+28,padT+28+3*(mH+gapY)+28];
     const f12Y=sfY[0]+(sfY[1]-sfY[0])/2-mH/2;
@@ -765,18 +847,19 @@ function renderBracket(){
     const f56Y=sfY[2]+(sfY[3]-sfY[2])/2-mH/2;
     const f78Y=f56Y+mH+gapY*2;
     const svgH=Math.max(f78Y+mH,sfY[3]+mH)+40;
-    const svgW=colX[1]+mW+130;
+    const svgW=colX[1]+mW+120;
 
     function mBox(x,y,id,t1,t2,sc,gold){
         const[s1,s2]=sc?sc.split(':').map(Number):[null,null];
         const w1=sc&&s1>s2,w2=sc&&s2>s1;
         const acol=gold?C.gold:C.accent;
+        const isProv=!sc&&(t1&&!t1.startsWith('W ')&&!t1.startsWith('L '));
         return`<g>
             <rect x="${x}" y="${y}" width="${mW}" height="${mH}" rx="8" fill="${C.card}" stroke="${gold?C.gold:C.border}" stroke-width="1.5"/>
             ${gold?`<rect x="${x}" y="${y}" width="3" height="${mH}" rx="1.5" fill="${C.gold}"/>`:''}
-            <text x="${x+11}" y="${y+18}" font-size="10" font-family="Inter,sans-serif" font-weight="${w1?700:500}" fill="${t1?w1?C.green:sc?C.dim:C.text:C.dim}">${esc((t1||'TBD').substring(0,22))}</text>
+            <text x="${x+11}" y="${y+18}" font-size="10" font-family="Inter,sans-serif" font-weight="${w1?700:500}" fill="${t1?w1?C.green:sc?C.dim:C.text:C.dim}">${esc((t1||'TBD').substring(0,21))}</text>
             <line x1="${x+5}" y1="${y+mH/2}" x2="${x+mW-5}" y2="${y+mH/2}" stroke="${C.border}" stroke-width="1"/>
-            <text x="${x+11}" y="${y+mH-11}" font-size="10" font-family="Inter,sans-serif" font-weight="${w2?700:500}" fill="${t2?w2?C.green:sc?C.dim:C.text:C.dim}">${esc((t2||'TBD').substring(0,22))}</text>
+            <text x="${x+11}" y="${y+mH-11}" font-size="10" font-family="Inter,sans-serif" font-weight="${w2?700:500}" fill="${t2?w2?C.green:sc?C.dim:C.text:C.dim}">${esc((t2||'TBD').substring(0,21))}</text>
             <rect x="${x+mW-34}" y="${y+3}" width="30" height="14" rx="4" fill="${C.solid}"/>
             <text x="${x+mW-19}" y="${y+13}" text-anchor="middle" font-size="8" font-weight="700" fill="${acol}" font-family="Barlow Condensed,sans-serif">${id}</text>
             ${sc?`<text x="${x+mW-5}" y="${y+mH-4}" text-anchor="end" font-size="13" font-weight="900" fill="${acol}" font-family="Barlow Condensed,sans-serif">${sc}</text>`:''}
@@ -787,29 +870,56 @@ function renderBracket(){
         return`<path d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}" fill="none" stroke="${col}" stroke-width="1.5" opacity=".4" ${dash?'stroke-dasharray="5,3"':''}/>`;
     }
 
-    let svg=`<svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:500px;">`;
+    // HF teams: use live seeds always (vorläufig if provisional)
+    const sfT=[
+        [seeds.A1, seeds.B2],
+        [seeds.B1, seeds.A2],
+        [seeds.A3, seeds.B4],
+        [seeds.B3, seeds.A4],
+    ];
+
+    let svg=`<svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:440px;">`;
     svg+=`<text x="${colX[0]+mW/2}" y="18" text-anchor="middle" font-size="9" font-weight="700" fill="${C.dim}" font-family="Barlow Condensed,sans-serif" letter-spacing="2">HALBFINALE</text>`;
     svg+=`<text x="${colX[1]+mW/2}" y="18" text-anchor="middle" font-size="9" font-weight="700" fill="${C.dim}" font-family="Barlow Condensed,sans-serif" letter-spacing="2">FINALE</text>`;
 
-    const sfT=[[seeds.A1,seeds.B2],[seeds.B1,seeds.A2],[seeds.A3,seeds.B4],[seeds.B3,seeds.A4]];
-    sfIds.forEach((id,i)=>{svg+=mBox(colX[0],sfY[i],id,sfT[i][0],sfT[i][1],liveData[id]);});
-    svg+=mBox(colX[1],f12Y,'F12',W(sfIds[0])||'W SF1',W(sfIds[1])||'W SF2',liveData[fIds?.[0]],true);
-    svg+=mBox(colX[1],f34Y,'F34',L(sfIds[0])||'L SF1',L(sfIds[1])||'L SF2',liveData[fIds?.[1]]);
-    svg+=mBox(colX[1],f56Y,'F56',W(sfIds[2])||'W SF3',W(sfIds[3])||'W SF4',liveData[fIds?.[2]]);
-    svg+=mBox(colX[1],f78Y,'F78',L(sfIds[2])||'L SF3',L(sfIds[3])||'L SF4',liveData[fIds?.[3]]);
+    // HF boxes – always show live seeds
+    sfIds.forEach((id,i)=>{ svg+=mBox(colX[0],sfY[i],id,sfT[i][0],sfT[i][1],liveData[id]); });
 
-    const rx=colX[0]+mW,lx=colX[1];
-    svg+=conn(rx,sfY[0]+mH/2,lx,f12Y+mH/4,C.green);svg+=conn(rx,sfY[1]+mH/2,lx,f12Y+3*mH/4,C.green);
-    svg+=conn(rx,sfY[0]+mH/2,lx,f34Y+mH/4,C.gold,true);svg+=conn(rx,sfY[1]+mH/2,lx,f34Y+3*mH/4,C.gold,true);
-    svg+=conn(rx,sfY[2]+mH/2,lx,f56Y+mH/4,C.accent);svg+=conn(rx,sfY[3]+mH/2,lx,f56Y+3*mH/4,C.accent);
-    svg+=conn(rx,sfY[2]+mH/2,lx,f78Y+mH/4,C.dim,true);svg+=conn(rx,sfY[3]+mH/2,lx,f78Y+3*mH/4,C.dim,true);
+    // Finale boxes – only show winner name if HF is played
+    svg+=mBox(colX[1],f12Y,'F12',W(sfIds[0])||'W HF1',W(sfIds[1])||'W HF2',liveData[fIds?.[0]],true);
+    svg+=mBox(colX[1],f34Y,'F34',L(sfIds[0])||'L HF1',L(sfIds[1])||'L HF2',liveData[fIds?.[1]]);
+    svg+=mBox(colX[1],f56Y,'F56',W(sfIds[2])||'W HF3',W(sfIds[3])||'W HF4',liveData[fIds?.[2]]);
+    svg+=mBox(colX[1],f78Y,'F78',L(sfIds[2])||'L HF3',L(sfIds[3])||'L HF4',liveData[fIds?.[3]]);
 
+    // Connection lines
+    const rx=colX[0]+mW, lx=colX[1];
+    svg+=conn(rx,sfY[0]+mH/2,lx,f12Y+mH/4,C.green);
+    svg+=conn(rx,sfY[1]+mH/2,lx,f12Y+3*mH/4,C.green);
+    svg+=conn(rx,sfY[0]+mH/2,lx,f34Y+mH/4,C.gold,true);
+    svg+=conn(rx,sfY[1]+mH/2,lx,f34Y+3*mH/4,C.gold,true);
+    svg+=conn(rx,sfY[2]+mH/2,lx,f56Y+mH/4,C.accent);
+    svg+=conn(rx,sfY[3]+mH/2,lx,f56Y+3*mH/4,C.accent);
+    svg+=conn(rx,sfY[2]+mH/2,lx,f78Y+mH/4,C.dim,true);
+    svg+=conn(rx,sfY[3]+mH/2,lx,f78Y+3*mH/4,C.dim,true);
+
+    // Winner labels
     const px=colX[1]+mW+8;
-    const wF12=W(fIds?.[0]),wF34=W(fIds?.[1]);
-    if(wF12) svg+=`<text x="${px}" y="${f12Y+mH/2+4}" font-size="11" font-weight="700" fill="${C.gold}" font-family="Barlow Condensed,sans-serif">🥇 ${esc(wF12.substring(0,14))}</text>`;
-    if(wF34) svg+=`<text x="${px}" y="${f34Y+mH/2+4}" font-size="11" font-weight="700" fill="${C.dim}" font-family="Barlow Condensed,sans-serif">🥉 ${esc(wF34.substring(0,14))}</text>`;
+    const wF12=W(fIds?.[0]), wF34=W(fIds?.[1]);
+    if(wF12) svg+=`<text x="${px}" y="${f12Y+mH/2+4}" font-size="11" font-weight="700" fill="${C.gold}" font-family="Barlow Condensed,sans-serif">🥇 ${esc(wF12.substring(0,13))}</text>`;
+    if(wF34) svg+=`<text x="${px}" y="${f34Y+mH/2+4}" font-size="11" font-weight="700" fill="${C.dim}" font-family="Barlow Condensed,sans-serif">🥉 ${esc(wF34.substring(0,13))}</text>`;
     svg+=`</svg>`;
-    container.innerHTML=svg;
+
+    // ── ASSEMBLE ──
+    const provNote=isProvisional
+        ? `<div class="alert-info" style="border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.07);color:var(--gold);">⏳ Vorläufig · ${doneP1}/${totalP1} Gruppenspiele gespielt. Bracket aktualisiert sich live.</div>`
+        : `<div class="alert-info">🏆 Grün = Sieger-Bracket · Gestrichelt = Verlierer-Bracket</div>`;
+
+    container.innerHTML=`
+        ${provNote}
+        <div class="bracket-layout">
+            ${sidebar}
+            <div class="bracket-svg-wrap">${svg}</div>
+        </div>`;
 }
 
 /* ── PASSWORD ────────────────────────── */
@@ -826,7 +936,7 @@ function pwSubmit(){
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 /* ── INIT ────────────────────────────── */
-loadThemes().then(()=>loadTournament());
+loadConfig().then(()=>loadThemes().then(()=>loadTournament()));
 </script>
 </body>
 </html>
