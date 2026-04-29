@@ -698,6 +698,20 @@ function startEdit(matchId){
 }
 function cancelEdit(matchId){editSet.delete(matchId);renderLive();}
 
+/* ── RESET ALL SCORES ────────────────── */
+async function resetAllScores(){
+    if(!confirm('Wirklich ALLE Ergebnisse löschen? Das kann nicht rückgängig gemacht werden.')) return;
+    liveData = {};
+    editSet.clear();
+    try {
+        const{error}=await db.from('tournaments').update({live_data:{}}).eq('id',tournamentId);
+        if(error) throw error;
+        renderAll();
+    } catch(e) {
+        alert('Fehler beim Zurücksetzen: '+e.message);
+    }
+}
+    
 /* ── LOCK SCORES ─────────────────────── */
 function lockScores(){
     isUnlocked=false;
