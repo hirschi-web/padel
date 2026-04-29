@@ -310,7 +310,7 @@ body {
 .rank-qual { border-left: 3px solid #16a34a !important; }
 .rank-place { border-left: 3px solid #d97706 !important; }
 .rank-name-field {
-    width: 148px;
+    width: 130px;
     height: 18px;
     border: none;
     border-bottom: 2px solid #94a3b8;
@@ -631,8 +631,8 @@ function buildPhase3Block(p3Matches, matchMin) {
 function buildRankTable(grp, teams, accentColor, darkColor) {
     const isA = grp === 'A';
     const dest = isA
-        ? ['→ HF1 (A1 vs B2)', '→ HF2 (B1 vs A2)', '→ Pl. 5/6', '→ Pl. 7/8']
-        : ['→ HF2 (B1 vs A2)', '→ HF1 (A1 vs B2)', '→ Pl. 5/6', '→ Pl. 7/8'];
+        ? ['→ HF1', '→ HF2', '→ Pl. 5/6', '→ Pl. 7/8']
+        : ['→ HF2', '→ HF1', '→ Pl. 5/6', '→ Pl. 7/8'];
 
     const rows = [1,2,3,4].map(rank => {
         const isQ   = rank <= 2;
@@ -661,7 +661,7 @@ function buildRankTable(grp, teams, accentColor, darkColor) {
                 <th>S</th>
                 <th>N</th>
                 <th>Score</th>
-                <th>→ Weiter</th>
+                <th>Weiter</th>
             </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -687,224 +687,221 @@ function buildTimeRef(p2Matches, p3Matches) {
 }
 
 // ── SVG BRACKET ───────────────────────────────────────────────
-// Seite 2: Nur Halbfinale + Finale, alle Felder leer zum Eintragen.
-// Linke Seite: kleine Herkunfts-Labels (A1/B2 etc.) mit Pfeil.
-// Rechte Seite: Platz-Labels.
+// Exakt nach dem Layout der live.html renderBracket() gebaut.
+// Gleiche Maße, gleiche Struktur — nur leere Schreiblinien statt Namen.
 function buildBracketSVG(teamsA, teamsB, p2Matches, p3Matches) {
 
-    // ── Farben ────────────────────────────────────────────────
+    function esc(s) {
+        return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Farben (Print-optimiert, kein dark mode) ──────────────
     const C = {
-        slate:  '#0f172a', blue:   '#2563eb', purple: '#7c3aed',
-        green:  '#16a34a', gold:   '#d97706', red:    '#dc2626',
-        muted:  '#64748b', dim:    '#94a3b8', border: '#e2e8f0',
-        bg:     '#f8fafc', white:  '#ffffff',
+        grn:  '#16a34a',
+        gld:  '#d97706',
+        acc:  '#2563eb',
+        pur:  '#7c3aed',
+        dim:  '#94a3b8',
+        mut:  '#64748b',
+        brd:  '#e2e8f0',
+        card: '#f8fafc',
+        sol:  '#f1f5f9',
+        bg:   '#ffffff',
+        text: '#0f172a',
     };
 
-    // ── Maße ──────────────────────────────────────────────────
-    // Bewusst großzügig damit nichts überlappt
-    const boxW  = 190;   // Breite einer Match-Box
-    const boxH  = 52;    // Höhe einer Match-Box
-    const vGap  = 18;    // Vertikaler Abstand zwischen Boxen im selben Block
-    const hGap  = 36;    // Vertikaler Abstand zwischen Top- und Bottom-Hälfte (Trennlinie)
-    const colW  = 58;    // Horizontaler Abstand zwischen HF und Finale
+    // ── Layout-Konstanten (1:1 aus live.html) ─────────────────
+    const hfW = 178, finW = 178, mH = 48;
+    const gapHfFin = 48;
+    const headerH = 30, gapMatchV = 10, sectionGap = 28;
 
-    const srcW  = 38;    // Breite der Herkunfts-Labels links
-    const labW  = 70;    // Breite der Platz-Labels rechts
+    // X-Positionen: kein Gruppen-Block, HF startet links
+    // Kleiner Offset links für Herkunfts-Labels
+    const srcW  = 44;
+    const xHf   = srcW + 8;
+    const xFin  = xHf + hfW + gapHfFin;
+    const xLab  = xFin + finW + 10;
+    const labW  = 90;
+    const svgW  = xLab + labW;
 
-    const padTop = 28;   // Platz für Spalten-Header oben
+    // Y-Positionen (exakt aus live.html)
+    const hf1Y = headerH;
+    const hf2Y = hf1Y + mH + gapMatchV;
+    const hf3Y = hf2Y + mH + sectionGap;
+    const hf4Y = hf3Y + mH + gapMatchV;
 
-    // X-Positionen
-    const xSrc  = 0;
-    const xHF   = xSrc + srcW + 6;
-    const xFin  = xHF  + boxW + colW;
-    const xLab  = xFin + boxW + 10;
-    const svgW  = xLab + labW + 4;
+    const gapFinV = 10;
+    const f12Y = hf1Y + (hf2Y + mH - hf1Y) / 2 - mH / 2;
+    const f34Y = f12Y + mH + gapFinV;
+    const f56Y = hf3Y + (hf4Y + mH - hf3Y) / 2 - mH / 2;
+    const f78Y = f56Y + mH + gapFinV;
 
-    // Y-Positionen HF (4 Boxen, 2 Hälften)
-    const hf1Y = padTop;
-    const hf2Y = hf1Y + boxH + vGap;
-    const hf3Y = hf2Y + boxH + hGap;
-    const hf4Y = hf3Y + boxH + vGap;
+    const svgH = hf4Y + mH + 36;
 
-    // Y-Positionen Finale – mittig zwischen den jeweiligen HF-Boxenpaaren
-    // F12: zentriert zwischen HF1 und HF2 (Sieger)
-    // F34: direkt unter F12 (Verlierer HF1+HF2)
-    const finVGap = 16;
-    const f12Y = Math.round((hf1Y + hf2Y + boxH) / 2 - boxH / 2);
-    const f34Y = f12Y + boxH + finVGap;
-    const f56Y = Math.round((hf3Y + hf4Y + boxH) / 2 - boxH / 2);
-    const f78Y = f56Y + boxH + finVGap;
-
-    // Gesamthöhe SVG
-    const legH  = 22;
-    const svgH  = Math.max(hf4Y + boxH, f78Y + boxH) + legH + 16;
-
-    // ── Hilfsfunktionen ───────────────────────────────────────
-
-    // Bezier-Verbindungspfad
-    function conn(x1, y1, x2, y2, color, dashed, opacity, sw) {
-        const mx = Math.round((x1 + x2) / 2);
+    // ── Bezier-Verbindung (aus live.html conn()) ──────────────
+    function conn(x1, y1, x2, y2, col, dash, opacity) {
+        const mx = (x1 + x2) / 2;
         return `<path d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}" `
-             + `fill="none" stroke="${color}" stroke-width="${sw||2}" `
-             + `opacity="${opacity||.75}" `
-             + `${dashed ? 'stroke-dasharray="7,4"' : ''} `
-             + `stroke-linecap="round"/>`;
+             + `fill="none" stroke="${col}" stroke-width="2" `
+             + `opacity="${opacity||.6}" `
+             + `${dash ? 'stroke-dasharray="6,4"' : ''}/>`;
     }
 
-    // Pfeilspitze (zeigt nach rechts)
-    function arrow(x, y, color, op) {
+    // Pfeilspitze rechts
+    function arrowR(x, y, col, op) {
         return `<polygon points="${x},${y} ${x-8},${y-4.5} ${x-8},${y+4.5}" `
-             + `fill="${color}" opacity="${op||.9}"/>`;
+             + `fill="${col}" opacity="${op||.85}"/>`;
     }
 
-    // Match-Box mit gestrichelten Schreiblinien
-    function box(x, y, accent, isGold, labelTop, labelBot) {
-        const bord  = isGold ? C.gold   : C.border;
-        const lbg   = isGold ? '#fffbeb': C.bg;
-        const acol  = isGold ? C.gold   : accent;
-        const lW    = boxW - 52;  // Breite der Schreiblinie
-        const lx1   = x + 10;
-        const lx2   = x + 10 + lW;
-        const midY  = y + boxH / 2;
-
-        // Label-Badge oben rechts
-        const badgeX = x + boxW - 46;
-        const badgeW = 42;
-
+    // ── Match-Box mit Schreiblinien (statt Team-Namen) ────────
+    // Identisch zu mBox() in live.html, aber:
+    //   - kein Text, statt dessen 2 gestrichelte Schreiblinien
+    //   - Badge oben rechts mit ID/Label
+    function mBox(x, y, w, badgeId, accentCol, isGold) {
+        const bord = isGold ? C.gld : C.brd;
+        const acol = isGold ? C.gld : accentCol || C.acc;
+        const lbg  = isGold ? '#fef3c7' : C.sol;
+        // Schreiblinien: gleiche Position wie Texte in live.html
+        const lx1 = x + 10;
+        const lx2 = x + w - 38;  // endet vor dem Badge
+        const lineTop = y + 15;       // wo y+17 Text wäre
+        const lineBot = y + mH - 12;  // wo y+mH-10 Text wäre
         return `<g>
-  <rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="8"
-        fill="${C.white}" stroke="${bord}" stroke-width="${isGold ? 2.5 : 1.5}"/>
-  ${isGold ? `<rect x="${x}" y="${y}" width="5" height="${boxH}" rx="2.5" fill="${C.gold}"/>` : ''}
-  <line x1="${x+6}" y1="${midY}" x2="${x+boxW-6}" y2="${midY}"
-        stroke="${C.border}" stroke-width="1"/>
-  <line x1="${lx1}" y1="${midY - 11}" x2="${lx2}" y2="${midY - 11}"
+  <rect x="${x}" y="${y}" width="${w}" height="${mH}" rx="8"
+        fill="${C.bg}" stroke="${bord}" stroke-width="${isGold ? 2.2 : 1.5}"/>
+  ${isGold ? `<rect x="${x}" y="${y}" width="4" height="${mH}" rx="2" fill="${C.gld}"/>` : ''}
+  <line x1="${x+5}" y1="${y+mH/2}" x2="${x+w-5}" y2="${y+mH/2}"
+        stroke="${C.brd}" stroke-width="1" opacity="0.7"/>
+  <!-- Schreiblinie oben -->
+  <line x1="${lx1}" y1="${lineTop}" x2="${lx2}" y2="${lineTop}"
         stroke="${C.dim}" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round"/>
-  <line x1="${lx1}" y1="${midY + 14}" x2="${lx2}" y2="${midY + 14}"
+  <!-- Schreiblinie unten -->
+  <line x1="${lx1}" y1="${lineBot}" x2="${lx2}" y2="${lineBot}"
         stroke="${C.dim}" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round"/>
-  <rect x="${badgeX}" y="${y + 6}" width="${badgeW}" height="16" rx="4" fill="${lbg}"/>
-  <text x="${badgeX + badgeW/2}" y="${y + 18}" text-anchor="middle"
+  <!-- Badge (wie in mBox: kleines Rechteck oben rechts) -->
+  <rect x="${x+w-34}" y="${y+3}" width="30" height="14" rx="4" fill="${lbg}"/>
+  <text x="${x+w-19}" y="${y+13}" text-anchor="middle"
         font-family="Barlow Condensed,sans-serif" font-size="8" font-weight="900"
-        fill="${acol}" letter-spacing=".5">${labelTop}</text>
-  ${labelBot ? `<text x="${x + boxW/2 - 10}" y="${y + boxH - 7}" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="7" font-weight="700"
-        fill="${C.dim}" letter-spacing=".3">${labelBot}</text>` : ''}
+        fill="${acol}">${esc(badgeId)}</text>
 </g>`;
     }
 
-    // Herkunfts-Label links einer Box (z.B. "A1 / B2 →")
-    function srcLabel(x, y, top, bot, c1, c2) {
-        const cx = x + srcW / 2;
+    // ── Herkunfts-Label links einer HF-Box ───────────────────
+    function srcLbl(y, top, bot, cTop, cBot) {
+        const cx  = srcW / 2;
+        const midY = y + mH / 2;
         return `<g>
-  <text x="${cx}" y="${y + boxH * .35}" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="900"
-        fill="${c1}">${top}</text>
-  <text x="${cx}" y="${y + boxH * .70}" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="10" font-weight="900"
-        fill="${c2}">${bot}</text>
-  <text x="${x + srcW - 4}" y="${y + boxH/2 + 4}" text-anchor="end"
-        font-family="Barlow Condensed,sans-serif" font-size="14" font-weight="700"
-        fill="${C.dim}">›</text>
+  <text x="${cx}" y="${midY - 5}" text-anchor="middle"
+        font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900"
+        fill="${cTop}">${esc(top)}</text>
+  <text x="${cx}" y="${midY + 13}" text-anchor="middle"
+        font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900"
+        fill="${cBot}">${esc(bot)}</text>
 </g>`;
     }
 
-    // Platz-Label rechts einer Box
-    function placeLbl(x, y, text, color, bold) {
-        return `<text x="${x + 6}" y="${y + boxH/2 + 4}" text-anchor="start"
-        font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="${bold?900:700}"
-        fill="${color}">${text}</text>`;
+    // ── Platz-Label rechts ────────────────────────────────────
+    function placeLbl(y, txt, col, bold) {
+        return `<text x="${xLab + 4}" y="${y + mH/2 + 4}" text-anchor="start"
+        font-family="Barlow Condensed,sans-serif"
+        font-size="11" font-weight="${bold ? 900 : 700}"
+        fill="${col}">${esc(txt)}</text>`;
     }
 
     // ── SVG aufbauen ──────────────────────────────────────────
-    let svg = `<svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg" `
-            + `style="width:100%;height:auto;display:block;">`;
+    let s = `<svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg" `
+          + `style="width:100%;height:auto;display:block;overflow:visible;">`;
 
-    // ── Spalten-Header ────────────────────────────────────────
-    svg += `<text x="${xHF + boxW/2}" y="16" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900"
-        fill="${C.muted}" letter-spacing="2.5">HALBFINALE</text>`;
-    svg += `<text x="${xFin + boxW/2}" y="16" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900"
-        fill="${C.muted}" letter-spacing="2.5">FINALE</text>`;
-    svg += `<text x="${xLab + labW/2}" y="16" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900"
-        fill="${C.muted}" letter-spacing="2.5">PLATZ</text>`;
+    // Spalten-Header (wie live.html)
+    s += `<text x="${xHf + hfW/2}" y="16" text-anchor="middle"
+        font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="700"
+        fill="${C.dim}" letter-spacing="2">HALBFINALE</text>`;
+    s += `<text x="${xFin + finW/2}" y="16" text-anchor="middle"
+        font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="700"
+        fill="${C.dim}" letter-spacing="2">FINALE</text>`;
 
-    // ── Trennlinie zwischen Top/Bottom ────────────────────────
-    const divY = hf2Y + boxH + hGap / 2;
-    svg += `<line x1="${xHF}" y1="${divY}" x2="${xLab + labW}" y2="${divY}"
-        stroke="${C.border}" stroke-width="1" stroke-dasharray="6,4" opacity=".5"/>`;
+    // Trennlinie zwischen Top/Bottom-Hälfte
+    const divY = hf2Y + mH + sectionGap / 2;
+    s += `<line x1="${0}" y1="${divY}" x2="${svgW}" y2="${divY}"
+        stroke="${C.brd}" stroke-width="1" stroke-dasharray="5,4" opacity="0.5"/>`;
 
-    // ── Herkunfts-Labels (links der HF-Boxen) ─────────────────
-    svg += srcLabel(xSrc, hf1Y, 'A1', 'B2', C.blue,   C.purple);
-    svg += srcLabel(xSrc, hf2Y, 'B1', 'A2', C.purple, C.blue  );
-    svg += srcLabel(xSrc, hf3Y, 'A3', 'B4', C.blue,   C.purple);
-    svg += srcLabel(xSrc, hf4Y, 'B3', 'A4', C.purple, C.blue  );
+    // ── Herkunfts-Labels ──────────────────────────────────────
+    s += srcLbl(hf1Y, 'A1', 'B2', C.acc,  C.pur );
+    s += srcLbl(hf2Y, 'B1', 'A2', C.pur,  C.acc );
+    s += srcLbl(hf3Y, 'A3', 'B4', C.acc,  C.pur );
+    s += srcLbl(hf4Y, 'B3', 'A4', C.pur,  C.acc );
 
-    // ── HF-Boxen ──────────────────────────────────────────────
-    svg += box(xHF, hf1Y, C.green, false, 'SF 1 · Halbfinale', '');
-    svg += box(xHF, hf2Y, C.green, false, 'SF 2 · Halbfinale', '');
-    svg += box(xHF, hf3Y, C.gold,  false, 'SF 3 · Halbfinale', '');
-    svg += box(xHF, hf4Y, C.gold,  false, 'SF 4 · Halbfinale', '');
-
-    // ── Finale-Boxen ──────────────────────────────────────────
-    svg += box(xFin, f12Y, C.green, true,  'F12 · 🏆 Finale',   'Platz 1 / 2');
-    svg += box(xFin, f34Y, C.gold,  false, 'F34 · Platz 3 / 4', '');
-    svg += box(xFin, f56Y, C.blue,  false, 'F56 · Platz 5 / 6', '');
-    svg += box(xFin, f78Y, C.muted, false, 'F78 · Platz 7 / 8', '');
-
-    // ── Verbindungspfeile HF → Finale ─────────────────────────
-    const hfRx = xHF + boxW;
-    const hf1m = hf1Y + boxH / 2,  hf2m = hf2Y + boxH / 2;
-    const hf3m = hf3Y + boxH / 2,  hf4m = hf4Y + boxH / 2;
-
-    // Sieger SF1+SF2 → F12 Finale (grün, durchgezogen)
-    svg += conn(hfRx, hf1m, xFin, f12Y + boxH * .27, C.green, false, .8, 2.2);
-    svg += conn(hfRx, hf2m, xFin, f12Y + boxH * .73, C.green, false, .8, 2.2);
-    svg += arrow(xFin, f12Y + boxH * .27, C.green);
-    svg += arrow(xFin, f12Y + boxH * .73, C.green);
-
-    // Verlierer SF1+SF2 → F34 Platz 3/4 (gold, gestrichelt)
-    svg += conn(hfRx, hf1m, xFin, f34Y + boxH * .27, C.gold, true, .65, 1.8);
-    svg += conn(hfRx, hf2m, xFin, f34Y + boxH * .73, C.gold, true, .65, 1.8);
-    svg += arrow(xFin, f34Y + boxH * .27, C.gold, .7);
-    svg += arrow(xFin, f34Y + boxH * .73, C.gold, .7);
-
-    // Sieger SF3+SF4 → F56 Platz 5/6 (blau, durchgezogen)
-    svg += conn(hfRx, hf3m, xFin, f56Y + boxH * .27, C.blue, false, .75, 2.2);
-    svg += conn(hfRx, hf4m, xFin, f56Y + boxH * .73, C.blue, false, .75, 2.2);
-    svg += arrow(xFin, f56Y + boxH * .27, C.blue);
-    svg += arrow(xFin, f56Y + boxH * .73, C.blue);
-
-    // Verlierer SF3+SF4 → F78 Platz 7/8 (grau, gestrichelt)
-    svg += conn(hfRx, hf3m, xFin, f78Y + boxH * .27, C.dim, true, .5, 1.5);
-    svg += conn(hfRx, hf4m, xFin, f78Y + boxH * .73, C.dim, true, .5, 1.5);
-    svg += arrow(xFin, f78Y + boxH * .27, C.dim, .6);
-    svg += arrow(xFin, f78Y + boxH * .73, C.dim, .6);
-
-    // ── Platz-Labels (rechts der Finale-Boxen) ────────────────
-    svg += placeLbl(xLab, f12Y, '🥇 Platz 1 / 2', C.gold,  true );
-    svg += placeLbl(xLab, f34Y, '🥉 Platz 3 / 4', C.muted, false);
-    svg += placeLbl(xLab, f56Y, '   Platz 5 / 6', C.blue,  false);
-    svg += placeLbl(xLab, f78Y, '   Platz 7 / 8', C.dim,   false);
-
-    // ── Legende ───────────────────────────────────────────────
-    const legY = svgH - 10;
-    const legItems = [
-        { col: C.green, dash: false, txt: 'Sieger → Hauptfinale' },
-        { col: C.gold,  dash: true,  txt: 'Verlierer → Platz 3/4' },
-        { col: C.blue,  dash: false, txt: 'Sieger → Platz 5/6' },
-        { col: C.dim,   dash: true,  txt: 'Verlierer → Platz 7/8' },
-    ];
-    let lx = xHF;
-    legItems.forEach(li => {
-        svg += `<line x1="${lx}" y1="${legY}" x2="${lx+20}" y2="${legY}"
-            stroke="${li.col}" stroke-width="2" `
-            + `${li.dash ? 'stroke-dasharray="5,3"' : ''} stroke-linecap="round"/>`;
-        svg += `<text x="${lx+24}" y="${legY+4}" font-family="Barlow Condensed,sans-serif"
-            font-size="8" font-weight="600" fill="${C.muted}">${li.txt}</text>`;
-        lx += 140;
+    // Kleine Pfeile src → HF-Box
+    [hf1Y, hf2Y, hf3Y, hf4Y].forEach(fy => {
+        s += `<line x1="${srcW}" y1="${fy + mH/2}" x2="${xHf - 1}" y2="${fy + mH/2}"
+            stroke="${C.dim}" stroke-width="1" opacity="0.4"/>`;
+        s += arrowR(xHf, fy + mH/2, C.dim, 0.4);
     });
 
-    svg += `</svg>`;
-    return svg;
+    // ── HF-Boxen ─────────────────────────────────────────────
+    s += mBox(xHf, hf1Y, hfW, 'SF1', C.grn, false);
+    s += mBox(xHf, hf2Y, hfW, 'SF2', C.grn, false);
+    s += mBox(xHf, hf3Y, hfW, 'SF3', C.acc, false);
+    s += mBox(xHf, hf4Y, hfW, 'SF4', C.acc, false);
+
+    // ── Finale-Boxen ─────────────────────────────────────────
+    s += mBox(xFin, f12Y, finW, 'F12', C.grn, true );
+    s += mBox(xFin, f34Y, finW, 'F34', C.gld, false);
+    s += mBox(xFin, f56Y, finW, 'F56', C.acc, false);
+    s += mBox(xFin, f78Y, finW, 'F78', C.dim, false);
+
+    // ── Verbindungen HF → Finale (exakt wie live.html) ───────
+    const hfRx = xHf + hfW;
+
+    // Sieger SF1 + SF2 → F12 Finale (grün)
+    s += conn(hfRx, hf1Y+mH/2, xFin, f12Y+mH*.25, C.grn, false, .7);
+    s += conn(hfRx, hf2Y+mH/2, xFin, f12Y+mH*.75, C.grn, false, .7);
+    s += arrowR(xFin, f12Y+mH*.25, C.grn);
+    s += arrowR(xFin, f12Y+mH*.75, C.grn);
+
+    // Verlierer SF1 + SF2 → F34 (gold, gestrichelt)
+    s += conn(hfRx, hf1Y+mH/2, xFin, f34Y+mH*.25, C.gld, true, .55);
+    s += conn(hfRx, hf2Y+mH/2, xFin, f34Y+mH*.75, C.gld, true, .55);
+    s += arrowR(xFin, f34Y+mH*.25, C.gld, .7);
+    s += arrowR(xFin, f34Y+mH*.75, C.gld, .7);
+
+    // Sieger SF3 + SF4 → F56 (blau)
+    s += conn(hfRx, hf3Y+mH/2, xFin, f56Y+mH*.25, C.acc, false, .65);
+    s += conn(hfRx, hf4Y+mH/2, xFin, f56Y+mH*.75, C.acc, false, .65);
+    s += arrowR(xFin, f56Y+mH*.25, C.acc);
+    s += arrowR(xFin, f56Y+mH*.75, C.acc);
+
+    // Verlierer SF3 + SF4 → F78 (grau, gestrichelt)
+    s += conn(hfRx, hf3Y+mH/2, xFin, f78Y+mH*.25, C.dim, true, .45);
+    s += conn(hfRx, hf4Y+mH/2, xFin, f78Y+mH*.75, C.dim, true, .45);
+    s += arrowR(xFin, f78Y+mH*.25, C.dim, .6);
+    s += arrowR(xFin, f78Y+mH*.75, C.dim, .6);
+
+    // ── Platz-Labels rechts ───────────────────────────────────
+    s += placeLbl(f12Y, '🥇 Platz 1/2', C.gld,  true );
+    s += placeLbl(f34Y, '🥉 Platz 3/4', C.mut,  false);
+    s += placeLbl(f56Y, '   Platz 5/6', C.acc,  false);
+    s += placeLbl(f78Y, '   Platz 7/8', C.dim,  false);
+
+    // ── Legende (wie live.html) ───────────────────────────────
+    const legY = svgH - 14;
+    const legItems = [
+        { col: C.grn, dash: false, label: 'Sieger → Finale' },
+        { col: C.gld, dash: true,  label: 'Verlierer → Pl. 3/4' },
+        { col: C.acc, dash: false, label: 'Sieger → Pl. 5/6' },
+        { col: C.dim, dash: true,  label: 'Verlierer → Pl. 7/8' },
+    ];
+    let lx = xHf;
+    legItems.forEach(li => {
+        s += `<line x1="${lx}" y1="${legY}" x2="${lx+20}" y2="${legY}"
+            stroke="${li.col}" stroke-width="2" stroke-linecap="round"
+            ${li.dash ? 'stroke-dasharray="5,3"' : ''}/>`;
+        s += `<text x="${lx+24}" y="${legY+4}"
+            font-family="Barlow Condensed,sans-serif" font-size="8.5" font-weight="600"
+            fill="${C.mut}">${esc(li.label)}</text>`;
+        lx += 132;
+    });
+
+    s += `</svg>`;
+    return s;
 }
