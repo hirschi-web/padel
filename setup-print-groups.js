@@ -255,7 +255,7 @@ body {
 /* ── PAGE 2 LAYOUT ──────────────────────────────────────── */
 .p2-body {
     display: grid;
-    grid-template-columns: 310px 1fr;
+    grid-template-columns: 280px 1fr;
     gap: 24px;
     flex: 1;
     align-items: start;
@@ -685,17 +685,15 @@ function buildTimeRef(p2Matches, p3Matches) {
 
 // ── SVG BRACKET ───────────────────────────────────────────────
 function buildBracketSVG(teamsA, teamsB, p2Matches, p3Matches) {
-    // Layout dimensions
-    const W = 780, H = 420;
-    const boxW = 160, boxH = 44;
-    const colGap = 42;
+    // Layout dimensions – keine Gruppenkolonne im SVG (steht links als Tabelle)
+    const W = 840, H = 420;
+    const boxW = 185, boxH = 50;
+    const colGap = 52;
 
-    // Column X positions
-    const xGrpA  = 0;
-    const xGrpB  = 0;
-    const xHF    = xGrpA + boxW + colGap;
-    const xFin   = xHF   + boxW + colGap + 10;
-    const xLabel = xFin  + boxW + 10;
+    // Column X positions – 40px links für Herkunfts-Labels (A1/B2 etc.)
+    const xHF    = 44;
+    const xFin   = xHF  + boxW + colGap;
+    const xLabel = xFin + boxW + 12;
 
     // Colors
     const C = {
@@ -731,10 +729,8 @@ function buildBracketSVG(teamsA, teamsB, p2Matches, p3Matches) {
     const f78Y  = f56Y + boxH + vGap;
 
     // Group tables Y (left column)
-    const grpAY = (hf1Y + hf2Y + boxH) / 2 - (4 * 22 + 20) / 2;
-    const grpBY = (hf3Y + hf4Y + boxH) / 2 - (4 * 22 + 20) / 2;
-
-    const svgH  = hf4Y + boxH + 30;
+    const svgH  = hf4Y + boxH + 38;
+    const xHFoffset = 40; // space for src labels left of HF
 
     // ── Helper: bezier connector ──────────────────────────────
     function conn(x1, y1, x2, y2, color, dashed, opacity, strokeW) {
@@ -752,25 +748,30 @@ function buildBracketSVG(teamsA, teamsB, p2Matches, p3Matches) {
     }
 
     // ── Helper: match box ──────────────────────────────────────
+    // Wenn t1/t2 leer → gestrichelte Linie zum Eintragen
     function matchBox(x, y, w, h, t1, t2, accent, isGold, label) {
         const lBg    = isGold ? '#fef3c7' : '#f8fafc';
         const lBord  = isGold ? C.gold : C.border;
         const acCol  = isGold ? C.gold : accent || C.blue;
+        const lineX1 = x + 10;
+        const lineX2 = x + w - 48;
+        const t1el = t1
+            ? `<text x="${x+10}" y="${y + h/2 - 4}" font-family="Barlow,sans-serif" font-size="9.5" font-weight="600" fill="${C.slate}">${escForPrint(t1)}</text>`
+            : `<line x1="${lineX1}" y1="${y + h/2 - 5}" x2="${lineX2}" y2="${y + h/2 - 5}" stroke="${C.dim}" stroke-width="1.3" stroke-dasharray="4,3"/>`;
+        const t2el = t2
+            ? `<text x="${x+10}" y="${y + h/2 + 13}" font-family="Barlow,sans-serif" font-size="9.5" font-weight="600" fill="${C.slate}">${escForPrint(t2)}</text>`
+            : `<line x1="${lineX1}" y1="${y + h/2 + 12}" x2="${lineX2}" y2="${y + h/2 + 12}" stroke="${C.dim}" stroke-width="1.3" stroke-dasharray="4,3"/>`;
         return `<g>
             <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7"
                 fill="${C.white}" stroke="${lBord}" stroke-width="${isGold ? 2 : 1.5}"/>
             ${isGold ? `<rect x="${x}" y="${y}" width="4" height="${h}" rx="2" fill="${C.gold}"/>` : ''}
             <line x1="${x+4}" y1="${y + h/2}" x2="${x+w-4}" y2="${y + h/2}"
                 stroke="${C.border}" stroke-width="1"/>
-            <text x="${x+10}" y="${y + h/2 - 4}"
-                font-family="Barlow,sans-serif" font-size="9.5" font-weight="600"
-                fill="${t1 ? C.slate : C.dim}">${escForPrint(t1 || 'TBD')}</text>
-            <text x="${x+10}" y="${y + h/2 + 13}"
-                font-family="Barlow,sans-serif" font-size="9.5" font-weight="600"
-                fill="${t2 ? C.slate : C.dim}">${escForPrint(t2 || 'TBD')}</text>
-            ${label ? `<rect x="${x+w-38}" y="${y+4}" width="34" height="14" rx="3" fill="${lBg}"/>
-            <text x="${x+w-21}" y="${y+14.5}" text-anchor="middle"
-                font-family="Barlow Condensed,sans-serif" font-size="8" font-weight="900"
+            ${t1el}
+            ${t2el}
+            ${label ? `<rect x="${x+w-44}" y="${y+4}" width="40" height="14" rx="3" fill="${lBg}"/>
+            <text x="${x+w-24}" y="${y+14.5}" text-anchor="middle"
+                font-family="Barlow Condensed,sans-serif" font-size="7.5" font-weight="900"
                 fill="${acCol}">${escForPrint(label)}</text>` : ''}
         </g>`;
     }
@@ -820,58 +821,58 @@ function buildBracketSVG(teamsA, teamsB, p2Matches, p3Matches) {
     let svg = `<svg viewBox="0 0 ${W} ${svgH}" xmlns="http://www.w3.org/2000/svg">`;
 
     // Column headers
-    const hdrY = 0;
-    svg += `<text x="${xGrpA + boxW/2}" y="${hdrY}" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="8" font-weight="700"
-        fill="${C.dim}" letter-spacing="2">GRUPPENPHASE</text>`;
+    const hdrY = 14;
     svg += `<text x="${xHF + boxW/2}" y="${hdrY}" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="8" font-weight="700"
+        font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900"
         fill="${C.dim}" letter-spacing="2">HALBFINALE</text>`;
     svg += `<text x="${xFin + boxW/2}" y="${hdrY}" text-anchor="middle"
-        font-family="Barlow Condensed,sans-serif" font-size="8" font-weight="700"
-        fill="${C.dim}" letter-spacing="2">FINALE</text>`;
+        font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900"
+        fill="${C.dim}" letter-spacing="2">FINALE &amp; PLATZ</text>`;
     svg += `<text x="${xLabel + 5}" y="${hdrY}" text-anchor="start"
-        font-family="Barlow Condensed,sans-serif" font-size="8" font-weight="700"
-        fill="${C.dim}" letter-spacing="2">PLATZ</text>`;
+        font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900"
+        fill="${C.dim}" letter-spacing="2">ERGEBNIS</text>`;
 
     // Divider between top & bottom halves
     const divY = hf2Y + boxH + halfGap / 2;
-    svg += `<line x1="${xGrpA}" y1="${divY}" x2="${xLabel + 90}" y2="${divY}"
+    svg += `<line x1="${xHF}" y1="${divY}" x2="${xLabel + 90}" y2="${divY}"
         stroke="${C.border}" stroke-width="1" stroke-dasharray="5,4" opacity=".6"/>`;
 
-    // ── Group mini tables ──────────────────────────────────────
-    svg += groupMini(xGrpA, grpAY + 8, 'A', C.blue);
-    svg += groupMini(xGrpB, grpBY + 8, 'B', C.purple);
+    // ── HF Boxes (leere Linien zum Eintragen) ──────────────────
+    svg += matchBox(xHF, hf1Y + 8, boxW, boxH, '', '', C.green, false, 'SF1');
+    svg += matchBox(xHF, hf2Y + 8, boxW, boxH, '', '', C.green, false, 'SF2');
+    svg += matchBox(xHF, hf3Y + 8, boxW, boxH, '', '', C.gold, false, 'SF3');
+    svg += matchBox(xHF, hf4Y + 8, boxW, boxH, '', '', C.gold, false, 'SF4');
 
-    // ── HF Boxes ───────────────────────────────────────────────
-    svg += matchBox(xHF, hf1Y + 8, boxW, boxH, 'Gr. A · Platz 1', 'Gr. B · Platz 2', C.green, false, 'SF1');
-    svg += matchBox(xHF, hf2Y + 8, boxW, boxH, 'Gr. B · Platz 1', 'Gr. A · Platz 2', C.green, false, 'SF2');
-    svg += matchBox(xHF, hf3Y + 8, boxW, boxH, 'Gr. A · Platz 3', 'Gr. B · Platz 4', C.gold, false, 'SF3');
-    svg += matchBox(xHF, hf4Y + 8, boxW, boxH, 'Gr. B · Platz 3', 'Gr. A · Platz 4', C.gold, false, 'SF4');
+    // Herkunfts-Labels links der HF-Boxen
+    const srcLabels = [
+        { y: hf1Y + 8, t1: 'A1', t2: 'B2', c1: C.blue,   c2: C.purple },
+        { y: hf2Y + 8, t1: 'B1', t2: 'A2', c1: C.purple, c2: C.blue   },
+        { y: hf3Y + 8, t1: 'A3', t2: 'B4', c1: C.blue,   c2: C.purple },
+        { y: hf4Y + 8, t1: 'B3', t2: 'A4', c1: C.purple, c2: C.blue   },
+    ];
+    srcLabels.forEach(sl => {
+        const lx = xHF - 36;
+        svg += `<text x="${lx}" y="${sl.y + boxH * .38}" text-anchor="middle"
+            font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900"
+            fill="${sl.c1}">${sl.t1}</text>`;
+        svg += `<text x="${lx}" y="${sl.y + boxH * .72}" text-anchor="middle"
+            font-family="Barlow Condensed,sans-serif" font-size="9" font-weight="900"
+            fill="${sl.c2}">${sl.t2}</text>`;
+        // small arrow →
+        svg += `<text x="${lx + 12}" y="${sl.y + boxH/2 + 3}" text-anchor="start"
+            font-family="Barlow Condensed,sans-serif" font-size="11" font-weight="900"
+            fill="${C.dim}">→</text>`;
+    });
 
-    // ── Final boxes ────────────────────────────────────────────
-    svg += matchBox(xFin, f12Y + 8, boxW, boxH, 'Sieger SF1', 'Sieger SF2', C.green, true,  'F12 · Finale');
-    svg += matchBox(xFin, f34Y + 8, boxW, boxH, 'Verlierer SF1', 'Verlierer SF2', C.gold, false, 'F34 · Pl. 3/4');
-    svg += matchBox(xFin, f56Y + 8, boxW, boxH, 'Sieger SF3', 'Sieger SF4', C.blue,  false, 'F56 · Pl. 5/6');
-    svg += matchBox(xFin, f78Y + 8, boxW, boxH, 'Verlierer SF3', 'Verlierer SF4', C.dim,  false, 'F78 · Pl. 7/8');
+    // ── Final boxes (leere Linien zum Eintragen) ───────────────
+    svg += matchBox(xFin, f12Y + 8, boxW, boxH, '', '', C.green, true,  'F12 · Finale');
+    svg += matchBox(xFin, f34Y + 8, boxW, boxH, '', '', C.gold, false, 'F34 · Pl. 3/4');
+    svg += matchBox(xFin, f56Y + 8, boxW, boxH, '', '', C.blue,  false, 'F56 · Pl. 5/6');
+    svg += matchBox(xFin, f78Y + 8, boxW, boxH, '', '', C.dim,  false, 'F78 · Pl. 7/8');
 
     // ── CONNECTORS ─────────────────────────────────────────────
-    const grpRx = xGrpA + boxW;
-    const hfLx  = xHF;
     const hfRx  = xHF + boxW;
     const finLx = xFin;
-
-    // Group A row midpoints
-    const aRowH = 22;
-    const aH0   = grpAY + 8 + 20 + aRowH * 0 + aRowH / 2;
-    const aH1   = grpAY + 8 + 20 + aRowH * 1 + aRowH / 2;
-    const aH2   = grpAY + 8 + 20 + aRowH * 2 + aRowH / 2;
-    const aH3   = grpAY + 8 + 20 + aRowH * 3 + aRowH / 2;
-
-    const bH0   = grpBY + 8 + 20 + aRowH * 0 + aRowH / 2;
-    const bH1   = grpBY + 8 + 20 + aRowH * 1 + aRowH / 2;
-    const bH2   = grpBY + 8 + 20 + aRowH * 2 + aRowH / 2;
-    const bH3   = grpBY + 8 + 20 + aRowH * 3 + aRowH / 2;
 
     const hf1Cy = hf1Y + 8 + boxH / 2;
     const hf2Cy = hf2Y + 8 + boxH / 2;
@@ -883,29 +884,7 @@ function buildBracketSVG(teamsA, teamsB, p2Matches, p3Matches) {
     const f56Cy = f56Y + 8 + boxH / 2;
     const f78Cy = f78Y + 8 + boxH / 2;
 
-    // Group A → HF (green for top-2, gold/dashed for bottom-2)
-    svg += conn(grpRx, aH0, hfLx, hf1Y + 8 + boxH * .27, C.green, false, .7, 2);
-    svg += conn(grpRx, aH1, hfLx, hf2Y + 8 + boxH * .27, C.green, false, .7, 2);
-    svg += conn(grpRx, aH2, hfLx, hf3Y + 8 + boxH * .27, C.gold, true, .65, 1.5);
-    svg += conn(grpRx, aH3, hfLx, hf4Y + 8 + boxH * .27, C.gold, true, .65, 1.5);
-
-    // Group B → HF
-    svg += conn(grpRx, bH0, hfLx, hf2Y + 8 + boxH * .73, C.green, false, .7, 2);
-    svg += conn(grpRx, bH1, hfLx, hf1Y + 8 + boxH * .73, C.green, false, .7, 2);
-    svg += conn(grpRx, bH2, hfLx, hf4Y + 8 + boxH * .73, C.gold, true, .65, 1.5);
-    svg += conn(grpRx, bH3, hfLx, hf3Y + 8 + boxH * .73, C.gold, true, .65, 1.5);
-
-    // Arrowheads at HF boxes
-    svg += arrowHead(hfLx, hf1Y + 8 + boxH * .27, C.green);
-    svg += arrowHead(hfLx, hf2Y + 8 + boxH * .27, C.green);
-    svg += arrowHead(hfLx, hf2Y + 8 + boxH * .73, C.green);
-    svg += arrowHead(hfLx, hf1Y + 8 + boxH * .73, C.green);
-    svg += arrowHead(hfLx, hf3Y + 8 + boxH * .27, C.gold);
-    svg += arrowHead(hfLx, hf4Y + 8 + boxH * .27, C.gold);
-    svg += arrowHead(hfLx, hf4Y + 8 + boxH * .73, C.gold);
-    svg += arrowHead(hfLx, hf3Y + 8 + boxH * .73, C.gold);
-
-    // HF → Finals (winners → solid green, losers → dashed gold)
+    // HF → Finals (winners → solid, losers → dashed)
     // SF1 & SF2 winner → F12
     svg += conn(hfRx, hf1Cy, finLx, f12Y + 8 + boxH * .27, C.green, false, .8, 2);
     svg += conn(hfRx, hf2Cy, finLx, f12Y + 8 + boxH * .73, C.green, false, .8, 2);
