@@ -624,7 +624,8 @@ function renderLive(){
                         <div class="score-winner">${t1w?esc(t1.split('/')[0].trim()):esc(t2.split('/')[0].trim())} ✓</div>
                         ${canEdit?`<button class="btn-edit" onclick="startEdit('${m.id}')">✏ Ändern</button>`:''}
                     </div>`;
-                } else if(inEdit||((status==='live'||status==='next')&&canEdit)){
+                } else if(inEdit||canEdit){
+
                     const v1=inEdit&&sc?s1:'', v2=inEdit&&sc?s2:'';
                     const liveCls=(status==='live'||inEdit)?'inp-live':'';
                     scoreHtml=`<div class="score-inp-wrap">
