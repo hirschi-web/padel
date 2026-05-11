@@ -891,3 +891,220 @@ async function deleteTournament() {
         alert('Fehler: ' + e.message);
     }
 }
+
+// ============================================================
+// PADEL HIRSCH - PRINT FUNCTION
+// Americano Spielplan + Punktetabelle
+// Ans Ende von setup-functions.js anfügen
+// ============================================================
+
+function printAmericano() {
+    if (!currentSchedule.length || !players.length) {
+        alert('Bitte zuerst einen Spielplan erstellen oder ein Turnier laden.');
+        return;
+    }
+
+    const tName = document.getElementById('tName')?.value?.trim() || 'Americano';
+    const matchTime = parseInt(document.getElementById('matchTime')?.value) || 20;
+
+    // Runden ohne Finale, Ausgleich separat
+    const mainRounds = currentSchedule.filter(r => !r.isFinale && !r.isBalance);
+    const balanceRound = currentSchedule.find(r => r.isBalance) || null;
+
+    // Spieler alphabetisch sortiert mit Original-Index
+    const sortedPlayers = players
+        .map((name, idx) => ({ name, idx }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+    // Court-Namen aus globalem courtNames Array
+    const cNames = courtNames || ['1', '2', '3'];
+
+    // ── Spielplan HTML ────────────────────────────────────────
+    const allRounds = [...mainRounds, ...(balanceRound ? [balanceRound] : [])];
+
+    let planCols = '';
+    allRounds.forEach((r, idx) => {
+        const isBalance = !!r.isBalance;
+        const roundLabel = isBalance ? '⚖️ Ausgleich' : `Runde ${r.id}`;
+        const borderColor = isBalance ? '#2563eb' : '#0f172a';
+        const bgHeader = isBalance ? '#eff6ff' : '#0f172a';
+        const colorHeader = isBalance ? '#1e40af' : '#ffffff';
+
+        let matchesHtml = '';
+        r.matches.forEach(m => {
+            let p1, p2, p3, p4;
+            if (isBalance) {
+                p1 = players[m.team1[0]] || '?';
+                p2 = players[m.team1[1]] || '?';
+                p3 = 'Virtuell 1';
+                p4 = 'Virtuell 2';
+            } else {
+                p1 = players[m.team1[0]] || '?';
+                p2 = players[m.team1[1]] || '?';
+                p3 = players[m.team2[0]] || '?';
+                p4 = players[m.team2[1]] || '?';
+            }
+            const courtLabel = cNames[(m.court - 1)] || m.court;
+            const isVirt = s => s.startsWith('Virtuell');
+            matchesHtml += `
+                <div style="margin-bottom:6px; padding:5px 6px; background:#f8fafc; border-radius:5px; border-left:3px solid ${borderColor};">
+                    <div style="font-size:7.5pt; font-weight:700; color:#64748b; margin-bottom:2px;">Court ${courtLabel}</div>
+                    <div style="font-size:8pt; font-weight:600; line-height:1.5;">
+                        <span style="${isVirt(p1)?'color:#93c5fd;font-style:italic;':''}">${p1}</span>
+                        <span style="color:#cbd5e1;"> + </span>
+                        <span style="${isVirt(p2)?'color:#93c5fd;font-style:italic;':''}">${p2}</span>
+                        <br>
+                        <span style="font-size:7pt;color:#94a3b8;font-weight:900;">VS</span>
+                        <br>
+                        <span style="${isVirt(p3)?'color:#93c5fd;font-style:italic;':''}">${p3}</span>
+                        <span style="color:#cbd5e1;"> + </span>
+                        <span style="${isVirt(p4)?'color:#93c5fd;font-style:italic;':''}">${p4}</span>
+                    </div>
+                </div>`;
+        });
+
+        const pauseNames = (r.pause || []).map(p => players[p]).filter(Boolean).join(', ') || '–';
+
+        planCols += `
+            <div style="break-inside:avoid; border:1.5px solid ${borderColor}; border-radius:8px; overflow:hidden; min-width:110px; flex:1;">
+                <div style="background:${bgHeader}; color:${colorHeader}; padding:5px 7px;">
+                    <div style="font-family:'Barlow Condensed',sans-serif; font-size:10pt; font-weight:900; letter-spacing:.05em; text-transform:uppercase;">${roundLabel}</div>
+                    <div style="font-size:7.5pt; opacity:.8; margin-top:1px;">${r.time} · ${matchTime} Min.</div>
+                </div>
+                <div style="padding:6px;">
+                    ${matchesHtml}
+                    <div style="margin-top:5px; font-size:7pt; color:#f97316; font-weight:600;">
+                        Pause: ${pauseNames}
+                    </div>
+                </div>
+            </div>`;
+    });
+
+    // ── Punktetabelle HTML ────────────────────────────────────
+    // Spalten: Name | R1 | R2 | ... | R10 | Ausgleich | Summe
+    const colCount = mainRounds.length + (balanceRound ? 1 : 0) + 2; // +Name +Summe
+
+    let tableHead = `<th style="${thStyle('120px', true)}">Spieler</th>`;
+    mainRounds.forEach((r, i) => {
+        tableHead += `<th style="${thStyle()}">${r.time}<br><span style="font-weight:400;font-size:6.5pt;">R${i+1}</span></th>`;
+    });
+    if (balanceRound) {
+        tableHead += `<th style="${thStyle('', false, true)}">⚖️<br><span style="font-weight:400;font-size:6.5pt;">Ausgl.</span></th>`;
+    }
+    tableHead += `<th style="${thStyle('50px')}">∑</th>`;
+
+    let tableRows = '';
+    sortedPlayers.forEach(({ name, idx }, rowIdx) => {
+        const rowBg = rowIdx % 2 === 0 ? '#ffffff' : '#f8fafc';
+        let row = `<td style="${tdStyle('', rowBg, true)}">${name}</td>`;
+
+        mainRounds.forEach(r => {
+            const isPlaying = r.matches.some(m => m.team1.includes(idx) || m.team2.includes(idx));
+            if (isPlaying) {
+                row += `<td style="${tdStyle('', rowBg)}"></td>`;
+            } else {
+                row += `<td style="${tdStyle('', '#f1f5f9')}"><span style="color:#94a3b8;font-weight:700;font-size:9pt;">P</span></td>`;
+            }
+        });
+
+        if (balanceRound) {
+            const isPlaying = balanceRound.matches.some(m => m.team1.includes(idx));
+            if (isPlaying) {
+                row += `<td style="${tdStyle('', rowBg, false, true)}"></td>`;
+            } else {
+                row += `<td style="${tdStyle('', '#f1f5f9', false, true)}"><span style="color:#94a3b8;font-weight:700;font-size:9pt;">P</span></td>`;
+            }
+        }
+
+        row += `<td style="${tdStyle('50px', rowBg)}"></td>`;
+        tableRows += `<tr>${row}</tr>`;
+    });
+
+    // ── Print Window öffnen ───────────────────────────────────
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>${tName} – Spielplan & Punkte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, system-ui, sans-serif; background: white; color: #0f172a; }
+    @media print {
+        @page { size: A3 landscape; margin: 8mm 10mm; }
+        .page-break { page-break-after: always; }
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    .page { padding: 8mm 10mm; }
+    h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 22pt; font-weight: 900;
+         font-style: italic; color: #2563eb; text-transform: uppercase; letter-spacing: -.01em; }
+    .meta { font-size: 8pt; color: #64748b; margin-top: 2px; margin-bottom: 10px; }
+    .rounds-grid { display: flex; gap: 7px; flex-wrap: nowrap; align-items: flex-start; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+
+<!-- SEITE 1: SPIELPLAN -->
+<div class="page page-break">
+    <h1>${tName}</h1>
+    <div class="meta">Spielplan · ${mainRounds.length} Runden · ${matchTime} Min./Runde · ${players.length} Spieler:innen</div>
+    <div class="rounds-grid">${planCols}</div>
+</div>
+
+<!-- SEITE 2: PUNKTETABELLE -->
+<div class="page">
+    <h1>${tName} – Punktetabelle</h1>
+    <div class="meta">Alphabetisch sortiert · P = Pause · Leere Felder = Punkte eintragen</div>
+    <table style="margin-top:8px;">
+        <thead>
+            <tr style="background:#0f172a; color:white;">
+                ${tableHead}
+            </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+    </table>
+</div>
+
+<script>
+    window.onload = function() {
+        setTimeout(function() { window.print(); }, 400);
+    };
+</script>
+</body>
+</html>`);
+    win.document.close();
+}
+
+// Helper Styles
+function thStyle(width, isName, isBalance) {
+    return [
+        'padding: 5px 4px',
+        'text-align: center',
+        'font-family: Barlow Condensed, sans-serif',
+        'font-size: 8pt',
+        'font-weight: 900',
+        'letter-spacing: .05em',
+        'text-transform: uppercase',
+        'line-height: 1.3',
+        width ? `width: ${width}` : 'min-width: 28px',
+        isName ? 'text-align: left; padding-left: 8px;' : '',
+        isBalance ? 'background: #eff6ff; color: #1e40af;' : '',
+    ].filter(Boolean).join('; ');
+}
+
+function tdStyle(width, bg, isName, isBalance) {
+    return [
+        'padding: 0',
+        'text-align: center',
+        'vertical-align: middle',
+        'height: 18mm',
+        width ? `width: ${width}` : '',
+        bg ? `background: ${bg}` : '',
+        isName ? 'text-align: left; padding-left: 8px; font-weight: 700; font-size: 9pt; white-space: nowrap;' : 'font-size: 10pt;',
+        isBalance ? 'background: #eff6ff;' : '',
+    ].filter(Boolean).join('; ');
+}
