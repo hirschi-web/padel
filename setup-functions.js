@@ -354,7 +354,6 @@ function showOptimalProposals() {
     const courts = parseInt(document.getElementById('cCount').value) || 1;
     const netto = parseFloat(document.getElementById('totalHours').value) * 60 - (parseInt(document.getElementById('warmup').value) || 0);
 
-    // Alle sinnvollen Optionen sammeln
     let options = [];
     for (let r = 2; r <= 40; r++) {
         const mt = Math.floor(netto / r / 5) * 5;
@@ -368,7 +367,6 @@ function showOptimalProposals() {
         options.push({ r, mt, slots, ppp, isFair, buffer });
     }
 
-    // Pro Matchzeit nur die Version mit meisten Runden behalten
     const byMt = {};
     options.forEach(o => {
         if (!byMt[o.mt] || o.r > byMt[o.mt].r) byMt[o.mt] = o;
@@ -376,7 +374,6 @@ function showOptimalProposals() {
     options = Object.values(byMt).sort((a, b) => b.ppp - a.ppp);
 
     let html = '';
-
     if (!options.length) {
         html = `<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">Keine sinnvollen Optionen. Bitte Dauer oder Plätze anpassen.</div>`;
     } else {
@@ -388,7 +385,6 @@ function showOptimalProposals() {
             const fairBadge  = isFair ? 'badge-amber'  : 'badge-blue';
             const bufferIcon = buffer >= 15 ? '🔥' : buffer >= 5 ? '👍' : '⚡';
             const playsInfo  = isFair ? `✅ Jeder spielt genau ${Math.round(ppp)}×` : `⌀ ${ppp.toFixed(1)}× · Ausgleichsrunde am Ende`;
-
             html += `<div class="opt-card">
                 <div>
                     <span class="badge ${fairBadge}">${fairLabel}</span>
@@ -417,7 +413,7 @@ function applyOpt(val) {
 }
 
 // ============================================================
-// INPUT HELPER
+// INPUT HELPER — FIXED (Ausgleichsspiel einkalkuliert)
 // ============================================================
 function getInputs() {
     const countRaw = parseInt(document.getElementById('pCount').value) || 6;
@@ -439,14 +435,15 @@ function getInputs() {
         numRounds: Math.max(1, numRounds)
     };
 }
+
 // ============================================================
 // OPTIMIZATION ENGINE
 // ============================================================
-ffunction calcPenalty(schedule, numPlayers) {
+function calcPenalty(schedule, numPlayers) {
     const partner = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
     const opponent = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
     const plays = new Array(numPlayers).fill(0);
-
+    
     schedule.forEach(r => {
         r.matches.forEach(m => {
             const [a, b, c, d] = [m.team1[0], m.team1[1], m.team2[0], m.team2[1]];
@@ -466,13 +463,12 @@ ffunction calcPenalty(schedule, numPlayers) {
             });
         });
     });
-
+    
     const numRounds = schedule.length;
     let penalty = 0;
     const avgPlays = plays.reduce((a, b) => a + b, 0) / numPlayers;
     plays.forEach(p => {
         penalty += Math.pow(p - avgPlays, 2) * 100;
-        // NEU: Pausen = Runden - Spiele, auch Pausen-Ungleichheit bestrafen
         const pauses = numRounds - p;
         penalty += Math.pow(pauses - (numRounds - avgPlays), 2) * 100;
     });
@@ -482,7 +478,7 @@ ffunction calcPenalty(schedule, numPlayers) {
             if(opponent[i][j] > 2) penalty += Math.pow(opponent[i][j] - 2, 2) * 3;
         }
     }
-
+    
     return { penalty, plays, partner, opponent };
 }
 
@@ -607,26 +603,27 @@ async function runOptimization() {
     const [lH, lM] = lastTime.time.split(':').map(Number);
     const nextMin = lH * 60 + lM + inputs.matchTime;
     const nextTime = `${String(Math.floor(nextMin / 60) % 24).padStart(2, '0')}:${String(nextMin % 60).padStart(2, '0')}`;
+    
     if(isDummyMode) {
-    const { plays } = calcPenalty(bestSchedule, players.length);
-    const minPlays = Math.min(...plays);
-    const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
-    const balanceMatches = [];
-    let rem = [...underPlayed];
-    let courtNum = 1;
-    while(rem.length >= 2) {
-        const p1 = rem.shift();
-        const p2 = rem.shift();
-        balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: ['VIRT1', 'VIRT2'] });
-    }
-    const balancePause = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
-    bestSchedule.push({
-        id: bestSchedule.length + 1,
-        time: nextTime,
-        isBalance: true,
-        matches: balanceMatches,
-        pause: balancePause
-    });
+        const { plays } = calcPenalty(bestSchedule, players.length);
+        const minPlays = Math.min(...plays);
+        const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
+        const balanceMatches = [];
+        let rem = [...underPlayed];
+        let courtNum = 1;
+        while(rem.length >= 2) {
+            const p1 = rem.shift();
+            const p2 = rem.shift();
+            balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: ['VIRT1', 'VIRT2'] });
+        }
+        const balancePause = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
+        bestSchedule.push({
+            id: bestSchedule.length + 1,
+            time: nextTime,
+            isBalance: true,
+            matches: balanceMatches,
+            pause: balancePause
+        });
     } else {
         bestSchedule.push({
             id: bestSchedule.length + 1,
@@ -721,6 +718,7 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
     }).join('');
     updateStats(isDummyMode, isFinalMode, isReadonly);
 }
+
 // ============================================================
 // UPDATE STATS
 // ============================================================
@@ -766,8 +764,36 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
         <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#eff6ff;border:1px solid #bfdbfe;margin-right:3px;"></span>G = Gegner</span>
         <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#fef2f2;border:1px solid #fecaca;margin-right:3px;"></span>Doppel-Partnerschaft ⚠️</span>
         <span>· = noch kein Kontakt</span>
+    </div>`;
+
+    // ── Match/Pause Übersicht pro Spieler ──
+    const mainRounds = currentSchedule.filter(r => !r.isFinale && !r.isBalance);
+    mx += `<div style="margin-top:20px;">
+        <p class="lbl" style="margin-bottom:8px;">📋 Match / Pause pro Runde</p>
+        <table style="border-collapse:collapse;font-size:10px;font-weight:600;width:100%;">
+            <thead><tr>
+                <th style="padding:4px 8px;text-align:left;color:var(--muted);font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;min-width:80px;">Spieler</th>`;
+    mainRounds.forEach((r, idx) => {
+        mx += `<th style="padding:4px 6px;text-align:center;color:var(--muted);font-size:9px;font-weight:700;">R${idx+1}</th>`;
+    });
+    mx += `</tr></thead><tbody>`;
+    players.forEach((name, pi) => {
+        mx += `<tr><td style="padding:4px 8px;font-weight:700;color:var(--slate);font-size:10px;white-space:nowrap;" title="${name}">${name.substring(0,12)}</td>`;
+        mainRounds.forEach(r => {
+            const playing = r.matches.some(m => m.team1.includes(pi) || m.team2.includes(pi));
+            mx += playing
+                ? `<td style="padding:4px 6px;text-align:center;background:#f0fdf4;color:#16a34a;border-radius:4px;font-weight:900;">M</td>`
+                : `<td style="padding:4px 6px;text-align:center;background:#f8fafc;color:#94a3b8;font-weight:500;">P</td>`;
+        });
+        mx += `</tr>`;
+    });
+    mx += `</tbody></table>
+        <div style="display:flex;gap:12px;margin-top:8px;font-size:9px;font-weight:700;color:var(--muted);">
+            <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0fdf4;border:1px solid #bbf7d0;margin-right:3px;vertical-align:middle;"></span>M = Match</span>
+            <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f8fafc;border:1px solid #e2e8f0;margin-right:3px;vertical-align:middle;"></span>P = Pause</span>
+        </div>
     </div></div>`;
-    
+
     document.getElementById('partnerStats').innerHTML = mx;
     
     const mode = document.querySelector('input[name="mode"]:checked')?.value;
@@ -778,43 +804,6 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
     if(isTeam) info.push('👥 Team-Modus: Nur Gegner-Optimierung aktiv.');
     modeBox.classList.toggle('hidden', !info.length);
     document.getElementById('modeStatsContent').innerHTML = info.join('<br>');
-
-// ── Spieler-Übersicht: Match/Pause pro Runde ──────────────
-    const mainRounds = currentSchedule.filter(r => !r.isFinale && !r.isBalance);
-    let mpHtml = `<div style="overflow-x:auto;margin-top:20px;">
-        <p class="lbl" style="margin-bottom:8px;">📋 Match / Pause pro Runde</p>
-        <table style="border-collapse:collapse;font-size:10px;font-weight:600;width:100%;">
-            <thead><tr>
-                <th style="padding:4px 8px;text-align:left;color:var(--muted);font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;min-width:80px;">Spieler</th>`;
-
-    mainRounds.forEach((r, idx) => {
-        mpHtml += `<th style="padding:4px 6px;text-align:center;color:var(--muted);font-size:9px;font-weight:700;">R${idx + 1}</th>`;
-    });
-    mpHtml += `</tr></thead><tbody>`;
-
-    players.forEach((name, pi) => {
-        mpHtml += `<tr>
-            <td style="padding:4px 8px;font-weight:700;color:var(--slate);font-size:10px;white-space:nowrap;" title="${name}">${name.substring(0, 12)}</td>`;
-        mainRounds.forEach(r => {
-            const playing = r.matches.some(m =>
-                m.team1.includes(pi) || m.team2.includes(pi)
-            );
-            mpHtml += playing
-                ? `<td style="padding:4px 6px;text-align:center;background:#f0fdf4;color:#16a34a;border-radius:4px;font-weight:900;">M</td>`
-                : `<td style="padding:4px 6px;text-align:center;background:#f8fafc;color:#94a3b8;font-weight:500;">P</td>`;
-        });
-        mpHtml += `</tr>`;
-    });
-
-    mpHtml += `</tbody></table>
-        <div style="display:flex;gap:12px;margin-top:8px;font-size:9px;font-weight:700;color:var(--muted);">
-            <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0fdf4;border:1px solid #bbf7d0;margin-right:3px;vertical-align:middle;"></span>M = Match</span>
-            <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f8fafc;border:1px solid #e2e8f0;margin-right:3px;vertical-align:middle;"></span>P = Pause</span>
-        </div>
-    </div>`;
-
-    document.getElementById('partnerStats').innerHTML += mpHtml;
-    
 }
 
 // ============================================================
