@@ -75,7 +75,7 @@ const entry = tournamentsList.find(t => t.id === id);
 if (!entry?.data) return;
 const d = entry.data;
 
-```
+
 // K.O. TOURNAMENT
 if (d.tournament_type === 'knockout') {
     switchMode('ko');
@@ -168,7 +168,7 @@ if (d.s_new?.length) {
 document.getElementById('deleteBtn').classList.remove('hidden');
 toggleModeUI();
 checkConsistency();
-```
+
 
 }
 
@@ -295,7 +295,7 @@ const warnBox = document.getElementById(‘consistencyWarning’);
 let errors = [];
 let warnings = [];
 
-```
+
 if(count < 2) errors.push('Mindestens 2 Spieler/Teams nötig.');
 if(courts < 1) errors.push('Mindestens 1 Platz nötig.');
 if(matchTime < 5) errors.push('Match-Zeit muss mindestens 5 Min. sein.');
@@ -325,7 +325,7 @@ warnBox.classList.toggle('hidden', !warnings.length);
 warnBox.innerHTML = warnings.join('<br>');
 
 updateCourtNamesSection();
-```
+
 
 }
 
@@ -340,7 +340,7 @@ const courts = parseInt(document.getElementById(‘cCount’).value) || 1;
 const netto = parseFloat(document.getElementById(‘totalHours’).value) * 60
 - (parseInt(document.getElementById(‘warmup’).value) || 0);
 
-```
+
 // Alle sinnvollen Optionen sammeln
 let options = [];
 for (let r = 2; r <= 40; r++) {
@@ -403,7 +403,7 @@ if (!options.length) {
 const disp = document.getElementById('optDisplay');
 disp.innerHTML = html;
 disp.style.display = 'grid';
-```
+
 
 }
 
@@ -441,7 +441,7 @@ const partner = Array.from({length: numPlayers}, () => new Array(numPlayers).fil
 const opponent = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
 const plays = new Array(numPlayers).fill(0);
 
-```
+
 schedule.forEach(r => {
     r.matches.forEach(m => {
         const [a, b, c, d] = [m.team1[0], m.team1[1], m.team2[0], m.team2[1]];
@@ -473,7 +473,7 @@ for(let i = 0; i < numPlayers; i++) {
 }
 
 return { penalty, plays, partner, opponent };
-```
+
 
 }
 
@@ -484,7 +484,7 @@ let selected = [];
 const firstIdx = Math.floor(Math.random() * Math.max(1, Math.ceil(remaining.length / 3)));
 selected.push(remaining.splice(firstIdx, 1)[0]);
 
-```
+
 while(selected.length < needed && remaining.length > 0) {
     let best = null;
     let bestScore = Infinity;
@@ -517,7 +517,7 @@ if(needed === 4 && selected.length === 4) {
 }
 
 return selected;
-```
+
 
 }
 
@@ -529,7 +529,7 @@ let playTracker = new Array(count).fill(0);
 const partnerCount = Array.from({length: count}, () => new Array(count).fill(0));
 const opponentCount = Array.from({length: count}, () => new Array(count).fill(0));
 
-```
+
 for(let r = 1; r <= numRounds; r++) {
     const tMin = sH * 60 + sM + warmup + (r - 1) * matchTime;
     const timeStr = `${String(Math.floor(tMin / 60) % 24).padStart(2, '0')}:${String(tMin % 60).padStart(2, '0')}`;
@@ -563,7 +563,7 @@ for(let r = 1; r <= numRounds; r++) {
 }
 
 return schedule;
-```
+
 
 }
 
@@ -573,7 +573,7 @@ alert(‘Bitte zuerst die Eingabefehler beheben!’);
 return;
 }
 
-```
+
 players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value.trim()).filter(Boolean);
 const inputs = getInputs();
 const totalSlots = inputs.numRounds * inputs.courts * 4;
@@ -645,7 +645,7 @@ btn.disabled = false;
 txt.textContent = 'Plan bestmöglich mischen';
 spin.classList.add('hidden');
 renderPreview(isDummyMode, isFinalMode, false);
-```
+
 
 }
 
@@ -658,7 +658,7 @@ document.getElementById(‘previewArea’).classList.remove(‘hidden’);
 const mode = document.querySelector(‘input[name=“mode”]:checked’)?.value || ‘time’;
 const ccls = [‘c1’, ‘c2’, ‘c3’, ‘c4’];
 
-```
+
 document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
     const isLast = idx === currentSchedule.length - 1;
     let roundLabel = `Runde ${r.id}`;
@@ -735,7 +735,7 @@ document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) 
     </div>`;
 }).join('');
 updateStats(isDummyMode, isFinalMode, isReadonly);
-```
+
 
 }
 
@@ -747,7 +747,7 @@ const scoredRounds = currentSchedule.filter(r => !r.isFinale);
 const { plays, partner, opponent } = calcPenalty(scoredRounds, players.length);
 const mTime = parseInt(document.getElementById(‘matchTime’).value) || 15;
 
-```
+
 document.getElementById('fairnessStats').innerHTML = players.map((name, i) => `
     <div class="stat-card">
         <p style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</p>
@@ -797,7 +797,7 @@ if(mode === 'points') info.push('🎯 Punkte-Modus: Zeiten sind Schätzwerte.');
 if(isTeam) info.push('👥 Team-Modus: Nur Gegner-Optimierung aktiv.');
 modeBox.classList.toggle('hidden', !info.length);
 document.getElementById('modeStatsContent').innerHTML = info.join('<br>');
-```
+
 
 }
 
@@ -809,7 +809,7 @@ const name = document.getElementById(‘tName’).value.trim();
 if(!name) { alert(‘Bitte Turniernamen eingeben.’); return; }
 if(!currentSchedule.length) { alert(‘Bitte zuerst einen Plan erstellen.’); return; }
 
-```
+
 const inp = getInputs();
 const password = document.getElementById('tPassword').value.trim();
 const expiryDate = getExpiryDate();
