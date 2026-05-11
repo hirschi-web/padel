@@ -778,6 +778,43 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
     if(isTeam) info.push('👥 Team-Modus: Nur Gegner-Optimierung aktiv.');
     modeBox.classList.toggle('hidden', !info.length);
     document.getElementById('modeStatsContent').innerHTML = info.join('<br>');
+
+// ── Spieler-Übersicht: Match/Pause pro Runde ──────────────
+    const mainRounds = currentSchedule.filter(r => !r.isFinale && !r.isBalance);
+    let mpHtml = `<div style="overflow-x:auto;margin-top:20px;">
+        <p class="lbl" style="margin-bottom:8px;">📋 Match / Pause pro Runde</p>
+        <table style="border-collapse:collapse;font-size:10px;font-weight:600;width:100%;">
+            <thead><tr>
+                <th style="padding:4px 8px;text-align:left;color:var(--muted);font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;min-width:80px;">Spieler</th>`;
+
+    mainRounds.forEach((r, idx) => {
+        mpHtml += `<th style="padding:4px 6px;text-align:center;color:var(--muted);font-size:9px;font-weight:700;">R${idx + 1}</th>`;
+    });
+    mpHtml += `</tr></thead><tbody>`;
+
+    players.forEach((name, pi) => {
+        mpHtml += `<tr>
+            <td style="padding:4px 8px;font-weight:700;color:var(--slate);font-size:10px;white-space:nowrap;" title="${name}">${name.substring(0, 12)}</td>`;
+        mainRounds.forEach(r => {
+            const playing = r.matches.some(m =>
+                m.team1.includes(pi) || m.team2.includes(pi)
+            );
+            mpHtml += playing
+                ? `<td style="padding:4px 6px;text-align:center;background:#f0fdf4;color:#16a34a;border-radius:4px;font-weight:900;">M</td>`
+                : `<td style="padding:4px 6px;text-align:center;background:#f8fafc;color:#94a3b8;font-weight:500;">P</td>`;
+        });
+        mpHtml += `</tr>`;
+    });
+
+    mpHtml += `</tbody></table>
+        <div style="display:flex;gap:12px;margin-top:8px;font-size:9px;font-weight:700;color:var(--muted);">
+            <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0fdf4;border:1px solid #bbf7d0;margin-right:3px;vertical-align:middle;"></span>M = Match</span>
+            <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f8fafc;border:1px solid #e2e8f0;margin-right:3px;vertical-align:middle;"></span>P = Pause</span>
+        </div>
+    </div>`;
+
+    document.getElementById('partnerStats').innerHTML += mpHtml;
+    
 }
 
 // ============================================================
