@@ -442,11 +442,11 @@ function getInputs() {
 // ============================================================
 // OPTIMIZATION ENGINE
 // ============================================================
-function calcPenalty(schedule, numPlayers) {
+ffunction calcPenalty(schedule, numPlayers) {
     const partner = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
     const opponent = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
     const plays = new Array(numPlayers).fill(0);
-    
+
     schedule.forEach(r => {
         r.matches.forEach(m => {
             const [a, b, c, d] = [m.team1[0], m.team1[1], m.team2[0], m.team2[1]];
@@ -466,17 +466,23 @@ function calcPenalty(schedule, numPlayers) {
             });
         });
     });
-    
+
+    const numRounds = schedule.length;
     let penalty = 0;
-    const avg = plays.reduce((a, b) => a + b, 0) / numPlayers;
-    plays.forEach(p => { penalty += Math.pow(p - avg, 2) * 100; });
+    const avgPlays = plays.reduce((a, b) => a + b, 0) / numPlayers;
+    plays.forEach(p => {
+        penalty += Math.pow(p - avgPlays, 2) * 100;
+        // NEU: Pausen = Runden - Spiele, auch Pausen-Ungleichheit bestrafen
+        const pauses = numRounds - p;
+        penalty += Math.pow(pauses - (numRounds - avgPlays), 2) * 100;
+    });
     for(let i = 0; i < numPlayers; i++) {
         for(let j = i + 1; j < numPlayers; j++) {
             if(partner[i][j] > 1) penalty += Math.pow(partner[i][j] - 1, 2) * 10;
             if(opponent[i][j] > 2) penalty += Math.pow(opponent[i][j] - 2, 2) * 3;
         }
     }
-    
+
     return { penalty, plays, partner, opponent };
 }
 
@@ -601,31 +607,26 @@ async function runOptimization() {
     const [lH, lM] = lastTime.time.split(':').map(Number);
     const nextMin = lH * 60 + lM + inputs.matchTime;
     const nextTime = `${String(Math.floor(nextMin / 60) % 24).padStart(2, '0')}:${String(nextMin % 60).padStart(2, '0')}`;
-    
     if(isDummyMode) {
-        const { plays } = calcPenalty(bestSchedule, players.length);
-        const minPlays = Math.min(...plays);
-        const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
-        const balanceMatches = [];
-        let rem = [...underPlayed];
-        let courtNum = 1;
-        while(rem.length > 0) {
-            const p1 = rem.shift() ?? null;
-            const p2 = rem.shift() ?? null;
-            const p3 = rem.shift() ?? null;
-            const p4 = rem.shift() ?? null;
-            if(p1 !== null) {
-                balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: [p3, p4] });
-            }
-        }
-        const balancePause = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
-        bestSchedule.push({
-            id: bestSchedule.length + 1,
-            time: nextTime,
-            isBalance: true,
-            matches: balanceMatches,
-            pause: balancePause
-        });
+    const { plays } = calcPenalty(bestSchedule, players.length);
+    const minPlays = Math.min(...plays);
+    const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
+    const balanceMatches = [];
+    let rem = [...underPlayed];
+    let courtNum = 1;
+    while(rem.length >= 2) {
+        const p1 = rem.shift();
+        const p2 = rem.shift();
+        balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: ['VIRT1', 'VIRT2'] });
+    }
+    const balancePause = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
+    bestSchedule.push({
+        id: bestSchedule.length + 1,
+        time: nextTime,
+        isBalance: true,
+        matches: balanceMatches,
+        pause: balancePause
+    });
     } else {
         bestSchedule.push({
             id: bestSchedule.length + 1,
@@ -676,19 +677,10 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
             if(r.isFinale) {
                 p1 = '🥇 Platz 1'; p2 = '🥈 Platz 4'; p3 = '🥈 Platz 2'; p4 = '🥉 Platz 3';
             } else if(r.isBalance) {
-                const getName = (idx) => { 
-                    if(idx === null || idx === undefined) return null; 
-                    return players[idx] || null; 
-                };
-                const n1 = getName(m.team1[0]);
-                const n2 = getName(m.team1[1]);
-                const n3 = getName(m.team2[0]);
-                const n4 = getName(m.team2[1]);
-                let virtNum = 1;
-                p1 = n1 || (virtNum++ === 1 ? 'Virtuell 1' : 'Virtuell 2');
-                p2 = n2 || (virtNum++ === 1 ? 'Virtuell 1' : 'Virtuell 2');
-                p3 = n3 || (virtNum++ === 1 ? 'Virtuell 1' : 'Virtuell 2');
-                p4 = n4 || (virtNum++ === 1 ? 'Virtuell 1' : 'Virtuell 2');
+                p1 = players[m.team1[0]] || 'Virtuell 1';
+                p2 = players[m.team1[1]] || 'Virtuell 2';
+                p3 = 'Virtuell 1';
+                p4 = 'Virtuell 2';
             } else {
                 p1 = players[m.team1[0]] || 'Virtuell 1';
                 p2 = players[m.team1[1]] || 'Virtuell 2';
@@ -729,7 +721,6 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
     }).join('');
     updateStats(isDummyMode, isFinalMode, isReadonly);
 }
-
 // ============================================================
 // UPDATE STATS
 // ============================================================
