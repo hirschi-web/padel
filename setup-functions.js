@@ -528,35 +528,43 @@ function generateVariant(inputs) {
     let [sH, sM] = start.split(':').map(Number);
     let schedule = [];
     let playTracker = new Array(count).fill(0);
-    let lastPlayedRound = new Array(count).fill(-99); // NEU: wann zuletzt gespielt
+    let lastPlayedRound = new Array(count).fill(-99);
     const partnerCount = Array.from({length: count}, () => new Array(count).fill(0));
     const opponentCount = Array.from({length: count}, () => new Array(count).fill(0));
-    
+    const PROTECTED = new Set([1, 2, numRounds - 1, numRounds]);
+
     for(let r = 1; r <= numRounds; r++) {
         const tMin = sH * 60 + sM + warmup + (r - 1) * matchTime;
         const timeStr = `${String(Math.floor(tMin / 60) % 24).padStart(2, '0')}:${String(tMin % 60).padStart(2, '0')}`;
-        
-        // NEU: Sortierung berücksichtigt Spiele UND wie lange jemand schon pausiert
-        let pool = [...Array(count).keys()].sort((a, b) => {
-            const playDiff = playTracker[a] - playTracker[b];
-            if(playDiff !== 0) return playDiff;
-            // Bei gleicher Spielanzahl: wer länger pausiert hat kommt zuerst
-            return lastPlayedRound[a] - lastPlayedRound[b];
-        });
-        
+        const isProtected = PROTECTED.has(r);
+        let pool;
+
+        if(isProtected && r > 1) {
+            // Harte Constraint: wer zuletzt pausiert hat kommt ZUERST
+            const justPaused = [...Array(count).keys()].filter(p => lastPlayedRound[p] < r - 1);
+            const rest = [...Array(count).keys()].filter(p => lastPlayedRound[p] >= r - 1);
+            justPaused.sort((a, b) => playTracker[a] - playTracker[b]);
+            rest.sort((a, b) => playTracker[a] - playTracker[b]);
+            pool = [...justPaused, ...rest];
+        } else {
+            pool = [...Array(count).keys()].sort((a, b) => {
+                const d = playTracker[a] - playTracker[b];
+                return d !== 0 ? d : lastPlayedRound[a] - lastPlayedRound[b];
+            });
+        }
+
         let rem = [...pool];
         let round = { id: r, time: timeStr, pause: [], matches: [] };
-        
+
         for(let c = 0; c < courts; c++) {
             if(rem.length < 4) break;
-            const chosen = smartSelect(rem, 4, partnerCount, opponentCount);
+            // In geschützten Runden: kein Zufall, Pausierer strikt zuerst
+            const strict = isProtected && r > 1;
+            const chosen = strict ? rem.splice(0, 4) : smartSelect(rem, 4, partnerCount, opponentCount);
             rem = rem.filter(p => !chosen.includes(p));
             const [p1, p2, p3, p4] = chosen;
             [p1, p2, p3, p4].forEach(p => {
-                if(p !== undefined) {
-                    playTracker[p]++;
-                    lastPlayedRound[p] = r; // NEU
-                }
+                if(p !== undefined) { playTracker[p]++; lastPlayedRound[p] = r; }
             });
             if(p1 !== undefined && p2 !== undefined) {
                 partnerCount[p1][p2]++; partnerCount[p2][p1]++;
@@ -576,7 +584,7 @@ function generateVariant(inputs) {
         round.pause = rem;
         schedule.push(round);
     }
-    
+
     return schedule;
 }
 async function runOptimization() {
