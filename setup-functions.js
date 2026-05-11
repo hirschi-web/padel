@@ -528,13 +528,22 @@ function generateVariant(inputs) {
     let [sH, sM] = start.split(':').map(Number);
     let schedule = [];
     let playTracker = new Array(count).fill(0);
+    let lastPlayedRound = new Array(count).fill(-99); // NEU: wann zuletzt gespielt
     const partnerCount = Array.from({length: count}, () => new Array(count).fill(0));
     const opponentCount = Array.from({length: count}, () => new Array(count).fill(0));
     
     for(let r = 1; r <= numRounds; r++) {
         const tMin = sH * 60 + sM + warmup + (r - 1) * matchTime;
         const timeStr = `${String(Math.floor(tMin / 60) % 24).padStart(2, '0')}:${String(tMin % 60).padStart(2, '0')}`;
-        let pool = [...Array(count).keys()].sort((a, b) => playTracker[a] - playTracker[b]);
+        
+        // NEU: Sortierung berücksichtigt Spiele UND wie lange jemand schon pausiert
+        let pool = [...Array(count).keys()].sort((a, b) => {
+            const playDiff = playTracker[a] - playTracker[b];
+            if(playDiff !== 0) return playDiff;
+            // Bei gleicher Spielanzahl: wer länger pausiert hat kommt zuerst
+            return lastPlayedRound[a] - lastPlayedRound[b];
+        });
+        
         let rem = [...pool];
         let round = { id: r, time: timeStr, pause: [], matches: [] };
         
@@ -543,7 +552,12 @@ function generateVariant(inputs) {
             const chosen = smartSelect(rem, 4, partnerCount, opponentCount);
             rem = rem.filter(p => !chosen.includes(p));
             const [p1, p2, p3, p4] = chosen;
-            [p1, p2, p3, p4].forEach(p => { if(p !== undefined) playTracker[p]++; });
+            [p1, p2, p3, p4].forEach(p => {
+                if(p !== undefined) {
+                    playTracker[p]++;
+                    lastPlayedRound[p] = r; // NEU
+                }
+            });
             if(p1 !== undefined && p2 !== undefined) {
                 partnerCount[p1][p2]++; partnerCount[p2][p1]++;
             }
@@ -565,7 +579,6 @@ function generateVariant(inputs) {
     
     return schedule;
 }
-
 async function runOptimization() {
     if(!document.getElementById('inputError').classList.contains('hidden')) {
         alert('Bitte zuerst die Eingabefehler beheben!');
@@ -767,7 +780,7 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
     </div>`;
 
     // ── Match/Pause Übersicht pro Spieler ──
-    const mainRounds = currentSchedule.filter(r => !r.isFinale && !r.isBalance);
+    const mainRounds = currentSchedule.filter(r => !r.isFinale);
     mx += `<div style="margin-top:20px;">
         <p class="lbl" style="margin-bottom:8px;">📋 Match / Pause pro Runde</p>
         <table style="border-collapse:collapse;font-size:10px;font-weight:600;width:100%;">
