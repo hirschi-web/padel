@@ -429,13 +429,16 @@ function getInputs() {
     const warmup = parseInt(document.getElementById('warmup').value) || 0;
     const start = document.getElementById('startTime').value || '18:00';
     const mode = document.querySelector('input[name="mode"]:checked').value;
+    const rawRounds = Math.floor((totalMin - warmup) / matchTime);
+    const totalSlots = rawRounds * courts * 4;
+    const needsBalance = (totalSlots % count) !== 0;
+    const numRounds = needsBalance ? rawRounds - 1 : rawRounds;
     return {
         count, courts, totalMin, matchTime, warmup, start, mode, isTeam,
         nettoMin: totalMin - warmup,
-        numRounds: Math.max(1, Math.floor((totalMin - warmup) / matchTime))
+        numRounds: Math.max(1, numRounds)
     };
 }
-
 // ============================================================
 // OPTIMIZATION ENGINE
 // ============================================================
