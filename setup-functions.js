@@ -26,17 +26,17 @@ function switchMode(mode) {
 currentAppMode = mode;
 document.getElementById(‘modeBtn_americano’).classList.toggle(‘active’, mode === ‘americano’);
 document.getElementById(‘modeBtn_ko’).classList.toggle(‘active’, mode === ‘ko’);
-document.getElementById(‘modeBtn_groups’).classList.toggle(‘active’, mode === ‘groups’);
+document.getElementById(‘modeBtn_groups’).classList.toggle(‘active’, mode === ‘groups’);          // NEU
 document.getElementById(‘americanoSection’).classList.toggle(‘hidden’, mode !== ‘americano’);
 document.getElementById(‘koSection’).classList.toggle(‘hidden’, mode !== ‘ko’);
-document.getElementById(‘groupsSection’).classList.toggle(‘hidden’, mode !== ‘groups’);
+document.getElementById(‘groupsSection’).classList.toggle(‘hidden’, mode !== ‘groups’);           // NEU
 document.getElementById(‘headerSubtitle’).textContent = {
 americano: ‘Smart-Mix Engine v2.0 · Americano Optimizer’,
 ko:        ‘K.O. System · 8 oder 16 Teams · Vorrunde + Bracket’,
-groups:    ‘Gruppen-System · 8 Teams · 2 Gruppen · 5h’
+groups:    ‘Gruppen-System · 8 Teams · 2 Gruppen · 5h’             // NEU
 }[mode] || ‘’;
 if (mode === ‘ko’)     koUpdateTeamInputs();
-if (mode === ‘groups’) grpInit();
+if (mode === ‘groups’) grpInit();                                       // NEU
 }
 
 // ============================================================
@@ -86,6 +86,8 @@ if (d.tournament_type === 'knockout') {
     if (d.koMatchTime) document.getElementById('koMatchTime').value = d.koMatchTime;
     if (d.koPause != null) document.getElementById('koPause').value = d.koPause;
     if (d.koCourtHours != null) document.getElementById('koCourtHours').value = d.koCourtHours;
+    
+    // Court Names
     if (d.koCourtNames?.length) {
         d.koCourtNames.forEach((name, i) => {
             const el = document.getElementById(`koCourt${i+1}Name`);
@@ -93,6 +95,8 @@ if (d.tournament_type === 'knockout') {
         });
         koUpdateCourtNamesSection();
     }
+    
+    // Expiry Date
     if (d.expiry_date) {
         document.getElementById('koExpiryEnabled').checked = true;
         koToggleExpiry();
@@ -100,6 +104,7 @@ if (d.tournament_type === 'knockout') {
         const localISO = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0,16);
         document.getElementById('koExpiryDate').value = localISO;
     }
+    
     koTeamCount = d.koTeamCount || 8;
     koSelectTeamCount(koTeamCount, true);
     if (d.koTeams?.length) {
@@ -116,12 +121,14 @@ if (d.tournament_type === 'knockout') {
     return;
 }
 
+
 // GRUPPEN TOURNAMENT
-if (d.tournament_type === 'groups') {
-    grpLoadTournament(d, id);
-    document.getElementById('deleteBtn').classList.remove('hidden');
-    return;
+if (d.tournament_type === ‘groups’) {
+grpLoadTournament(d, id);
+document.getElementById(‘deleteBtn’).classList.remove(‘hidden’);
+return;
 }
+
 
 // AMERICANO TOURNAMENT
 switchMode('americano');
@@ -134,18 +141,20 @@ if (d.t) {
 }
 if (d.courts != null) document.getElementById('cCount').value = d.courts;
 if (d.totalHours != null) document.getElementById('totalHours').value = d.totalHours;
-if (d.mode) {
-    const el = document.querySelector(`input[name="mode"][value="${d.mode}"]`);
-    if(el) el.checked = true;
+if (d.mode) { 
+    const el = document.querySelector(`input[name="mode"][value="${d.mode}"]`); 
+    if(el) el.checked = true; 
 }
-if (d.isTeam != null) {
-    const el = document.querySelector(`input[name="tType"][value="${d.isTeam?'team':'solo'}"]`);
-    if(el) el.checked = true;
+if (d.isTeam != null) { 
+    const el = document.querySelector(`input[name="tType"][value="${d.isTeam?'team':'solo'}"]`); 
+    if(el) el.checked = true; 
 }
-if (d.p?.length) {
-    document.getElementById('pCount').value = d.p.length;
-    updatePlayerInputs(d.p);
+if (d.p?.length) { 
+    document.getElementById('pCount').value = d.p.length; 
+    updatePlayerInputs(d.p); 
 }
+
+// Court Names
 if (d.courtNames?.length) {
     d.courtNames.forEach((name, i) => {
         const el = document.getElementById(`court${i+1}Name`);
@@ -153,6 +162,8 @@ if (d.courtNames?.length) {
     });
     updateCourtNamesSection();
 }
+
+// Expiry Date
 if (d.expiry_date) {
     document.getElementById('expiryEnabled').checked = true;
     toggleExpiry();
@@ -160,13 +171,14 @@ if (d.expiry_date) {
     const localISO = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0,16);
     document.getElementById('expiryDate').value = localISO;
 }
-if (d.s_new?.length) {
-    players = d.p || [];
-    currentSchedule = d.s_new;
-    renderPreview(false, false, true);
+
+if (d.s_new?.length) { 
+    players = d.p || []; 
+    currentSchedule = d.s_new; 
+    renderPreview(false, false, true); 
 }
 document.getElementById('deleteBtn').classList.remove('hidden');
-toggleModeUI();
+toggleModeUI(); 
 checkConsistency();
 
 
@@ -195,6 +207,7 @@ const count = parseInt(document.getElementById(‘cCount’).value) || 1;
 const section = document.getElementById(‘courtNamesSection’);
 if (count > 1) {
 section.classList.remove(‘hidden’);
+// Show/hide fields based on count
 for (let i = 1; i <= 3; i++) {
 const el = document.getElementById(`court${i}Name`);
 if (el) el.style.display = i <= count ? ‘block’ : ‘none’;
@@ -324,6 +337,7 @@ errBox.innerHTML = errors.join('<br>');
 warnBox.classList.toggle('hidden', !warnings.length);
 warnBox.innerHTML = warnings.join('<br>');
 
+// Update court names section
 updateCourtNamesSection();
 
 
@@ -337,8 +351,7 @@ const countRaw = parseInt(document.getElementById(‘pCount’).value) || 6;
 const isTeam = document.querySelector(‘input[name=“tType”]:checked’)?.value === ‘team’;
 const count = isTeam ? countRaw * 2 : countRaw;
 const courts = parseInt(document.getElementById(‘cCount’).value) || 1;
-const netto = parseFloat(document.getElementById(‘totalHours’).value) * 60
-- (parseInt(document.getElementById(‘warmup’).value) || 0);
+const netto = parseFloat(document.getElementById(‘totalHours’).value) * 60 - (parseInt(document.getElementById(‘warmup’).value) || 0);
 
 
 // Alle sinnvollen Optionen sammeln
@@ -351,7 +364,7 @@ for (let r = 2; r <= 40; r++) {
     const isFair  = Number.isInteger(ppp);
     const buffer  = netto - mt * r;
     if (!isFair && buffer < 5) continue;
-    if (ppp < 4) continue; // mind. 4 Spiele pro Person
+    if (ppp < 4) continue;
     options.push({ r, mt, slots, ppp, isFair, buffer });
 }
 
@@ -360,28 +373,21 @@ const byMt = {};
 options.forEach(o => {
     if (!byMt[o.mt] || o.r > byMt[o.mt].r) byMt[o.mt] = o;
 });
-// Sortieren: meiste Spiele pro Person zuerst
 options = Object.values(byMt).sort((a, b) => b.ppp - a.ppp);
 
 let html = '';
 
 if (!options.length) {
-    html = `<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">
-        Keine sinnvollen Optionen. Bitte Dauer oder Plätze anpassen.
-    </div>`;
+    html = `<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">Keine sinnvollen Optionen. Bitte Dauer oder Plätze anpassen.</div>`;
 } else {
     options.slice(0, 6).forEach(({ r, mt, ppp, isFair, buffer }) => {
         const playsMin   = Math.floor(ppp) * mt;
         const playsMax   = Math.ceil(ppp)  * mt;
-        const playsLabel = isFair
-            ? `~${playsMin} Min. pro Person`
-            : `~${playsMin}–${playsMax} Min. pro Person`;
+        const playsLabel = isFair ? `~${playsMin} Min. pro Person` : `~${playsMin}–${playsMax} Min. pro Person`;
         const fairLabel  = isFair ? 'Perfekt fair' : 'Ausgleich nötig';
         const fairBadge  = isFair ? 'badge-amber'  : 'badge-blue';
         const bufferIcon = buffer >= 15 ? '🔥' : buffer >= 5 ? '👍' : '⚡';
-        const playsInfo  = isFair
-            ? `✅ Jeder spielt genau ${Math.round(ppp)}×`
-            : `⌀ ${ppp.toFixed(1)}× · Ausgleichsrunde am Ende`;
+        const playsInfo  = isFair ? `✅ Jeder spielt genau ${Math.round(ppp)}×` : `⌀ ${ppp.toFixed(1)}× · Ausgleichsrunde am Ende`;
 
         html += `<div class="opt-card">
             <div>
@@ -390,8 +396,7 @@ if (!options.length) {
                 <p style="font-size:11px;color:var(--muted);font-weight:500;">🎾 ${r} Runden · ${courts} ${courts > 1 ? 'Plätze' : 'Platz'}</p>
                 <p style="font-size:11px;color:var(--blue);font-weight:700;margin-top:4px;">${playsLabel}</p>
                 <div style="font-size:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 8px;margin-top:8px;">
-                    <span style="color:var(--muted);">Puffer: </span>
-                    <strong>${buffer} Min. ${bufferIcon}</strong>
+                    <span style="color:var(--muted);">Puffer: </span><strong>${buffer} Min. ${bufferIcon}</strong>
                     <span style="display:block;color:${isFair ? 'var(--green)' : 'var(--muted)'};">${playsInfo}</span>
                 </div>
             </div>
@@ -505,8 +510,8 @@ if(needed === 4 && selected.length === 4) {
     let bestPair = pairings[0];
     let bestPairScore = Infinity;
     pairings.forEach(([p1, p2, p3, p4]) => {
-        const sc = partnerCount[p1][p2] * 20 + partnerCount[p3][p4] * 20 +
-                  opponentCount[p1][p3] * 3 + opponentCount[p1][p4] * 3 +
+        const sc = partnerCount[p1][p2] * 20 + partnerCount[p3][p4] * 20 + 
+                  opponentCount[p1][p3] * 3 + opponentCount[p1][p4] * 3 + 
                   opponentCount[p2][p3] * 3 + opponentCount[p2][p4] * 3;
         if(sc < bestPairScore) {
             bestPairScore = sc;
@@ -536,7 +541,7 @@ for(let r = 1; r <= numRounds; r++) {
     let pool = [...Array(count).keys()].sort((a, b) => playTracker[a] - playTracker[b]);
     let rem = [...pool];
     let round = { id: r, time: timeStr, pause: [], matches: [] };
-
+    
     for(let c = 0; c < courts; c++) {
         if(rem.length < 4) break;
         const chosen = smartSelect(rem, 4, partnerCount, opponentCount);
@@ -665,7 +670,7 @@ document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) 
     let cardCls = 'round-card';
     let extra = '';
     let badgeHtml = '';
-
+    
     if(!isReadonly && isLast && isFinalMode) {
         roundLabel = '🏆 Finale der besten 4';
         cardCls = 'round-card round-finale';
@@ -677,15 +682,15 @@ document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) 
         badgeHtml = '<span class="badge badge-blue">Ausgleich</span>';
         extra = `<p style="font-size:9px;color:#1e40af;text-align:center;margin-top:8px;font-weight:600;">Echte Spieler werden normal gewertet · Virtuelle Gegner zählen nicht</p>`;
     }
-
+    
     const matchHtml = r.matches.map(m => {
         let p1, p2, p3, p4;
         if(r.isFinale) {
             p1 = '🥇 Platz 1'; p2 = '🥈 Platz 4'; p3 = '🥈 Platz 2'; p4 = '🥉 Platz 3';
         } else if(r.isBalance) {
-            const getName = (idx) => {
-                if(idx === null || idx === undefined) return null;
-                return players[idx] || null;
+            const getName = (idx) => { 
+                if(idx === null || idx === undefined) return null; 
+                return players[idx] || null; 
             };
             const n1 = getName(m.team1[0]);
             const n2 = getName(m.team1[1]);
@@ -714,7 +719,7 @@ document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) 
             </div>
         </div>`;
     }).join('');
-
+    
     let pauseNames;
     if(r.isFinale) {
         pauseNames = 'Alle außer den 4 Finalteilnehmern';
@@ -723,7 +728,7 @@ document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) 
     } else {
         pauseNames = (r.pause || []).map(p => players[p]).filter(Boolean).join(', ') || 'Keiner';
     }
-
+    
     return `<div class="${cardCls} fade-up">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;">${roundLabel}</span>
@@ -746,7 +751,7 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
 const scoredRounds = currentSchedule.filter(r => !r.isFinale);
 const { plays, partner, opponent } = calcPenalty(scoredRounds, players.length);
 const mTime = parseInt(document.getElementById(‘matchTime’).value) || 15;
-
+    
 
 document.getElementById('fairnessStats').innerHTML = players.map((name, i) => `
     <div class="stat-card">
