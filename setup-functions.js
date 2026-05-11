@@ -948,7 +948,47 @@ function printAmericano() {
             const isVirt = s => s.startsWith('Virtuell');
             matchesHtml += `
                 <div style="margin-bottom:6px; padding:5px 6px; background:#f8fafc; border-radius:5px; border-left:3px solid ${borderColor};">
-                    <div style="font-size:7.5pt; font-weight:700; color:#64748b; margin-bottom:2px;">Court ${courtLabel}</div>
+               r.matches.forEach(m => {
+    // ... Namen wie gehabt holen (p1, p2, p3, p4) ...
+
+    const courtLabel = cNames[(m.court - 1)] || m.court;
+    const isVirt = s => s.startsWith('Virtuell');
+
+    matchesHtml += `
+        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden; margin-bottom:5px;">
+            <div style="font-size:6.5pt; font-weight:700; color:#64748b; padding:3px 6px 2px;
+                        background:#f8fafc; border-bottom:1px solid #e2e8f0;
+                        letter-spacing:.04em; text-transform:uppercase;">
+                Court ${courtLabel}
+            </div>
+            <div style="display:flex; align-items:stretch;">
+                <div style="flex:1; padding:4px 5px;">
+                    <div style="font-size:7.5pt; font-weight:700; line-height:1.4;
+                                ${isVirt(p1)?'color:#93c5fd;font-style:italic;':''}">${p1}</div>
+                    <div style="font-size:7.5pt; font-weight:700; line-height:1.4;
+                                ${isVirt(p2)?'color:#93c5fd;font-style:italic;':''}">${p2}</div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;
+                            justify-content:center; padding:4px 5px; gap:3px;
+                            background:#f0f9ff; border-left:1px solid #bae6fd;
+                            border-right:1px solid #bae6fd; min-width:34px;">
+                    <div style="width:22px; height:14px; border:1.5px solid #93c5fd;
+                                border-radius:3px; background:#fff;"></div>
+                    <div style="width:3px; height:3px; border-radius:50%;
+                                background:#cbd5e1;"></div>
+                    <div style="width:22px; height:14px; border:1.5px solid #93c5fd;
+                                border-radius:3px; background:#fff;"></div>
+                </div>
+                <div style="flex:1; padding:4px 5px; text-align:right;">
+                    <div style="font-size:7.5pt; font-weight:700; line-height:1.4;
+                                ${isVirt(p3)?'color:#93c5fd;font-style:italic;':''}">${p3}</div>
+                    <div style="font-size:7.5pt; font-weight:700; line-height:1.4;
+                                ${isVirt(p4)?'color:#93c5fd;font-style:italic;':''}">${p4}</div>
+                </div>
+            </div>
+        </div>`;
+});
+    <div style="font-size:7.5pt; font-weight:700; color:#64748b; margin-bottom:2px;">Court ${courtLabel}</div>
                     <div style="font-size:8pt; font-weight:600; line-height:1.5;">
                         <span style="${isVirt(p1)?'color:#93c5fd;font-style:italic;':''}">${p1}</span>
                         <span style="color:#cbd5e1;"> + </span>
