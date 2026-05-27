@@ -26,17 +26,17 @@ function switchMode(mode) {
     currentAppMode = mode;
     document.getElementById('modeBtn_americano').classList.toggle('active', mode === 'americano');
     document.getElementById('modeBtn_ko').classList.toggle('active', mode === 'ko');
-    document.getElementById('modeBtn_groups').classList.toggle('active', mode === 'groups');          // NEU
+    document.getElementById('modeBtn_groups').classList.toggle('active', mode === 'groups');
     document.getElementById('americanoSection').classList.toggle('hidden', mode !== 'americano');
     document.getElementById('koSection').classList.toggle('hidden', mode !== 'ko');
-    document.getElementById('groupsSection').classList.toggle('hidden', mode !== 'groups');           // NEU
+    document.getElementById('groupsSection').classList.toggle('hidden', mode !== 'groups');
     document.getElementById('headerSubtitle').textContent = {
         americano: 'Smart-Mix Engine v2.0 · Americano Optimizer',
         ko:        'K.O. System · 8 oder 16 Teams · Vorrunde + Bracket',
-        groups:    'Gruppen-System · 8 Teams · 2 Gruppen · 5h'             // NEU
+        groups:    'Gruppen-System · 8 Teams · 2 Gruppen · 5h'
     }[mode] || '';
     if (mode === 'ko')     koUpdateTeamInputs();
-    if (mode === 'groups') grpInit();                                       // NEU
+    if (mode === 'groups') grpInit();
 }
 
 // ============================================================
@@ -85,8 +85,6 @@ async function loadTournament(id) {
         if (d.koMatchTime) document.getElementById('koMatchTime').value = d.koMatchTime;
         if (d.koPause != null) document.getElementById('koPause').value = d.koPause;
         if (d.koCourtHours != null) document.getElementById('koCourtHours').value = d.koCourtHours;
-        
-        // Court Names
         if (d.koCourtNames?.length) {
             d.koCourtNames.forEach((name, i) => {
                 const el = document.getElementById(`koCourt${i+1}Name`);
@@ -94,8 +92,6 @@ async function loadTournament(id) {
             });
             koUpdateCourtNamesSection();
         }
-        
-        // Expiry Date
         if (d.expiry_date) {
             document.getElementById('koExpiryEnabled').checked = true;
             koToggleExpiry();
@@ -103,7 +99,6 @@ async function loadTournament(id) {
             const localISO = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0,16);
             document.getElementById('koExpiryDate').value = localISO;
         }
-        
         koTeamCount = d.koTeamCount || 8;
         koSelectTeamCount(koTeamCount, true);
         if (d.koTeams?.length) {
@@ -120,13 +115,13 @@ async function loadTournament(id) {
         return;
     }
 
-// GRUPPEN TOURNAMENT
+    // GRUPPEN TOURNAMENT
     if (d.tournament_type === 'groups') {
         grpLoadTournament(d, id);
         document.getElementById('deleteBtn').classList.remove('hidden');
         return;
     }
-    
+
     // AMERICANO TOURNAMENT
     switchMode('americano');
     document.getElementById('tName').value = id;
@@ -138,20 +133,18 @@ async function loadTournament(id) {
     }
     if (d.courts != null) document.getElementById('cCount').value = d.courts;
     if (d.totalHours != null) document.getElementById('totalHours').value = d.totalHours;
-    if (d.mode) { 
-        const el = document.querySelector(`input[name="mode"][value="${d.mode}"]`); 
-        if(el) el.checked = true; 
+    if (d.mode) {
+        const el = document.querySelector(`input[name="mode"][value="${d.mode}"]`);
+        if(el) el.checked = true;
     }
-    if (d.isTeam != null) { 
-        const el = document.querySelector(`input[name="tType"][value="${d.isTeam?'team':'solo'}"]`); 
-        if(el) el.checked = true; 
+    if (d.isTeam != null) {
+        const el = document.querySelector(`input[name="tType"][value="${d.isTeam?'team':'solo'}"]`);
+        if(el) el.checked = true;
     }
-    if (d.p?.length) { 
-        document.getElementById('pCount').value = d.p.length; 
-        updatePlayerInputs(d.p); 
+    if (d.p?.length) {
+        document.getElementById('pCount').value = d.p.length;
+        updatePlayerInputs(d.p);
     }
-    
-    // Court Names
     if (d.courtNames?.length) {
         d.courtNames.forEach((name, i) => {
             const el = document.getElementById(`court${i+1}Name`);
@@ -159,8 +152,6 @@ async function loadTournament(id) {
         });
         updateCourtNamesSection();
     }
-    
-    // Expiry Date
     if (d.expiry_date) {
         document.getElementById('expiryEnabled').checked = true;
         toggleExpiry();
@@ -168,14 +159,13 @@ async function loadTournament(id) {
         const localISO = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0,16);
         document.getElementById('expiryDate').value = localISO;
     }
-    
-    if (d.s_new?.length) { 
-        players = d.p || []; 
-        currentSchedule = d.s_new; 
-        renderPreview(false, false, true); 
+    if (d.s_new?.length) {
+        players = d.p || [];
+        currentSchedule = d.s_new;
+        renderPreview(false, false, true);
     }
     document.getElementById('deleteBtn').classList.remove('hidden');
-    toggleModeUI(); 
+    toggleModeUI();
     checkConsistency();
 }
 
@@ -186,10 +176,10 @@ function togglePw() {
     const el = document.getElementById('tPassword');
     const btn = document.getElementById('eyeBtn');
     if(el.type === 'password') {
-        el.type = 'text'; 
+        el.type = 'text';
         btn.innerText = '🙈';
     } else {
-        el.type = 'password'; 
+        el.type = 'password';
         btn.innerText = '👁️';
     }
 }
@@ -202,7 +192,6 @@ function updateCourtNamesSection() {
     const section = document.getElementById('courtNamesSection');
     if (count > 1) {
         section.classList.remove('hidden');
-        // Show/hide fields based on count
         for (let i = 1; i <= 3; i++) {
             const el = document.getElementById(`court${i}Name`);
             if (el) el.style.display = i <= count ? 'block' : 'none';
@@ -311,14 +300,14 @@ function checkConsistency() {
     const warnBox = document.getElementById('consistencyWarning');
     let errors = [];
     let warnings = [];
-    
+
     if(count < 2) errors.push('Mindestens 2 Spieler/Teams nötig.');
     if(courts < 1) errors.push('Mindestens 1 Platz nötig.');
     if(matchTime < 5) errors.push('Match-Zeit muss mindestens 5 Min. sein.');
     if(totalMin < 10) errors.push('Gesamtdauer muss mindestens 10 Min. sein.');
     if(warmup >= totalMin) errors.push('Aufwärm-Zeit darf nicht länger als Gesamtdauer sein.');
     if(count < 4 && courts >= 1) errors.push('Mindestens 4 Spieler/Teams für ein Match nötig.');
-    
+
     if(!errors.length && matchTime > 0) {
         const netto = totalMin - warmup;
         const rounds = Math.floor(netto / matchTime);
@@ -334,18 +323,16 @@ function checkConsistency() {
             }
         }
     }
-    
+
     errBox.classList.toggle('hidden', !errors.length);
     errBox.innerHTML = errors.join('<br>');
     warnBox.classList.toggle('hidden', !warnings.length);
     warnBox.innerHTML = warnings.join('<br>');
-    
-    // Update court names section
     updateCourtNamesSection();
 }
 
 // ============================================================
-// SETUP OPTIONS (Americano) — FIXED
+// SETUP OPTIONS (Americano)
 // ============================================================
 function showOptimalProposals() {
     const countRaw = parseInt(document.getElementById('pCount').value) || 6;
@@ -413,7 +400,7 @@ function applyOpt(val) {
 }
 
 // ============================================================
-// INPUT HELPER — FIXED (Ausgleichsspiel einkalkuliert)
+// INPUT HELPER
 // ============================================================
 function getInputs() {
     const countRaw = parseInt(document.getElementById('pCount').value) || 6;
@@ -439,31 +426,37 @@ function getInputs() {
 // ============================================================
 // OPTIMIZATION ENGINE
 // ============================================================
+// FIX: Filter schließt null und nicht-numerische Werte (virtuelle Spieler) aus
+function isRealPlayer(p, numPlayers) {
+    return p !== null && p !== undefined && typeof p === 'number' && p < numPlayers;
+}
+
 function calcPenalty(schedule, numPlayers) {
     const partner = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
     const opponent = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
     const plays = new Array(numPlayers).fill(0);
-    
+
     schedule.forEach(r => {
         r.matches.forEach(m => {
             const [a, b, c, d] = [m.team1[0], m.team1[1], m.team2[0], m.team2[1]];
-            [a, b, c, d].filter(p => p !== undefined && p < numPlayers).forEach(p => plays[p]++);
-            if(a !== undefined && b !== undefined && a < numPlayers && b < numPlayers) {
+            // FIX: null-safe filter
+            [a, b, c, d].filter(p => isRealPlayer(p, numPlayers)).forEach(p => plays[p]++);
+            if(isRealPlayer(a, numPlayers) && isRealPlayer(b, numPlayers)) {
                 partner[a][b]++; partner[b][a]++;
             }
-            if(c !== undefined && d !== undefined && c < numPlayers && d < numPlayers) {
+            if(isRealPlayer(c, numPlayers) && isRealPlayer(d, numPlayers)) {
                 partner[c][d]++; partner[d][c]++;
             }
             [a, b].forEach(t1 => {
                 [c, d].forEach(t2 => {
-                    if(t1 !== undefined && t2 !== undefined && t1 < numPlayers && t2 < numPlayers) {
+                    if(isRealPlayer(t1, numPlayers) && isRealPlayer(t2, numPlayers)) {
                         opponent[t1][t2]++; opponent[t2][t1]++;
                     }
                 });
             });
         });
     });
-    
+
     const numRounds = schedule.length;
     let penalty = 0;
     const avgPlays = plays.reduce((a, b) => a + b, 0) / numPlayers;
@@ -478,7 +471,7 @@ function calcPenalty(schedule, numPlayers) {
             if(opponent[i][j] > 2) penalty += Math.pow(opponent[i][j] - 2, 2) * 3;
         }
     }
-    
+
     return { penalty, plays, partner, opponent };
 }
 
@@ -488,7 +481,7 @@ function smartSelect(pool, needed, partnerCount, opponentCount) {
     let selected = [];
     const firstIdx = Math.floor(Math.random() * Math.max(1, Math.ceil(remaining.length / 3)));
     selected.push(remaining.splice(firstIdx, 1)[0]);
-    
+
     while(selected.length < needed && remaining.length > 0) {
         let best = null;
         let bestScore = Infinity;
@@ -502,15 +495,15 @@ function smartSelect(pool, needed, partnerCount, opponentCount) {
         selected.push(best);
         remaining = remaining.filter(p => p !== best);
     }
-    
+
     if(needed === 4 && selected.length === 4) {
         const [a, b, c, d] = selected;
         const pairings = [[a, b, c, d], [a, c, b, d], [a, d, b, c]];
         let bestPair = pairings[0];
         let bestPairScore = Infinity;
         pairings.forEach(([p1, p2, p3, p4]) => {
-            const sc = partnerCount[p1][p2] * 20 + partnerCount[p3][p4] * 20 + 
-                      opponentCount[p1][p3] * 3 + opponentCount[p1][p4] * 3 + 
+            const sc = partnerCount[p1][p2] * 20 + partnerCount[p3][p4] * 20 +
+                      opponentCount[p1][p3] * 3 + opponentCount[p1][p4] * 3 +
                       opponentCount[p2][p3] * 3 + opponentCount[p2][p4] * 3;
             if(sc < bestPairScore) {
                 bestPairScore = sc;
@@ -519,7 +512,7 @@ function smartSelect(pool, needed, partnerCount, opponentCount) {
         });
         return bestPair;
     }
-    
+
     return selected;
 }
 
@@ -539,10 +532,9 @@ function generateVariant(inputs) {
         const timeStr = `${String(Math.floor(tMin / 60) % 24).padStart(2, '0')}:${String(tMin % 60).padStart(2, '0')}`;
         const isProtected = PROTECTED.has(r);
 
-        // Absolute Priorität: wer 2x hintereinander pausiert hat
-        const mustPlay  = [...Array(count).keys()].filter(p => consecPauses[p] >= 2);
+        const mustPlay   = [...Array(count).keys()].filter(p => consecPauses[p] >= 2);
         const justPaused = [...Array(count).keys()].filter(p => consecPauses[p] === 1);
-        const rested    = [...Array(count).keys()].filter(p => consecPauses[p] === 0);
+        const rested     = [...Array(count).keys()].filter(p => consecPauses[p] === 0);
 
         mustPlay.sort((a, b) => playTracker[a] - playTracker[b]);
         justPaused.sort((a, b) => playTracker[a] - playTracker[b]);
@@ -582,13 +574,12 @@ function generateVariant(inputs) {
             round.matches.push({ court: c + 1, team1: [p1, p2], team2: [p3, p4] });
         }
 
-        // Pausen-Tracker updaten
+        // FIX: Pausen-Tracker updaten OHNE rem.push(p) - rem enthält bereits korrekte Pause-Spieler
         for(let p = 0; p < count; p++) {
             if(round.matches.some(m => m.team1.includes(p) || m.team2.includes(p))) {
                 consecPauses[p] = 0;
             } else {
                 consecPauses[p]++;
-                
             }
         }
         round.pause = rem.filter(p => !round.matches.some(m => m.team1.includes(p) || m.team2.includes(p)));
@@ -597,12 +588,13 @@ function generateVariant(inputs) {
 
     return schedule;
 }
+
 async function runOptimization() {
     if(!document.getElementById('inputError').classList.contains('hidden')) {
         alert('Bitte zuerst die Eingabefehler beheben!');
         return;
     }
-    
+
     players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value.trim()).filter(Boolean);
     const inputs = getInputs();
     const totalSlots = inputs.numRounds * inputs.courts * 4;
@@ -610,7 +602,7 @@ async function runOptimization() {
     const isPerfectlyFair = (remainder === 0);
     const isDummyMode = !isPerfectlyFair;
     const isFinalMode = isPerfectlyFair;
-    
+
     const btn = document.getElementById('mixBtn');
     const txt = document.getElementById('mixBtnText');
     const spin = document.getElementById('mixSpinner');
@@ -618,7 +610,7 @@ async function runOptimization() {
     txt.textContent = 'Optimiere…';
     spin.classList.remove('hidden');
     await new Promise(r => setTimeout(r, 30));
-    
+
     let bestSchedule = null;
     let lowestPenalty = Infinity;
     for(let i = 0; i < 500; i++) {
@@ -629,25 +621,42 @@ async function runOptimization() {
             bestSchedule = sched;
         }
     }
-    
+
     const lastTime = bestSchedule[bestSchedule.length - 1];
     const [lH, lM] = lastTime.time.split(':').map(Number);
     const nextMin = lH * 60 + lM + inputs.matchTime;
     const nextTime = `${String(Math.floor(nextMin / 60) % 24).padStart(2, '0')}:${String(nextMin % 60).padStart(2, '0')}`;
-    
+
     if(isDummyMode) {
         const { plays } = calcPenalty(bestSchedule, players.length);
         const minPlays = Math.min(...plays);
+
+        // Alle die weniger gespielt haben
         const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
+
+        // FIX: Max courts*4 echte Spieler im Ausgleich (nicht mehr als Plätze hergeben)
+        const maxInBalance = inputs.courts * 4;
+        const spielende = underPlayed.slice(0, maxInBalance);
+        const pauseUnderPlayed = underPlayed.slice(maxInBalance);
+
+        // Matches bauen: je 2 echte Spieler pro Court gegen virtuelle Gegner
         const balanceMatches = [];
-        let rem = [...underPlayed];
+        let rem = [...spielende];
         let courtNum = 1;
-        while(rem.length >= 1) {
+        while(rem.length >= 1 && courtNum <= inputs.courts) {
             const p1 = rem.shift();
-            const p2 = rem.length > 0 ? rem.shift() : null;
-            balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: ['VIRT1', 'VIRT2'] });
+            const p2 = rem.length > 0 ? rem.shift() : null; // null = virtueller Partner
+            balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: [null, null] });
         }
-        const balancePause = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
+        // Freie Courts mit komplett virtuellen Spielern auffüllen
+        while(courtNum <= inputs.courts) {
+            balanceMatches.push({ court: courtNum++, team1: [null, null], team2: [null, null] });
+        }
+
+        // Pause = overplayed + überschüssige underplayed
+        const overPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
+        const balancePause = [...overPlayed, ...pauseUnderPlayed];
+
         bestSchedule.push({
             id: bestSchedule.length + 1,
             time: nextTime,
@@ -664,7 +673,7 @@ async function runOptimization() {
             pause: []
         });
     }
-    
+
     currentSchedule = bestSchedule;
     btn.disabled = false;
     txt.textContent = 'Plan bestmöglich mischen';
@@ -680,14 +689,14 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
     document.getElementById('previewArea').classList.remove('hidden');
     const mode = document.querySelector('input[name="mode"]:checked')?.value || 'time';
     const ccls = ['c1', 'c2', 'c3', 'c4'];
-    
+
     document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
         const isLast = idx === currentSchedule.length - 1;
         let roundLabel = `Runde ${r.id}`;
         let cardCls = 'round-card';
         let extra = '';
         let badgeHtml = '';
-        
+
         if(!isReadonly && isLast && isFinalMode) {
             roundLabel = '🏆 Finale der besten 4';
             cardCls = 'round-card round-finale';
@@ -699,14 +708,15 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
             badgeHtml = '<span class="badge badge-blue">Ausgleich</span>';
             extra = `<p style="font-size:9px;color:#1e40af;text-align:center;margin-top:8px;font-weight:600;">Echte Spieler werden normal gewertet · Virtuelle Gegner zählen nicht</p>`;
         }
-        
+
         const matchHtml = r.matches.map(m => {
             let p1, p2, p3, p4;
             if(r.isFinale) {
                 p1 = '🥇 Platz 1'; p2 = '🥈 Platz 4'; p3 = '🥈 Platz 2'; p4 = '🥉 Platz 3';
             } else if(r.isBalance) {
-                p1 = players[m.team1[0]] || 'Virtuell 1';
-                p2 = players[m.team1[1]] || 'Virtuell 2';
+                // FIX: null-safe Anzeige für echte und virtuelle Spieler
+                p1 = isRealPlayer(m.team1[0], players.length) ? (players[m.team1[0]] || 'Virtuell 1') : 'Virtuell 1';
+                p2 = isRealPlayer(m.team1[1], players.length) ? (players[m.team1[1]] || 'Virtuell 2') : 'Virtuell 2';
                 p3 = 'Virtuell 1';
                 p4 = 'Virtuell 2';
             } else {
@@ -727,16 +737,16 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
                 </div>
             </div>`;
         }).join('');
-        
+
+        // FIX: Deduplizierung der pause-Indizes als Sicherheitsnetz
+        const pauseIndices = [...new Set(r.pause || [])];
         let pauseNames;
         if(r.isFinale) {
             pauseNames = 'Alle außer den 4 Finalteilnehmern';
-        } else if(r.isBalance) {
-            pauseNames = (r.pause || []).map(p => players[p]).filter(Boolean).join(', ') || 'Keiner';
         } else {
-            pauseNames = (r.pause || []).map(p => players[p]).filter(Boolean).join(', ') || 'Keiner';
+            pauseNames = pauseIndices.map(p => players[p]).filter(Boolean).join(', ') || 'Keiner';
         }
-        
+
         return `<div class="${cardCls} fade-up">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                 <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;">${roundLabel}</span>
@@ -757,19 +767,19 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
     const scoredRounds = currentSchedule.filter(r => !r.isFinale);
     const { plays, partner, opponent } = calcPenalty(scoredRounds, players.length);
     const mTime = parseInt(document.getElementById('matchTime').value) || 15;
-    
+
     document.getElementById('fairnessStats').innerHTML = players.map((name, i) => `
         <div class="stat-card">
             <p style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</p>
             <p style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--blue);line-height:1;">${plays[i]}<span style="font-size:11px;">×</span></p>
             <p style="font-size:10px;color:var(--muted);font-weight:500;">~${plays[i]*mTime} Min.</p>
         </div>`).join('');
-    
+
     let mx = `<div style="overflow-x:auto;"><table style="border-collapse:collapse;font-size:9px;font-weight:700;width:100%;">
         <thead><tr><th style="padding:3px;min-width:50px;"></th>
         ${players.map(nm => `<th style="padding:3px;color:var(--muted);min-width:36px;font-weight:800;" title="${nm}">${nm.substring(0,5)}</th>`).join('')}
         </tr></thead><tbody>`;
-    
+
     players.forEach((name, i) => {
         mx += `<tr><td style="padding:3px;font-weight:800;color:var(--slate);text-align:right;padding-right:8px;font-size:8px;" title="${name}">${name.substring(0,7)}</td>`;
         players.forEach((_, j) => {
@@ -788,7 +798,7 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
         });
         mx += `</tr>`;
     });
-    
+
     mx += `</tbody></table>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:9px;font-weight:700;color:var(--muted);">
         <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f0fdf4;border:1px solid #bbf7d0;margin-right:3px;"></span>P = Partner</span>
@@ -797,7 +807,7 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
         <span>· = noch kein Kontakt</span>
     </div>`;
 
-    // ── Match/Pause Übersicht pro Spieler ──
+    // Match/Pause Übersicht pro Spieler
     const mainRounds = currentSchedule.filter(r => !r.isFinale);
     mx += `<div style="margin-top:20px;">
         <p class="lbl" style="margin-bottom:8px;">📋 Match / Pause pro Runde</p>
@@ -826,7 +836,7 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
     </div></div>`;
 
     document.getElementById('partnerStats').innerHTML = mx;
-    
+
     const mode = document.querySelector('input[name="mode"]:checked')?.value;
     const isTeam = document.querySelector('input[name="tType"]:checked')?.value === 'team';
     const modeBox = document.getElementById('modeStatsBox');
@@ -844,12 +854,12 @@ async function saveFinal() {
     const name = document.getElementById('tName').value.trim();
     if(!name) { alert('Bitte Turniernamen eingeben.'); return; }
     if(!currentSchedule.length) { alert('Bitte zuerst einen Plan erstellen.'); return; }
-    
+
     const inp = getInputs();
     const password = document.getElementById('tPassword').value.trim();
     const expiryDate = getExpiryDate();
     const courtNamesData = readCourtNames();
-    
+
     const payload = {
         tournament_type: 'roundrobin',
         p: players,
@@ -863,7 +873,7 @@ async function saveFinal() {
         expiry_date: expiryDate,
         t: { start: inp.start, warmup: inp.warmup, match: inp.matchTime }
     };
-    
+
     try {
         const { error } = await supabaseClient.from('tournaments').upsert({
             id: name,
@@ -893,17 +903,8 @@ async function deleteTournament() {
 }
 
 // ============================================================
-// PADEL HIRSCH - PRINT FUNCTION
-// Americano Spielplan + Punktetabelle
-// Ans Ende von setup-functions.js anfügen
+// PRINT FUNCTION
 // ============================================================
-
-// ============================================================
-// PADEL HIRSCH - PRINT FUNCTION
-// Americano Spielplan + Punktetabelle
-// Ans Ende von setup-functions.js anfügen
-// ============================================================
-
 function printAmericano() {
     if (!currentSchedule.length || !players.length) {
         alert('Bitte zuerst einen Spielplan erstellen oder ein Turnier laden.');
@@ -913,23 +914,18 @@ function printAmericano() {
     const tName = document.getElementById('tName')?.value?.trim() || 'Americano';
     const matchTime = parseInt(document.getElementById('matchTime')?.value) || 20;
 
-    // Runden ohne Finale, Ausgleich separat
     const mainRounds = currentSchedule.filter(r => !r.isFinale && !r.isBalance);
     const balanceRound = currentSchedule.find(r => r.isBalance) || null;
 
-    // Spieler alphabetisch sortiert mit Original-Index
     const sortedPlayers = players
         .map((name, idx) => ({ name, idx }))
         .sort((a, b) => a.name.localeCompare(b.name, 'de'));
 
-    // Court-Namen aus globalem courtNames Array
     const cNames = courtNames || ['1', '2', '3'];
-
-    // ── Spielplan HTML ────────────────────────────────────────
     const allRounds = [...mainRounds, ...(balanceRound ? [balanceRound] : [])];
 
     let planCols = '';
-    allRounds.forEach((r, idx) => {
+    allRounds.forEach((r) => {
         const isBalance = !!r.isBalance;
         const roundLabel = isBalance ? '⚖️ Ausgleich' : `Runde ${r.id}`;
         const borderColor = isBalance ? '#2563eb' : '#0f172a';
@@ -938,18 +934,16 @@ function printAmericano() {
 
         let matchesHtml = '';
         r.matches.forEach(m => {
-            let p1, p2, p3, p4;
-            if (isBalance) {
-                p1 = players[m.team1[0]] || '?';
-                p2 = players[m.team1[1]] || '?';
-                p3 = 'Virtuell 1';
-                p4 = 'Virtuell 2';
-            } else {
-                p1 = players[m.team1[0]] || '?';
-                p2 = players[m.team1[1]] || '?';
-                p3 = players[m.team2[0]] || '?';
-                p4 = players[m.team2[1]] || '?';
-            }
+            // FIX: null-safe für Druck
+            const p1 = isRealPlayer(m.team1[0], players.length) ? (players[m.team1[0]] || '?') : 'Virtuell 1';
+            const p2 = isRealPlayer(m.team1[1], players.length) ? (players[m.team1[1]] || '?') : 'Virtuell 2';
+            const p3 = isBalance
+                ? 'Virtuell 1'
+                : (isRealPlayer(m.team2[0], players.length) ? (players[m.team2[0]] || '?') : 'Virtuell 1');
+            const p4 = isBalance
+                ? 'Virtuell 2'
+                : (isRealPlayer(m.team2[1], players.length) ? (players[m.team2[1]] || '?') : 'Virtuell 2');
+
             const courtLabel = cNames[(m.court - 1)] || m.court;
             const isVirt = s => s.startsWith('Virtuell');
 
@@ -992,7 +986,9 @@ function printAmericano() {
                 </div>`;
         });
 
-        const pauseNames = (r.pause || []).map(p => players[p]).filter(Boolean).join(', ') || '–';
+        // FIX: Deduplizierung auch im Print
+        const pauseIndices = [...new Set(r.pause || [])];
+        const pauseNames = pauseIndices.map(p => players[p]).filter(Boolean).join(', ') || '–';
 
         planCols += `
             <div style="break-inside:avoid; border:1.5px solid ${borderColor}; border-radius:8px; overflow:hidden; min-width:148px; flex:1;">
@@ -1009,7 +1005,7 @@ function printAmericano() {
             </div>`;
     });
 
-    // ── Punktetabelle HTML ────────────────────────────────────
+    // Punktetabelle
     let tableHead = `<th style="${thStyle('120px', true)}">Spieler</th>`;
     mainRounds.forEach((r, i) => {
         tableHead += `<th style="${thStyle()}">${r.time}<br><span style="font-weight:400;font-size:6.5pt;">R${i+1}</span></th>`;
@@ -1034,7 +1030,10 @@ function printAmericano() {
         });
 
         if (balanceRound) {
-            const isPlaying = balanceRound.matches.some(m => m.team1.includes(idx));
+            const isPlaying = balanceRound.matches.some(m =>
+                isRealPlayer(m.team1[0], players.length) && m.team1[0] === idx ||
+                isRealPlayer(m.team1[1], players.length) && m.team1[1] === idx
+            );
             if (isPlaying) {
                 row += `<td style="${tdStyle('', '#eff6ff', false, true)}"></td>`;
             } else {
@@ -1046,7 +1045,6 @@ function printAmericano() {
         tableRows += `<tr>${row}</tr>`;
     });
 
-    // ── Print Window öffnen ───────────────────────────────────
     const win = window.open('', '_blank');
     win.document.write(`<!DOCTYPE html>
 <html lang="de">
@@ -1073,39 +1071,29 @@ function printAmericano() {
 </style>
 </head>
 <body>
-
-<!-- SEITE 1: SPIELPLAN -->
 <div class="page page-break">
     <h1>${tName}</h1>
     <div class="meta">Spielplan · ${mainRounds.length} Runden · ${matchTime} Min./Runde · ${players.length} Spieler:innen</div>
     <div class="rounds-grid">${planCols}</div>
 </div>
-
-<!-- SEITE 2: PUNKTETABELLE -->
 <div class="page">
     <h1>${tName} – Punktetabelle</h1>
     <div class="meta">Alphabetisch sortiert · P = Pause · Leere Felder = Punkte eintragen</div>
     <table style="margin-top:8px;">
         <thead>
-            <tr style="background:#0f172a; color:white;">
-                ${tableHead}
-            </tr>
+            <tr style="background:#0f172a; color:white;">${tableHead}</tr>
         </thead>
         <tbody>${tableRows}</tbody>
     </table>
 </div>
-
 <script>
-    window.onload = function() {
-        setTimeout(function() { window.print(); }, 400);
-    };
+    window.onload = function() { setTimeout(function() { window.print(); }, 400); };
 <\/script>
 </body>
 </html>`);
     win.document.close();
 }
 
-// Helper Styles
 function thStyle(width, isName, isBalance) {
     return [
         'padding: 5px 4px',
