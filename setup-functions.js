@@ -588,7 +588,7 @@ function generateVariant(inputs) {
                 consecPauses[p] = 0;
             } else {
                 consecPauses[p]++;
-                rem.push(p);
+                
             }
         }
         round.pause = rem.filter(p => !round.matches.some(m => m.team1.includes(p) || m.team2.includes(p)));
