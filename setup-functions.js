@@ -642,9 +642,9 @@ async function runOptimization() {
         const balanceMatches = [];
         let rem = [...underPlayed];
         let courtNum = 1;
-        while(rem.length >= 2) {
+        while(rem.length >= 1) {
             const p1 = rem.shift();
-            const p2 = rem.shift();
+            const p2 = rem.length > 0 ? rem.shift() : null;
             balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: ['VIRT1', 'VIRT2'] });
         }
         const balancePause = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
