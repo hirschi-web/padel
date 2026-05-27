@@ -932,8 +932,12 @@ function printAmericano() {
     const cNames = courtNames || ['1', '2', '3'];
     const allRounds = [...mainRounds, ...(balanceRound ? [balanceRound] : [])];
 
-    let planCols = '';
-    allRounds.forEach((r) => {
+    // Runden in zwei Hälften aufteilen
+    const half = Math.ceil(allRounds.length / 2);
+    const row1Rounds = allRounds.slice(0, half);
+    const row2Rounds = allRounds.slice(half);
+
+    function buildRoundCard(r) {
         const isBalance = !!r.isBalance;
         const roundLabel = isBalance ? '⚖️ Ausgleich' : `Runde ${r.id}`;
         const borderColor = isBalance ? '#2563eb' : '#0f172a';
@@ -942,7 +946,6 @@ function printAmericano() {
 
         let matchesHtml = '';
         r.matches.forEach(m => {
-            // FIX: null-safe für Druck
             const p1 = isRealPlayer(m.team1[0], players.length) ? (players[m.team1[0]] || '?') : 'Virtuell 1';
             const p2 = isRealPlayer(m.team1[1], players.length) ? (players[m.team1[1]] || '?') : 'Virtuell 2';
             const p3 = isBalance
@@ -954,45 +957,60 @@ function printAmericano() {
 
             const courtLabel = cNames[(m.court - 1)] || m.court;
             const isVirt = s => s.startsWith('Virtuell');
-
             const scoreAreaBg   = isBalance ? '#eff6ff' : '#f0f9ff';
-            const scoreAreaBdr  = isBalance ? '#93c5fd' : '#bae6fd';
             const scoreBoxBdr   = isBalance ? '#60a5fa' : '#93c5fd';
             const courtBg       = isBalance ? '#eff6ff' : '#f8fafc';
-            const courtColor    = isBalance ? '#3b82f6'  : '#64748b';
-            const courtBdrColor = isBalance ? '#bfdbfe'  : '#e2e8f0';
+            const courtColor    = isBalance ? '#3b82f6' : '#64748b';
+            const courtBdrColor = isBalance ? '#bfdbfe' : '#e2e8f0';
 
             matchesHtml += `
-                <div style="border:1px solid ${isBalance ? '#bfdbfe' : '#e2e8f0'}; border-radius:6px; overflow:hidden; margin-bottom:5px;">
-                    <div style="font-size:6.5pt; font-weight:700; color:${courtColor}; padding:3px 6px 2px;
+                <div style="border:1px solid ${isBalance ? '#bfdbfe' : '#e2e8f0'}; border-radius:6px; overflow:hidden; margin-bottom:4px;">
+                    <div style="font-size:6pt; font-weight:700; color:${courtColor}; padding:2px 6px;
                                 background:${courtBg}; border-bottom:1px solid ${courtBdrColor};
                                 letter-spacing:.04em; text-transform:uppercase;">
                         Court ${courtLabel}
                     </div>
-                    <div style="display:flex; align-items:stretch;">
-                        <div style="flex:1; padding:4px 5px;">
-                            <div style="font-size:7.5pt; font-weight:700; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                    <div style="display:flex; align-items:center; gap:3px; padding:3px 5px;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:7pt; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
                                         ${isVirt(p1) ? 'color:#93c5fd; font-style:italic;' : 'color:#0f172a;'}">${p1}</div>
-                            <div style="font-size:7.5pt; font-weight:700; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                            <div style="font-size:7pt; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
                                         ${isVirt(p2) ? 'color:#93c5fd; font-style:italic;' : 'color:#0f172a;'}">${p2}</div>
                         </div>
-                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
-                                    padding:4px 5px; gap:3px; background:${scoreAreaBg};
-                                    border-left:1px solid ${scoreAreaBdr}; border-right:1px solid ${scoreAreaBdr};
-                                    min-width:34px;">
-                            <div style="width:22px; height:14px; border:1.5px solid ${scoreBoxBdr}; border-radius:3px; background:#fff;"></div>
-                            <div style="width:3px; height:3px; border-radius:50%; background:#cbd5e1;"></div>
-                            <div style="width:22px; height:14px; border:1.5px solid ${scoreBoxBdr}; border-radius:3px; background:#fff;"></div>
+                        <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
+                            <div style="width:20px; height:16px; border:1.5px solid ${scoreBoxBdr}; border-radius:3px; background:${scoreAreaBg};"></div>
+                            <div style="font-size:8pt; font-weight:900; color:#94a3b8;">:</div>
+                            <div style="width:20px; height:16px; border:1.5px solid ${scoreBoxBdr}; border-radius:3px; background:${scoreAreaBg};"></div>
                         </div>
-                        <div style="flex:1; padding:4px 5px; text-align:right;">
-                            <div style="font-size:7.5pt; font-weight:700; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                        <div style="flex:1; min-width:0; text-align:right;">
+                            <div style="font-size:7pt; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
                                         ${isVirt(p3) ? 'color:#93c5fd; font-style:italic;' : 'color:#0f172a;'}">${p3}</div>
-                            <div style="font-size:7.5pt; font-weight:700; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                            <div style="font-size:7pt; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
                                         ${isVirt(p4) ? 'color:#93c5fd; font-style:italic;' : 'color:#0f172a;'}">${p4}</div>
                         </div>
                     </div>
                 </div>`;
         });
+
+        const pauseIndices = [...new Set(r.pause || [])];
+        const pauseNames = pauseIndices.map(p => players[p]).filter(Boolean).join(', ') || '–';
+
+        return `<div style="break-inside:avoid; border:1.5px solid ${borderColor}; border-radius:8px; overflow:hidden; min-width:120px; flex:1;">
+            <div style="background:${bgHeader}; color:${colorHeader}; padding:5px 8px;">
+                <div style="font-family:'Barlow Condensed',sans-serif; font-size:9.5pt; font-weight:900; letter-spacing:.05em; text-transform:uppercase;">${roundLabel}</div>
+                <div style="font-size:7pt; opacity:.8; margin-top:1px;">${r.time} · ${matchTime} Min.</div>
+            </div>
+            <div style="padding:5px;">
+                ${matchesHtml}
+                <div style="margin-top:3px; font-size:6pt; color:#f97316; font-weight:700;">
+                    Pause: ${pauseNames}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    const planRow1 = row1Rounds.map(buildRoundCard).join('');
+    const planRow2 = row2Rounds.map(buildRoundCard).join('');
 
         // FIX: Deduplizierung auch im Print
         const pauseIndices = [...new Set(r.pause || [])];
@@ -1073,7 +1091,7 @@ function printAmericano() {
     h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 22pt; font-weight: 900;
          font-style: italic; color: #2563eb; text-transform: uppercase; letter-spacing: -.01em; }
     .meta { font-size: 8pt; color: #64748b; margin-top: 2px; margin-bottom: 10px; }
-    .rounds-grid { display: flex; gap: 8px; flex-wrap: nowrap; align-items: flex-start; }
+   .rounds-grid { display: flex; gap: 6px; flex-wrap: nowrap; align-items: flex-start; margin-bottom: 8px; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #e2e8f0; }
 </style>
@@ -1082,7 +1100,8 @@ function printAmericano() {
 <div class="page page-break">
     <h1>${tName}</h1>
     <div class="meta">Spielplan · ${mainRounds.length} Runden · ${matchTime} Min./Runde · ${players.length} Spieler:innen</div>
-    <div class="rounds-grid">${planCols}</div>
+       <div class="rounds-grid">${planRow1}</div>
+    <div class="rounds-grid">${planRow2}</div>
 </div>
 <div class="page">
     <h1>${tName} – Punktetabelle</h1>
