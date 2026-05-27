@@ -1096,16 +1096,16 @@ function printAmericano() {
 
 function thStyle(width, isName, isBalance) {
     return [
-        'padding: 5px 4px',
+        'padding: 3px 2px',
         'text-align: center',
         'font-family: Barlow Condensed, sans-serif',
-        'font-size: 8pt',
+        'font-size: 7pt',
         'font-weight: 900',
-        'letter-spacing: .05em',
+        'letter-spacing: .04em',
         'text-transform: uppercase',
-        'line-height: 1.3',
-        width ? `width: ${width}` : 'min-width: 28px',
-        isName ? 'text-align: left; padding-left: 8px;' : '',
+        'line-height: 1.2',
+        width ? `width: ${width}` : 'min-width: 22px',
+        isName ? 'text-align: left; padding-left: 6px;' : '',
         isBalance ? 'background: #1e3a8a; color: #bfdbfe;' : '',
     ].filter(Boolean).join('; ');
 }
@@ -1115,9 +1115,9 @@ function tdStyle(width, bg, isName, isBalance) {
         'padding: 0',
         'text-align: center',
         'vertical-align: middle',
-        'height: 18mm',
+        'height: 12mm',
         width ? `width: ${width}` : '',
         bg ? `background: ${bg}` : '',
-        isName ? 'text-align: left; padding-left: 8px; font-weight: 700; font-size: 9pt; white-space: nowrap;' : 'font-size: 10pt;',
+        isName ? 'text-align: left; padding-left: 6px; font-weight: 700; font-size: 8pt; white-space: nowrap;' : 'font-size: 9pt;',
     ].filter(Boolean).join('; ');
 }
