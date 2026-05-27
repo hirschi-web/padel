@@ -431,10 +431,10 @@ function getInputs() {
         numRounds: Math.max(1, numRounds)
     };
 }
+
 // ============================================================
 // OPTIMIZATION ENGINE
 // ============================================================
-// FIX: Filter schließt null und nicht-numerische Werte (virtuelle Spieler) aus
 function isRealPlayer(p, numPlayers) {
     return p !== null && p !== undefined && typeof p === 'number' && p < numPlayers;
 }
@@ -447,7 +447,6 @@ function calcPenalty(schedule, numPlayers) {
     schedule.forEach(r => {
         r.matches.forEach(m => {
             const [a, b, c, d] = [m.team1[0], m.team1[1], m.team2[0], m.team2[1]];
-            // FIX: null-safe filter
             [a, b, c, d].filter(p => isRealPlayer(p, numPlayers)).forEach(p => plays[p]++);
             if(isRealPlayer(a, numPlayers) && isRealPlayer(b, numPlayers)) {
                 partner[a][b]++; partner[b][a]++;
@@ -582,7 +581,7 @@ function generateVariant(inputs) {
             round.matches.push({ court: c + 1, team1: [p1, p2], team2: [p3, p4] });
         }
 
-        // FIX: Pausen-Tracker updaten OHNE rem.push(p) - rem enthält bereits korrekte Pause-Spieler
+        // Pausen-Tracker updaten (kein rem.push - rem enthält bereits korrekte Pause-Spieler)
         for(let p = 0; p < count; p++) {
             if(round.matches.some(m => m.team1.includes(p) || m.team2.includes(p))) {
                 consecPauses[p] = 0;
@@ -639,21 +638,17 @@ async function runOptimization() {
         const { plays } = calcPenalty(bestSchedule, players.length);
         const minPlays = Math.min(...plays);
 
-        // Alle die weniger gespielt haben
         const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
-
-        // FIX: Max courts*4 echte Spieler im Ausgleich (nicht mehr als Plätze hergeben)
         const maxInBalance = inputs.courts * 4;
         const spielende = underPlayed.slice(0, maxInBalance);
         const pauseUnderPlayed = underPlayed.slice(maxInBalance);
 
-        // Matches bauen: je 2 echte Spieler pro Court gegen virtuelle Gegner
         const balanceMatches = [];
         let rem = [...spielende];
         let courtNum = 1;
         while(rem.length >= 1 && courtNum <= inputs.courts) {
             const p1 = rem.shift();
-            const p2 = rem.length > 0 ? rem.shift() : null; // null = virtueller Partner
+            const p2 = rem.length > 0 ? rem.shift() : null;
             balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: [null, null] });
         }
         // Freie Courts mit komplett virtuellen Spielern auffüllen
@@ -661,7 +656,6 @@ async function runOptimization() {
             balanceMatches.push({ court: courtNum++, team1: [null, null], team2: [null, null] });
         }
 
-        // Pause = overplayed + überschüssige underplayed
         const overPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
         const balancePause = [...overPlayed, ...pauseUnderPlayed];
 
@@ -722,7 +716,6 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
             if(r.isFinale) {
                 p1 = '🥇 Platz 1'; p2 = '🥈 Platz 4'; p3 = '🥈 Platz 2'; p4 = '🥉 Platz 3';
             } else if(r.isBalance) {
-                // FIX: null-safe Anzeige für echte und virtuelle Spieler
                 p1 = isRealPlayer(m.team1[0], players.length) ? (players[m.team1[0]] || 'Virtuell 1') : 'Virtuell 1';
                 p2 = isRealPlayer(m.team1[1], players.length) ? (players[m.team1[1]] || 'Virtuell 2') : 'Virtuell 2';
                 p3 = 'Virtuell 1';
@@ -746,7 +739,6 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
             </div>`;
         }).join('');
 
-        // FIX: Deduplizierung der pause-Indizes als Sicherheitsnetz
         const pauseIndices = [...new Set(r.pause || [])];
         let pauseNames;
         if(r.isFinale) {
@@ -932,7 +924,7 @@ function printAmericano() {
     const cNames = courtNames || ['1', '2', '3'];
     const allRounds = [...mainRounds, ...(balanceRound ? [balanceRound] : [])];
 
-    // Runden in zwei Hälften aufteilen
+    // Runden in zwei Zeilen aufteilen
     const half = Math.ceil(allRounds.length / 2);
     const row1Rounds = allRounds.slice(0, half);
     const row2Rounds = allRounds.slice(half);
@@ -941,7 +933,7 @@ function printAmericano() {
         const isBalance = !!r.isBalance;
         const roundLabel = isBalance ? '⚖️ Ausgleich' : `Runde ${r.id}`;
         const borderColor = isBalance ? '#2563eb' : '#0f172a';
-        const bgHeader = isBalance ? '#eff6ff' : '#0f172a';
+        const bgHeader    = isBalance ? '#eff6ff' : '#0f172a';
         const colorHeader = isBalance ? '#1e40af' : '#ffffff';
 
         let matchesHtml = '';
@@ -955,8 +947,8 @@ function printAmericano() {
                 ? 'Virtuell 2'
                 : (isRealPlayer(m.team2[1], players.length) ? (players[m.team2[1]] || '?') : 'Virtuell 2');
 
-            const courtLabel = cNames[(m.court - 1)] || m.court;
-            const isVirt = s => s.startsWith('Virtuell');
+            const courtLabel    = cNames[(m.court - 1)] || m.court;
+            const isVirt        = s => s.startsWith('Virtuell');
             const scoreAreaBg   = isBalance ? '#eff6ff' : '#f0f9ff';
             const scoreBoxBdr   = isBalance ? '#60a5fa' : '#93c5fd';
             const courtBg       = isBalance ? '#eff6ff' : '#f8fafc';
@@ -993,7 +985,7 @@ function printAmericano() {
         });
 
         const pauseIndices = [...new Set(r.pause || [])];
-        const pauseNames = pauseIndices.map(p => players[p]).filter(Boolean).join(', ') || '–';
+        const pauseNames   = pauseIndices.map(p => players[p]).filter(Boolean).join(', ') || '–';
 
         return `<div style="break-inside:avoid; border:1.5px solid ${borderColor}; border-radius:8px; overflow:hidden; min-width:120px; flex:1;">
             <div style="background:${bgHeader}; color:${colorHeader}; padding:5px 8px;">
@@ -1011,25 +1003,6 @@ function printAmericano() {
 
     const planRow1 = row1Rounds.map(buildRoundCard).join('');
     const planRow2 = row2Rounds.map(buildRoundCard).join('');
-
-        // FIX: Deduplizierung auch im Print
-        const pauseIndices = [...new Set(r.pause || [])];
-        const pauseNames = pauseIndices.map(p => players[p]).filter(Boolean).join(', ') || '–';
-
-        planCols += `
-            <div style="break-inside:avoid; border:1.5px solid ${borderColor}; border-radius:8px; overflow:hidden; min-width:148px; flex:1;">
-                <div style="background:${bgHeader}; color:${colorHeader}; padding:6px 8px;">
-                    <div style="font-family:'Barlow Condensed',sans-serif; font-size:10pt; font-weight:900; letter-spacing:.05em; text-transform:uppercase;">${roundLabel}</div>
-                    <div style="font-size:7.5pt; opacity:.8; margin-top:1px;">${r.time} · ${matchTime} Min.</div>
-                </div>
-                <div style="padding:6px;">
-                    ${matchesHtml}
-                    <div style="margin-top:4px; font-size:6.5pt; color:#f97316; font-weight:700;">
-                        Pause: ${pauseNames}
-                    </div>
-                </div>
-            </div>`;
-    });
 
     // Punktetabelle
     let tableHead = `<th style="${thStyle('120px', true)}">Spieler</th>`;
@@ -1091,7 +1064,7 @@ function printAmericano() {
     h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 22pt; font-weight: 900;
          font-style: italic; color: #2563eb; text-transform: uppercase; letter-spacing: -.01em; }
     .meta { font-size: 8pt; color: #64748b; margin-top: 2px; margin-bottom: 10px; }
-   .rounds-grid { display: flex; gap: 6px; flex-wrap: nowrap; align-items: flex-start; margin-bottom: 8px; }
+    .rounds-grid { display: flex; gap: 6px; flex-wrap: nowrap; align-items: flex-start; margin-bottom: 8px; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #e2e8f0; }
 </style>
@@ -1100,7 +1073,7 @@ function printAmericano() {
 <div class="page page-break">
     <h1>${tName}</h1>
     <div class="meta">Spielplan · ${mainRounds.length} Runden · ${matchTime} Min./Runde · ${players.length} Spieler:innen</div>
-       <div class="rounds-grid">${planRow1}</div>
+    <div class="rounds-grid">${planRow1}</div>
     <div class="rounds-grid">${planRow2}</div>
 </div>
 <div class="page">
