@@ -163,15 +163,19 @@ function applyRoundElo(round) {
             else if (myScore < oppScore) p.losses++;
             p.matches++;
 
-            // Elo-Update
-            const others   = all.filter(id => id !== pid).map(id => players.find(x=>x.id===id)?.liveLevel || 1);
-            const avgOther = others.reduce((a,b)=>a+b,0) / others.length;
-            const expected = 1 / (1 + Math.exp(-(p.liveLevel - avgOther) * ELO.STEEP));
-            const actual   = myScore / ELO.MAX_PTS;
-            const rel      = Math.min(p.reliability, ELO.REL_MAX);
-            const k        = ELO.BASE_K * (1 - rel * (1 - ELO.MIN_K));
-            p.liveLevel   += k * (actual - expected);
-            p.reliability  = Math.min(p.reliability + ELO.REL_GAIN, ELO.REL_MAX);
+            // Elo-Update — Team A Schnitt vs Team B Schnitt
+            const myTeam     = inA ? teamA : teamB;
+            const oppTeam    = inA ? teamB : teamA;
+            const teamAvg    = myTeam.map(id => players.find(x=>x.id===id)?.liveLevel || 1)
+                                     .reduce((a,b)=>a+b,0) / myTeam.length;
+            const oppAvg     = oppTeam.map(id => players.find(x=>x.id===id)?.liveLevel || 1)
+                                      .reduce((a,b)=>a+b,0) / oppTeam.length;
+            const expected   = 1 / (1 + Math.exp(-(teamAvg - oppAvg) * ELO.STEEP));
+            const actual     = myScore / ELO.MAX_PTS;
+            const rel        = Math.min(p.reliability, ELO.REL_MAX);
+            const k          = ELO.BASE_K * (1 - rel * (1 - ELO.MIN_K));
+            p.liveLevel     += k * (actual - expected);
+            p.reliability    = Math.min(p.reliability + ELO.REL_GAIN, ELO.REL_MAX);
         }
     }
 }
