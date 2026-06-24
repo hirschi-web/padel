@@ -12,7 +12,7 @@ const ELO = { MAX_PTS:24, BASE_K:.40, MIN_K:.15, REL_GAIN:.10, REL_MAX:1.0, STEE
 
 // ── State ────────────────────────────────────────────────────
 let tournamentId   = null;
-let tournament     = null;   // DB row 
+let tournament     = null;   // DB row
 let tData          = null;   // data JSONB
 let players        = [];     // live player objects
 let isAdmin        = false;
@@ -125,6 +125,7 @@ function buildPlayers(rows) {
         liveLevel:   r.start_level || 1.0,
         reliability: 0,
         points:      0,
+        pointsAgainst: 0,
         wins:        0,
         losses:      0,
         matches:     0,
@@ -157,6 +158,7 @@ function applyRoundElo(round) {
 
             // Turnierpunkte
             p.points += myScore;
+            p.pointsAgainst += oppScore;
             if (myScore > oppScore) p.wins++;
             else if (myScore < oppScore) p.losses++;
             p.matches++;
@@ -598,8 +600,7 @@ async function finishRound() {
     active.completed = true;
 
     // Elo neu berechnen (fresh rebuild)
-    players.forEach(p => { p.points=0;p.wins=0;p.losses=0;p.matches=0;p.liveLevel=p.startLevel;p.reliability=0; });
-    for (const r of tData.rounds.filter(x=>x.completed)) applyRoundElo(r);
+    rebuildPlayerState();
 
     const snap = {};
     players.forEach(p => { snap[p.id] = p.liveLevel; });
@@ -677,6 +678,8 @@ function renderRanking() {
             `<span style="font-size:10px;color:${delta>0?'var(--green)':'var(--red)'};font-weight:700;margin-left:4px">${delta>0?'+':''}${delta.toFixed(2)}</span>`;
         const levelStr  = `<span style="font-size:11px;font-family:'Space Mono',monospace;color:var(--text-muted)">${curLevel.toFixed(2)}${deltaStr}</span>`;
 
+        const ptDiff = p.points - p.pointsAgainst;
+
         return `<tr class="${isGold?'rank-gold':''}" style="border-bottom:1.5px solid var(--border);${isFocus?'background:rgba(96,165,250,.07)':''}">
             <td style="padding:12px 16px;font-size:13px;font-weight:800;color:${isGold?'var(--gold)':'var(--text-muted)'}">${isGold?'👑':'#'+(i+1)}</td>
             <td style="padding:12px 10px;font-size:13px;font-weight:${isFocus?'900':'700'};text-transform:uppercase;color:${isFocus?'var(--accent)':'var(--text)'}">
@@ -685,19 +688,82 @@ function renderRanking() {
             </td>
             <td style="padding:12px 10px;text-align:center;font-size:12px;font-weight:600;color:var(--text-muted)">${p.wins}/${p.losses}</td>
             <td style="padding:12px 10px;text-align:center;font-size:16px;font-weight:800;font-family:'Space Mono',monospace;color:var(--text)">${p.points}</td>
-            <td style="padding:12px 16px;text-align:center;font-size:13px;font-weight:700;font-family:'Space Mono',monospace;color:${diff>0?'var(--green)':diff<0?'var(--red)':'var(--text-muted)'}">${diff>0?'+':''}${diff}</td>
+            <td style="padding:12px 16px;text-align:center;font-size:13px;font-weight:700;font-family:'Space Mono',monospace;color:${ptDiff>0?'var(--green)':ptDiff<0?'var(--red)':'var(--text-muted)'}">${ptDiff>0?'+':''}${ptDiff}</td>
         </tr>`;
     }).join('');
 }
 
-// ── History ───────────────────────────────────────────────────
-// Welche Runden sind aufgeklappt — nur die letzte standardmäßig
+// ── History ein/ausklappbar + nachträgliche Bearbeitung ───────
 const historyExpanded = new Set();
+let editingRound = null; // roundNumber der gerade bearbeiteten Runde
 
 function toggleHistory(roundNum) {
     if (historyExpanded.has(roundNum)) historyExpanded.delete(roundNum);
     else historyExpanded.add(roundNum);
     renderHistory();
+}
+
+function startEditRound(roundNum) {
+    editingRound = roundNum;
+    historyExpanded.add(roundNum);
+    renderHistory();
+}
+
+function cancelEditRound() {
+    editingRound = null;
+    renderHistory();
+}
+
+async function saveEditedRound(roundNum) {
+    const round = (tData.rounds||[]).find(r => r.roundNumber === roundNum);
+    if (!round) return;
+
+    for (let ci = 0; ci < round.courts.length; ci++) {
+        const vA = document.getElementById(`edit-${roundNum}-${ci}-A`)?.value;
+        const vB = document.getElementById(`edit-${roundNum}-${ci}-B`)?.value;
+        round.courts[ci].scoreA = (vA !== '' && vA != null) ? Number(vA) : null;
+        round.courts[ci].scoreB = (vB !== '' && vB != null) ? Number(vB) : null;
+    }
+
+    // Elo komplett neu berechnen
+    rebuildPlayerState();
+
+    // Snapshot der bearbeiteten Runde aktualisieren
+    const snap = {};
+    players.forEach(p => { snap[p.id] = p.liveLevel; });
+    round.levelSnapshot = snap;
+
+    editingRound = null;
+    await saveTData();
+    renderAll();
+    showToast('✅ Scores aktualisiert & Tabelle neu berechnet', 'success');
+}
+
+function rebuildPlayerState() {
+    // Player-State komplett von Grund auf neu berechnen
+    players.forEach(p => {
+        p.points = 0; p.pointsAgainst = 0; p.wins = 0;
+        p.losses = 0; p.matches = 0;
+        p.liveLevel = p.startLevel; p.reliability = 0;
+    });
+    for (const r of (tData.rounds||[]).filter(x => x.completed)) {
+        applyRoundElo(r);
+    }
+}
+
+async function recalcLastRound() {
+    if (!confirm('Aktuelle Runde löschen und neu berechnen? Die eingetragenen Scores bleiben in der History erhalten.')) return;
+    const rounds = tData.rounds || [];
+    // Letzte nicht-abgeschlossene Runde entfernen, oder letzte abgeschlossene
+    const lastActive = rounds.findIndex(r => !r.completed);
+    if (lastActive !== -1) {
+        tData.rounds.splice(lastActive, 1);
+    }
+    rebuildPlayerState();
+    pendingRound = calcRound((tData.rounds||[]).filter(r=>r.completed).length + 1);
+    await saveTData();
+    renderAll();
+    showToast('🔄 Runde neu berechnet', 'success');
 }
 
 function renderHistory() {
@@ -714,12 +780,17 @@ function renderHistory() {
     let html = `<div class="mt-8 anim-in">
         <h2 style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">📜 Vergangene Runden</h2>`;
 
+    // Admin: Runde neu berechnen Button
+    if (isAdmin) {
+        html += `<button onclick="recalcLastRound()" style="font-size:11px;font-weight:700;color:var(--text-muted);background:none;border:1.5px solid var(--border);border-radius:10px;padding:6px 12px;cursor:pointer;margin-bottom:10px;font-family:Outfit,sans-serif">🔄 Aktuelle Runde neu berechnen</button>`;
+    }
+
     for (const round of [...done].reverse()) {
         const ti        = round.roundNumber - 1;
         const timeStr   = times[ti]!=null ? ` · ${toHHMM(times[ti])}` : '';
         const isOpen    = historyExpanded.has(round.roundNumber);
+        const isEditing = editingRound === round.roundNumber;
 
-        // Scores zusammenfassen für Header
         const scoreSum = round.courts.map(c =>
             c.scoreA!=null ? `${c.scoreA}:${c.scoreB}` : '–'
         ).join('  ');
@@ -730,38 +801,70 @@ function renderHistory() {
                 <span class="round-time">Runde ${round.roundNumber}${timeStr}</span>
                 <span style="font-size:11px;color:var(--text-dim);font-family:'Space Mono',monospace">${scoreSum}</span>
                 <div style="flex:1;height:1px;background:var(--border)"></div>
+                ${isAdmin && !isEditing ? `<span onclick="event.stopPropagation();startEditRound(${round.roundNumber})" style="font-size:11px;color:var(--accent);font-weight:700;padding:2px 8px;border:1.5px solid var(--accent);border-radius:8px;white-space:nowrap">✏️</span>` : ''}
                 <span style="font-size:12px;color:var(--text-dim)">${isOpen?'▲':'▼'}</span>
             </button>`;
 
         if (isOpen) {
-            for (let ci=0; ci<round.courts.length; ci++) {
-                const court = round.courts[ci];
-                const pA    = court.teamA.map(id=>players.find(p=>p.id===id));
-                const pB    = court.teamB.map(id=>players.find(p=>p.id===id));
-                const hasSc = court.scoreA!=null && court.scoreB!=null;
-                const wA    = hasSc && court.scoreA>court.scoreB;
-                const wB    = hasSc && court.scoreB>court.scoreA;
-                const isFoc = focus && [...court.teamA,...court.teamB].some(id=>players.find(p=>p.id===id)?.name===focus);
-                html += `<div class="history-card ${isFoc?'focused':''}">
-                    <div class="court-label" style="margin-bottom:8px">Court ${esc(getCourtName(ci))}</div>
-                    <div class="teams-row">
-                        <div class="team" style="opacity:${wB?.45:1}">
-                            ${pA.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}
+            if (isEditing) {
+                // Bearbeitungs-Modus: Score-Inputs
+                for (let ci=0; ci<round.courts.length; ci++) {
+                    const court = round.courts[ci];
+                    const pA    = court.teamA.map(id=>players.find(p=>p.id===id));
+                    const pB    = court.teamB.map(id=>players.find(p=>p.id===id));
+                    html += `<div class="history-card" style="border-color:var(--accent)">
+                        <div class="court-label" style="margin-bottom:8px;color:var(--accent)">Court ${esc(getCourtName(ci))} · Bearbeiten</div>
+                        <div class="teams-row">
+                            <div class="team">${pA.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}</div>
+                            <div class="vs">vs</div>
+                            <div class="team right">${pB.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}</div>
                         </div>
-                        <div style="text-align:center;flex-shrink:0">
-                            ${hasSc
-                                ? `<div style="font-family:'Space Mono',monospace;font-weight:700;font-size:17px;color:var(--text)">${court.scoreA}:${court.scoreB}</div>`
-                                : `<div class="vs">vs</div>`}
+                        <div class="score-row">
+                            <input class="score-box" type="number" inputmode="numeric"
+                                id="edit-${round.roundNumber}-${ci}-A"
+                                value="${court.scoreA??''}" min="0" max="99" placeholder="–">
+                            <span class="score-sep">:</span>
+                            <input class="score-box" type="number" inputmode="numeric"
+                                id="edit-${round.roundNumber}-${ci}-B"
+                                value="${court.scoreB??''}" min="0" max="99" placeholder="–">
                         </div>
-                        <div class="team right" style="opacity:${wA?.45:1}">
-                            ${pB.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}
-                        </div>
-                    </div>
+                    </div>`;
+                }
+                html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;margin-bottom:8px">
+                    <button class="admin-btn admin-btn-success" onclick="saveEditedRound(${round.roundNumber})">✅ Speichern</button>
+                    <button class="admin-btn admin-btn-neutral" onclick="cancelEditRound()">Abbrechen</button>
                 </div>`;
+            } else {
+                // Normal-Ansicht
+                for (let ci=0; ci<round.courts.length; ci++) {
+                    const court = round.courts[ci];
+                    const pA    = court.teamA.map(id=>players.find(p=>p.id===id));
+                    const pB    = court.teamB.map(id=>players.find(p=>p.id===id));
+                    const hasSc = court.scoreA!=null && court.scoreB!=null;
+                    const wA    = hasSc && court.scoreA>court.scoreB;
+                    const wB    = hasSc && court.scoreB>court.scoreA;
+                    const isFoc = focus && [...court.teamA,...court.teamB].some(id=>players.find(p=>p.id===id)?.name===focus);
+                    html += `<div class="history-card ${isFoc?'focused':''}">
+                        <div class="court-label" style="margin-bottom:8px">Court ${esc(getCourtName(ci))}</div>
+                        <div class="teams-row">
+                            <div class="team" style="opacity:${wB?.45:1}">
+                                ${pA.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}
+                            </div>
+                            <div style="text-align:center;flex-shrink:0">
+                                ${hasSc
+                                    ? `<div style="font-family:'Space Mono',monospace;font-weight:700;font-size:17px;color:var(--text)">${court.scoreA}:${court.scoreB}</div>`
+                                    : `<div class="vs">vs</div>`}
+                            </div>
+                            <div class="team right" style="opacity:${wA?.45:1}">
+                                ${pB.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>`;
+                }
             }
         }
 
-        html += `</div>`; // /round block
+        html += `</div>`;
     }
 
     html += `</div>`;
