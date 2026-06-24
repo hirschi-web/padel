@@ -163,8 +163,9 @@ async function loadExistingTournament(id) {
         infoEl.textContent = `📂 Geladen: "${data.name}" (${data.status})`;
         infoEl.classList.remove('hidden');
 
-        // Save-Button auf "Aktualisieren" umschalten
+        // Save-Button auf "Aktualisieren" umschalten, Löschen-Button zeigen
         document.getElementById('mxSaveBtn').textContent = '💾 Turnier aktualisieren';
+        document.getElementById('mxDeleteBtn').classList.remove('hidden');
         currentlyLoadedId = id;
 
         // Live-Link direkt zeigen
@@ -185,6 +186,7 @@ function resetToNew() {
     document.getElementById('mxSaveError').classList.add('hidden');
     document.getElementById('mxSaveSuccess').classList.add('hidden');
     document.getElementById('mxSaveBtn').textContent = '🎾 Mexicano-Turnier anlegen';
+    document.getElementById('mxDeleteBtn').classList.add('hidden');
 
     // Felder leeren
     document.getElementById('mxName').value       = '';
@@ -337,8 +339,27 @@ function renderCourtNameInputs(courts) {
     container.innerHTML = html;
 }
 
-// ============================================================
-// VORSCHAU: RUNDE 1 (SHUFFLE) + ZEITPLAN + TEILNEHMER
+async function deleteCurrentTournament() {
+    if (!currentlyLoadedId) return;
+    const name = document.getElementById('mxName').value || currentlyLoadedId;
+    if (!confirm(`Turnier "${name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
+
+    try {
+        // Erst Teilnehmer-Zeilen löschen (FK), dann Turnier
+        await supabaseClient.from('mex_tournament_players').delete().eq('tournament_id', currentlyLoadedId);
+        await supabaseClient.from('mex_tournament_access').delete().eq('tournament_id', currentlyLoadedId);
+        const { error } = await supabaseClient.from('mex_tournaments').delete().eq('id', currentlyLoadedId);
+        if (error) throw error;
+
+        await loadTournamentList();
+        resetToNew();
+        document.getElementById('mxSaveSuccess').textContent = `🗑 "${name}" wurde gelöscht.`;
+        document.getElementById('mxSaveSuccess').classList.remove('hidden');
+    } catch(e) {
+        document.getElementById('mxSaveError').textContent = 'Fehler beim Löschen: ' + e.message;
+        document.getElementById('mxSaveError').classList.remove('hidden');
+    }
+}
 // ============================================================
 
 // Aktueller gemischter Slot-Order für Runde-1-Vorschau
@@ -607,10 +628,11 @@ async function saveMexicanoTournament() {
             // Bestehende Teilnehmer-Zeilen löschen und neu schreiben
             await supabaseClient.from('mex_tournament_players').delete().eq('tournament_id', tournamentId);
         } else {
-            // INSERT — neues Turnier
+            // INSERT — neues Turnier, Name als ID
+            const tournamentSlug = name; // doppelte Namen gibt es nicht
             const { data: tournament, error: tErr } = await supabaseClient
                 .from('mex_tournaments')
-                .insert({ name, date, type: 'mexicano', status: 'draft', owner_admin_id: currentAdmin.id, data })
+                .insert({ id: tournamentSlug, name, date, type: 'mexicano', status: 'draft', owner_admin_id: currentAdmin.id, data })
                 .select().single();
             if (tErr) throw tErr;
             tournamentId = tournament.id;
