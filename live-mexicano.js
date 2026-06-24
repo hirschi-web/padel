@@ -12,7 +12,7 @@ const ELO = { MAX_PTS:24, BASE_K:.40, MIN_K:.15, REL_GAIN:.10, REL_MAX:1.0, STEE
 
 // ── State ────────────────────────────────────────────────────
 let tournamentId   = null;
-let tournament     = null;   // DB row
+let tournament     = null;   // DB row 
 let tData          = null;   // data JSONB
 let players        = [];     // live player objects
 let isAdmin        = false;
