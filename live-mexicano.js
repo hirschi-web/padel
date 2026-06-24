@@ -8,7 +8,7 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const sb = supabase.createClient(SB_URL, SB_KEY);
 
 // ── Elo-Konstanten ───────────────────────────────────────────
-const ELO = { MAX_PTS:24, BASE_K:.40, MIN_K:.15, REL_GAIN:.10, REL_MAX:1.0, STEEP:1.8 };
+const ELO = { MAX_PTS:24, BASE_K:.40, MIN_K:.15, REL_GAIN:.10, REL_MAX:1.0, STEEP:1.8 }; 
 
 // ── State ────────────────────────────────────────────────────
 let tournamentId   = null;
