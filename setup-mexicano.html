@@ -31,17 +31,6 @@
         <button onclick="logout()" class="btn-sm" style="background:#f1f5f9; color:var(--muted); border:1.5px solid #e2e8f0; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer;">Abmelden</button>
     </div>
 
-    <!-- TURNIER AUSWAHL -->
-    <div class="card">
-        <label class="lbl">Turnier laden oder neu erstellen</label>
-        <div style="display:flex; gap:8px; align-items:center;">
-            <select id="tournamentSelect" onchange="onTournamentSelected(this.value)" style="flex:1;">
-                <option value="new">— Neues Turnier —</option>
-            </select>
-            <button id="deleteBtn" onclick="deleteTournament()" class="hidden btn-sm" style="background:#fef2f2; color:var(--red); border:1.5px solid #fecaca; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer; white-space:nowrap;">🗑 Löschen</button>
-        </div>
-    </div>
-
     <!-- BASISDATEN -->
     <div class="card">
         <div class="param-grid">
@@ -71,8 +60,8 @@
         </div>
         <div class="param-grid" style="margin-bottom:10px;">
             <div>
-                <label class="lbl">Gesamtdauer (Std.)</label>
-                <input type="number" id="mxTotalHours" value="3" min="0.5" step="0.5" oninput="updateDerived()">
+                <label class="lbl">Startzeit</label>
+                <input type="time" id="mxStartTime" value="14:00" oninput="updateDerived()">
             </div>
             <div>
                 <label class="lbl">Aufwärmzeit (Min.)</label>
@@ -81,11 +70,17 @@
         </div>
         <div class="param-grid" style="margin-bottom:10px;">
             <div>
+                <label class="lbl">Gesamtdauer (Std.)</label>
+                <input type="number" id="mxTotalHours" value="3" min="0.5" step="0.5" oninput="updateDerived()">
+            </div>
+            <div>
                 <label class="lbl">Match-Dauer (Min.)</label>
                 <input type="number" id="mxMatchMin" value="20" min="5" step="5" oninput="updateDerived()">
             </div>
+        </div>
+        <div class="param-grid" style="margin-bottom:10px;">
             <div>
-                <label class="lbl">Pause (Min.)</label>
+                <label class="lbl">Pause zwischen Runden (Min.)</label>
                 <input type="number" id="mxBreakMin" value="5" min="0" step="5" oninput="updateDerived()">
             </div>
         </div>
@@ -96,6 +91,12 @@
             <span id="mxRoundsBadge" class="badge badge-slate">– Runden</span>
             <span class="badge badge-purple">24 Punkte / Match</span>
         </div>
+    </div>
+
+    <!-- COURT-NAMEN -->
+    <div class="card">
+        <div class="lbl" style="margin-bottom:10px;">Court-Namen</div>
+        <div id="mxCourtNames"></div>
     </div>
 
     <!-- TEILNEHMER:INNEN -->
@@ -111,8 +112,34 @@
         <div id="playerSlots"></div>
     </div>
 
+    <!-- VORSCHAU -->
+    <div class="card" id="mxPreviewCard" style="margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span class="lbl" style="margin-bottom:0;">Vorschau · Runde 1 (zufällig)</span>
+            <button onclick="shufflePreview()" class="btn-sm" style="background:var(--blue); color:#fff; border:none; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer;">🔀 Neu mischen</button>
+        </div>
+        <div id="mxPreviewCourts" style="margin-bottom:14px;"></div>
+
+        <div class="lbl" style="margin-bottom:8px;">Zeitplan</div>
+        <div id="mxPreviewSchedule"></div>
+
+        <div class="lbl" style="margin-top:12px; margin-bottom:8px;">Teilnehmer:innen</div>
+        <div id="mxPreviewPlayers"></div>
+    </div>
+
     <div id="mxSaveError" class="alert alert-error hidden"></div>
     <div id="mxSaveSuccess" class="alert alert-info hidden"></div>
+
+    <!-- NACH DEM SPEICHERN: LINK -->
+    <div id="mxLiveLinkBox" class="hidden" style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:16px; margin-bottom:14px; text-align:center;">
+        <div style="font-size:12px; font-weight:700; color:#15803d; margin-bottom:8px; font-family:'Barlow Condensed',sans-serif; letter-spacing:.08em; text-transform:uppercase;">✅ Turnier angelegt — Live-Seite</div>
+        <a id="mxLiveLink" href="#" target="_blank" style="font-size:14px; font-weight:700; color:var(--blue); word-break:break-all; text-decoration:none;">–</a>
+        <div style="margin-top:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+            <button onclick="copyLiveLink()" class="btn-sm" style="background:var(--blue); color:#fff; border:none; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer;">📋 Link kopieren</button>
+            <a id="mxLiveLinkBtn" href="#" target="_blank" class="btn-sm" style="background:var(--slate); color:#fff; border:none; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center;">🎾 Live-Seite öffnen</a>
+        </div>
+    </div>
+
     <button onclick="saveMexicanoTournament()" id="mxSaveBtn" class="btn btn-primary">🎾 Mexicano-Turnier anlegen</button>
 </div>
 
