@@ -23,12 +23,23 @@
 <!-- MAIN APP -->
 <div id="app" class="hidden">
 
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
         <div>
             <div class="display" style="font-size:26px; font-weight:900;">Mexicano — Setup</div>
             <div style="font-size:12px; color:var(--muted);">Eingeloggt als <strong id="adminNameLabel"></strong></div>
         </div>
         <button onclick="logout()" class="btn-sm" style="background:#f1f5f9; color:var(--muted); border:1.5px solid #e2e8f0; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer;">Abmelden</button>
+    </div>
+
+    <!-- TURNIER LADEN -->
+    <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+            <select id="mxTournamentSelect" onchange="loadExistingTournament(this.value)" style="flex:1; font-size:12px; padding:9px 12px;">
+                <option value="">— Bestehendes Turnier laden —</option>
+            </select>
+            <button onclick="resetToNew()" class="btn-sm" style="background:#f1f5f9; color:var(--muted); border:1.5px solid #e2e8f0; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer; white-space:nowrap;">+ Neu</button>
+        </div>
+        <div id="mxLoadedInfo" class="hidden" style="margin-top:8px; font-size:11px; color:var(--blue); font-weight:600;"></div>
     </div>
 
     <!-- BASISDATEN -->
