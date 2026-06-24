@@ -360,11 +360,11 @@ function renderPendingArea(round, focus, cls) {
             <div class="court-label">Court ${esc(getCourtName(ci))}</div>
             <div class="teams-row">
                 <div class="team">
-                    ${pA.map(p=>`<span class="player-chip ${isAdmin?'draggable':''} ${p?.name===focus?'focus-name':''}" ${isAdmin?`draggable="true" data-pid="${p?.id}"`:''}>${esc(p?.name||'?')}</span>`).join('')}
+                    ${pA.map(p=>`<span class="player-chip ${isAdmin?'draggable':''} ${p?.name===focus?'focus-name':''}" ${isAdmin?`draggable="true" data-pid="${p?.id}"`:''}>${esc(p?.name||'?')}<span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-left:5px;font-family:'Space Mono',monospace">${p?.liveLevel?.toFixed(2)??''}</span></span>`).join('')}
                 </div>
                 <div class="vs">vs</div>
                 <div class="team right">
-                    ${pB.map(p=>`<span class="player-chip ${isAdmin?'draggable':''} ${p?.name===focus?'focus-name':''}" ${isAdmin?`draggable="true" data-pid="${p?.id}"`:''}>${esc(p?.name||'?')}</span>`).join('')}
+                    ${pB.map(p=>`<span class="player-chip ${isAdmin?'draggable':''} ${p?.name===focus?'focus-name':''}" ${isAdmin?`draggable="true" data-pid="${p?.id}"`:''}>${esc(p?.name||'?')}<span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-left:5px;font-family:'Space Mono',monospace">${p?.liveLevel?.toFixed(2)??''}</span></span>`).join('')}
                 </div>
             </div>
         </div>`;
@@ -406,11 +406,11 @@ function renderActiveArea(round, focus, cls) {
             </div>
             <div class="teams-row">
                 <div class="team">
-                    ${pA.map(p=>`<span class="player-chip ${p?.name===focus?'focus-name':''}">${esc(p?.name||'?')}</span>`).join('')}
+                    ${pA.map(p=>`<span class="player-chip ${p?.name===focus?'focus-name':''}">${esc(p?.name||'?')}<span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-left:5px;font-family:'Space Mono',monospace">${p?.liveLevel?.toFixed(2)??''}</span></span>`).join('')}
                 </div>
                 <div class="vs">vs</div>
                 <div class="team right">
-                    ${pB.map(p=>`<span class="player-chip ${p?.name===focus?'focus-name':''}">${esc(p?.name||'?')}</span>`).join('')}
+                    ${pB.map(p=>`<span class="player-chip ${p?.name===focus?'focus-name':''}">${esc(p?.name||'?')}<span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-left:5px;font-family:'Space Mono',monospace">${p?.liveLevel?.toFixed(2)??''}</span></span>`).join('')}
                 </div>
             </div>
             <div class="score-row">`;
@@ -695,6 +695,76 @@ function renderRanking() {
             <td style="padding:12px 16px;text-align:center;font-size:13px;font-weight:700;font-family:'Space Mono',monospace;color:${ptDiff>0?'var(--green)':ptDiff<0?'var(--red)':'var(--text-muted)'}">${ptDiff>0?'+':''}${ptDiff}</td>
         </tr>`;
     }).join('');
+
+    // Spieler-Überblick wenn Fokus gewählt
+    renderFocusDetail(focus);
+}
+
+// ── Spieler-Überblick (Fokus gewählt) ────────────────────────
+function renderFocusDetail(focus) {
+    const area = document.getElementById('focusDetail');
+    if (!area) return;
+    if (!focus) { area.innerHTML = ''; return; }
+
+    const p = players.find(x => x.name === focus);
+    if (!p) { area.innerHTML = ''; return; }
+
+    const done = (tData.rounds||[]).filter(r => r.completed);
+    if (!done.length) { area.innerHTML = ''; return; }
+
+    let html = `<div class="mt-6 anim-in">
+        <h2 style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">📊 Deine Entwicklung</h2>
+        <div class="card-solid" style="padding:14px 16px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;font-family:'Space Mono',monospace">Start-Level: ${p.startLevel.toFixed(2)}</div>`;
+
+    let runningLevel = p.startLevel;
+
+    for (const round of done) {
+        // Finde den Court auf dem dieser Spieler gespielt hat
+        let myCourtData = null;
+        for (const court of round.courts) {
+            const inA = court.teamA.includes(p.id);
+            const inB = court.teamB.includes(p.id);
+            if (inA || inB) { myCourtData = { court, inA }; break; }
+        }
+        if (!myCourtData) continue;
+
+        const { court, inA } = myCourtData;
+        const myScore  = inA ? court.scoreA : court.scoreB;
+        const oppScore = inA ? court.scoreB : court.scoreA;
+        const won      = myScore > oppScore;
+        const draw     = myScore === oppScore;
+
+        // Partner + Gegner Namen
+        const myTeam  = inA ? court.teamA : court.teamB;
+        const oppTeam = inA ? court.teamB : court.teamA;
+        const partner = myTeam.filter(id=>id!==p.id).map(id=>players.find(x=>x.id===id)?.name||'?').join(', ');
+        const opps    = oppTeam.map(id=>players.find(x=>x.id===id)?.name||'?').join(' + ');
+
+        // Level nach dieser Runde aus Snapshot
+        const newLevel   = round.levelSnapshot?.[p.id] ?? runningLevel;
+        const delta      = newLevel - runningLevel;
+        runningLevel     = newLevel;
+
+        const resultColor = won ? 'var(--green)' : draw ? 'var(--text-muted)' : 'var(--red)';
+        const resultLabel = won ? 'S' : draw ? 'U' : 'N';
+        const deltaStr    = `${delta>=0?'+':''}${delta.toFixed(2)}`;
+        const deltaColor  = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--text-muted)';
+
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(71,85,105,.4)">
+            <span style="font-size:10px;font-weight:800;color:var(--text-dim);min-width:16px">R${round.roundNumber}</span>
+            <span style="font-size:12px;font-weight:800;color:${resultColor};min-width:14px">${resultLabel}</span>
+            <span style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--text);min-width:40px">${myScore??'–'}:${oppScore??'–'}</span>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">mit ${esc(partner)} vs ${esc(opps)}</div>
+            </div>
+            <span style="font-size:11px;font-weight:700;color:${deltaColor};font-family:'Space Mono',monospace;white-space:nowrap">${deltaStr}</span>
+            <span style="font-size:11px;color:var(--text-muted);font-family:'Space Mono',monospace;white-space:nowrap;min-width:36px;text-align:right">${newLevel.toFixed(2)}</span>
+        </div>`;
+    }
+
+    html += `</div></div>`;
+    area.innerHTML = html;
 }
 
 // ── History ein/ausklappbar + nachträgliche Bearbeitung ───────
@@ -784,9 +854,12 @@ function renderHistory() {
     const { times, matchMin } = getRoundTimes();
     if (!done.length) { area.innerHTML=''; return; }
 
-    // Standardmäßig nur die letzte abgeschlossene Runde aufgeklappt
+    // Standardmäßig nur die letzte abgeschlossene Runde aufgeklappt (nur beim ersten Render)
     const lastNum = done[done.length-1].roundNumber;
-    if (historyExpanded.size === 0) historyExpanded.add(lastNum);
+    if (!historyExpanded.has('_initialized')) {
+        historyExpanded.add(lastNum);
+        historyExpanded.add('_initialized');
+    }
 
     let html = `<div class="mt-8 anim-in">
         <h2 style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">📜 Vergangene Runden</h2>`;
