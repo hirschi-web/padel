@@ -6,7 +6,7 @@
 
 :root {
     --bg:#1e293b; --bg-card:#334155; --bg-card-solid:#475569;
-    --border:#475569; --text:#f1f5f9; --text-muted:#94a3b8; --text-dim:#64748b;
+    --border:#475569; --text:#f1f5f9; --text-muted:#94a3b8; --text-dim:#64748b; 
     --accent:#60a5fa; --accent-glow:rgba(96,165,250,0.2);
     --gold:#fbbf24; --green:#4ade80; --red:#f87171;
     --header-bg:#1e293b; --header-text:#f1f5f9;
