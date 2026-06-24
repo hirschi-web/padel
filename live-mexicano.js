@@ -737,10 +737,17 @@ async function saveEditedRound(roundNum) {
     players.forEach(p => { snap[p.id] = p.liveLevel; });
     round.levelSnapshot = snap;
 
+    // Pending-Runde neu berechnen falls eine existiert
+    if (pendingRound) {
+        pendingRound = calcRound(pendingRound.roundNumber);
+        showToast('✅ Scores & Auslosung aktualisiert', 'success');
+    } else {
+        showToast('✅ Scores aktualisiert & Tabelle neu berechnet', 'success');
+    }
+
     editingRound = null;
     await saveTData();
     renderAll();
-    showToast('✅ Scores aktualisiert & Tabelle neu berechnet', 'success');
 }
 
 function rebuildPlayerState() {
