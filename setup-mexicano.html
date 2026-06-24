@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Padel — Mexicano Setup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="setup-mexicano.css">
+</head>
+<body>
+
+<!-- ACCESS DENIED -->
+<div id="accessDenied" class="hidden">
+    <div class="display" style="font-size:28px; font-weight:900;">🔒 Kein Zugriff</div>
+    <p style="font-size:13px; color:var(--muted); max-width:320px;">
+        Dieser Link enthält keinen gültigen Zugangscode. Bitte den persönlichen Link verwenden.
+    </p>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="hidden">
+
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+        <div>
+            <div class="display" style="font-size:26px; font-weight:900;">Mexicano — Setup</div>
+            <div style="font-size:12px; color:var(--muted);">Eingeloggt als <strong id="adminNameLabel"></strong></div>
+        </div>
+        <button onclick="logout()" class="btn-sm" style="background:#f1f5f9; color:var(--muted); border:1.5px solid #e2e8f0; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer;">Abmelden</button>
+    </div>
+
+    <!-- BASISDATEN -->
+    <div class="card">
+        <div class="param-grid">
+            <div>
+                <label class="lbl">Turniername</label>
+                <input type="text" id="mxName" placeholder="z.B. Mexicano 21.6.">
+            </div>
+            <div>
+                <label class="lbl">Datum</label>
+                <input type="date" id="mxDate">
+            </div>
+        </div>
+    </div>
+
+    <!-- FORMAT-PARAMETER -->
+    <div class="card">
+        <div class="lbl" style="margin-bottom:10px;">Format</div>
+        <div class="param-grid" style="margin-bottom:10px;">
+            <div>
+                <label class="lbl">Spieleranzahl</label>
+                <input type="number" id="mxCount" value="12" min="8" step="4" oninput="onCountChanged()">
+            </div>
+            <div>
+                <label class="lbl">Admin-Passwort (Live-Seite)</label>
+                <input type="password" id="mxPassword" placeholder="Optional">
+            </div>
+        </div>
+        <div class="param-grid" style="margin-bottom:10px;">
+            <div>
+                <label class="lbl">Gesamtdauer (Std.)</label>
+                <input type="number" id="mxTotalHours" value="3" min="0.5" step="0.5" oninput="updateDerived()">
+            </div>
+            <div>
+                <label class="lbl">Aufwärmzeit (Min.)</label>
+                <input type="number" id="mxWarmup" value="10" min="0" step="5" oninput="updateDerived()">
+            </div>
+        </div>
+        <div class="param-grid" style="margin-bottom:10px;">
+            <div>
+                <label class="lbl">Match-Dauer (Min.)</label>
+                <input type="number" id="mxMatchMin" value="20" min="5" step="5" oninput="updateDerived()">
+            </div>
+            <div>
+                <label class="lbl">Pause (Min.)</label>
+                <input type="number" id="mxBreakMin" value="5" min="0" step="5" oninput="updateDerived()">
+            </div>
+        </div>
+
+        <div id="mxErrorBox" class="alert alert-error hidden"></div>
+        <div class="derived-row">
+            <span id="mxCourtsBadge" class="badge badge-blue">– Courts</span>
+            <span id="mxRoundsBadge" class="badge badge-slate">– Runden</span>
+            <span class="badge badge-purple">24 Punkte / Match</span>
+        </div>
+    </div>
+
+    <!-- TEILNEHMER:INNEN -->
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span class="lbl" style="margin-bottom:0;">Teilnehmer:innen &amp; Start-Level</span>
+            <button onclick="openPlayerPicker()" class="btn-sm" style="background:var(--blue); color:#fff; border:none; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer;">Aus Liste wählen</button>
+        </div>
+        <p style="font-size:10px; color:var(--muted); margin-bottom:10px;">
+            "Aus Liste wählen" ersetzt die komplette Liste unten. Nicht ausgewählte Plätze bleiben als
+            Platzhalter ("Spieler 8" …) stehen und werden beim Speichern einfach übersprungen.
+        </p>
+        <div id="playerSlots"></div>
+    </div>
+
+    <div id="mxSaveError" class="alert alert-error hidden"></div>
+    <div id="mxSaveSuccess" class="alert alert-info hidden"></div>
+    <button onclick="saveMexicanoTournament()" id="mxSaveBtn" class="btn btn-primary">🎾 Mexicano-Turnier anlegen</button>
+</div>
+
+<!-- PLAYER PICKER OVERLAY -->
+<div id="pickerOverlay" class="picker-overlay hidden">
+    <div class="picker-panel">
+        <div class="picker-header">
+            <span class="display" style="font-size:18px; font-weight:900;">Spieler:innen wählen</span>
+            <span id="pickerCount" class="badge badge-blue">0 / 0</span>
+        </div>
+        <input type="text" id="pickerSearch" placeholder="Suchen…" oninput="renderPickerList()" style="margin-bottom:10px;">
+        <div id="pickerList"></div>
+        <div class="picker-footer">
+            <button onclick="applyPickerSelection()" class="btn btn-primary" style="width:auto; flex:1;">Übernehmen</button>
+            <button onclick="closePlayerPicker()" class="btn" style="width:auto; flex:1; background:#f1f5f9; color:var(--muted);">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+<script src="setup-mexicano-functions.js"></script>
+<script src="setup-mexicano-picker.js"></script>
+<script>
+init();
+</script>
+</body>
+</html>

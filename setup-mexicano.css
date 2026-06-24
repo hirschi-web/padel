@@ -1,0 +1,148 @@
+/* ============================================================
+   SETUP-MEXICANO — STYLES
+   Eigenständige Stylesheet-Datei, getrennt von Markup/Logik,
+   damit Design-Anpassungen ohne Code-Änderungen möglich sind.
+   ============================================================ */
+
+:root {
+    --blue:    #2563eb;
+    --blue-lt: #dbeafe;
+    --slate:   #0f172a;
+    --muted:   #64748b;
+    --bg:      #f1f5f9;
+    --white:   #ffffff;
+    --green:   #16a34a;
+    --amber:   #d97706;
+    --red:     #dc2626;
+    --purple:  #7c3aed;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: Arial, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--slate);
+    padding: 1.5rem 1rem 5rem;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.display { font-family: 'Barlow Condensed', sans-serif; }
+.hidden { display: none !important; }
+
+.card {
+    background: var(--white);
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    padding: 20px;
+    margin-bottom: 14px;
+}
+
+.lbl {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+    display: block; margin-bottom: 5px;
+}
+
+input[type="text"], input[type="number"], input[type="date"], input[type="password"], select {
+    font-family: Arial, system-ui, sans-serif;
+    font-size: 13px; font-weight: 500; width: 100%;
+    padding: 10px 12px; background: #f8fafc;
+    border: 1.5px solid #e2e8f0; border-radius: 10px;
+    outline: none; color: var(--slate);
+    transition: border-color .15s, box-shadow .15s;
+}
+input:focus, select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+
+.btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900; font-size: 14px; letter-spacing: .1em;
+    text-transform: uppercase; border: none; border-radius: 12px;
+    padding: 13px 18px; cursor: pointer; width: 100%;
+    transition: all .15s; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+}
+.btn-primary { background: var(--slate); color: #fff; }
+.btn-primary:hover { background: var(--blue); }
+.btn-primary:disabled { background: #cbd5e1; cursor: not-allowed; }
+.btn-secondary { background: #eff6ff; color: var(--blue); border: 2px dashed #bfdbfe; }
+.btn-secondary:hover { background: #dbeafe; }
+.btn-sm { width: auto; padding: 8px 14px; font-size: 12px; }
+
+.badge {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 6px;
+    display: inline-block;
+}
+.badge-blue   { background: #eff6ff; color: var(--blue); }
+.badge-green  { background: #f0fdf4; color: var(--green); }
+.badge-slate  { background: #f1f5f9; color: var(--muted); }
+.badge-amber  { background: #fffbeb; color: var(--amber); }
+.badge-purple { background: #f5f3ff; color: var(--purple); }
+.badge-red    { background: #fef2f2; color: var(--red); }
+
+.alert {
+    font-size: 11px; font-weight: 500; padding: 10px 14px;
+    border-radius: 10px; line-height: 1.5; margin-bottom: 10px;
+}
+.alert-info  { background:#eff6ff; border:1.5px solid #bfdbfe; color:#1e40af; }
+.alert-error { background:#fef2f2; border:1.5px solid #fecaca; color:#991b1b; }
+.alert-warn  { background:#fffbeb; border:1.5px solid #fde68a; color:#92400e; }
+
+/* --- Format-Parameter Grid --- */
+.param-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.derived-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+}
+
+/* --- Teilnehmer-Slots --- */
+.slot-grid {
+    display: grid; grid-template-columns: 1fr 84px;
+    gap: 8px; margin-bottom: 8px; align-items: center;
+}
+.slot-grid input[type="number"] { text-align: center; }
+.slot-source-tag {
+    font-size: 9px; color: var(--blue); font-weight: 700;
+    text-transform: uppercase; margin-top: 2px;
+}
+
+/* --- Spieler-Picker Overlay --- */
+.picker-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,.55);
+    display: flex; align-items: flex-end; justify-content: center;
+    z-index: 50;
+}
+.picker-panel {
+    background: var(--white); width: 100%; max-width: 720px;
+    border-radius: 20px 20px 0 0; padding: 20px;
+    max-height: 82vh; overflow-y: auto;
+}
+.picker-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+}
+.picker-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 8px; border-radius: 10px; cursor: pointer;
+}
+.picker-item:hover { background: #f8fafc; }
+.picker-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--blue); flex-shrink: 0; }
+.picker-item.disabled { opacity: .4; pointer-events: none; }
+.picker-footer {
+    display: flex; gap: 8px; margin-top: 14px; position: sticky; bottom: 0;
+    background: var(--white); padding-top: 10px;
+}
+
+#accessDenied {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 60vh; text-align: center; gap: 12px;
+}
