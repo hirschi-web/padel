@@ -8,7 +8,7 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const sb = supabase.createClient(SB_URL, SB_KEY);
 
 // ── Elo-Konstanten ───────────────────────────────────────────
-const ELO = { MAX_PTS:24, BASE_K:.40, MIN_K:.15, REL_GAIN:.10, REL_MAX:1.0, STEEP:1.8 }; 
+const ELO = { MAX_PTS:24, BASE_K:.40, MIN_K:.15, REL_GAIN:.10, REL_MAX:1.0, STEEP:1.8 };
 
 // ── State ────────────────────────────────────────────────────
 let tournamentId   = null;
@@ -426,6 +426,14 @@ function renderActiveArea(round, focus, cls) {
         html += `</div></div>`;
     }
 
+    // Admin: Runde abschließen direkt unter den Courts
+    if (isAdmin) {
+        html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+            <button class="admin-btn admin-btn-success" onclick="finishRound()">✅ Runde abschließen</button>
+            <button class="admin-btn admin-btn-neutral" onclick="saveAllDirty()">💾 Scores speichern</button>
+        </div>`;
+    }
+
     return html;
 }
 
@@ -646,21 +654,52 @@ function renderRanking() {
     const focus  = document.getElementById('playerFocus').value;
     const sorted = [...players].sort((a,b) => b.points-a.points || b.wins-a.wins || a.losses-b.losses);
 
+    // Level-Delta: Vergleich mit Snapshot vor letzter abgeschlossener Runde
+    const rounds    = tData.rounds || [];
+    const completed = rounds.filter(r => r.completed);
+    const prevSnap  = completed.length >= 2
+        ? completed[completed.length - 2].levelSnapshot || {}
+        : {};
+    const lastSnap  = completed.length >= 1
+        ? completed[completed.length - 1].levelSnapshot || {}
+        : {};
+
     document.getElementById('rankingTable').innerHTML = sorted.map((p,i) => {
         const isGold  = i===0 && p.points>0;
         const isFocus = p.name===focus;
         const diff    = p.wins - p.losses;
+
+        // Level-Anzeige + Delta zur vorherigen Runde
+        const curLevel  = p.liveLevel;
+        const prevLevel = prevSnap[p.id] ?? p.startLevel;
+        const delta     = completed.length > 0 ? curLevel - prevLevel : 0;
+        const deltaStr  = delta === 0 ? '' :
+            `<span style="font-size:10px;color:${delta>0?'var(--green)':'var(--red)'};font-weight:700;margin-left:4px">${delta>0?'+':''}${delta.toFixed(2)}</span>`;
+        const levelStr  = `<span style="font-size:11px;font-family:'Space Mono',monospace;color:var(--text-muted)">${curLevel.toFixed(2)}${deltaStr}</span>`;
+
         return `<tr class="${isGold?'rank-gold':''}" style="border-bottom:1.5px solid var(--border);${isFocus?'background:rgba(96,165,250,.07)':''}">
-            <td style="padding:14px 16px;font-size:13px;font-weight:800;color:${isGold?'var(--gold)':'var(--text-muted)'}">${isGold?'👑':'#'+(i+1)}</td>
-            <td style="padding:14px 10px;font-size:13px;font-weight:${isFocus?'900':'700'};text-transform:uppercase;color:${isFocus?'var(--accent)':'var(--text)'}">${esc(p.name)}</td>
-            <td style="padding:14px 10px;text-align:center;font-size:12px;font-weight:600;color:var(--text-muted)">${p.wins}/${p.losses}</td>
-            <td style="padding:14px 10px;text-align:center;font-size:16px;font-weight:800;font-family:'Space Mono',monospace;color:var(--text)">${p.points}</td>
-            <td style="padding:14px 16px;text-align:center;font-size:13px;font-weight:700;font-family:'Space Mono',monospace;color:${diff>0?'var(--green)':diff<0?'var(--red)':'var(--text-muted)'}">${diff>0?'+':''}${diff}</td>
+            <td style="padding:12px 16px;font-size:13px;font-weight:800;color:${isGold?'var(--gold)':'var(--text-muted)'}">${isGold?'👑':'#'+(i+1)}</td>
+            <td style="padding:12px 10px;font-size:13px;font-weight:${isFocus?'900':'700'};text-transform:uppercase;color:${isFocus?'var(--accent)':'var(--text)'}">
+                ${esc(p.name)}
+                <div style="margin-top:2px">${levelStr}</div>
+            </td>
+            <td style="padding:12px 10px;text-align:center;font-size:12px;font-weight:600;color:var(--text-muted)">${p.wins}/${p.losses}</td>
+            <td style="padding:12px 10px;text-align:center;font-size:16px;font-weight:800;font-family:'Space Mono',monospace;color:var(--text)">${p.points}</td>
+            <td style="padding:12px 16px;text-align:center;font-size:13px;font-weight:700;font-family:'Space Mono',monospace;color:${diff>0?'var(--green)':diff<0?'var(--red)':'var(--text-muted)'}">${diff>0?'+':''}${diff}</td>
         </tr>`;
     }).join('');
 }
 
 // ── History ───────────────────────────────────────────────────
+// Welche Runden sind aufgeklappt — nur die letzte standardmäßig
+const historyExpanded = new Set();
+
+function toggleHistory(roundNum) {
+    if (historyExpanded.has(roundNum)) historyExpanded.delete(roundNum);
+    else historyExpanded.add(roundNum);
+    renderHistory();
+}
+
 function renderHistory() {
     const done   = (tData.rounds||[]).filter(r=>r.completed);
     const area   = document.getElementById('historyArea');
@@ -668,37 +707,64 @@ function renderHistory() {
     const { times, matchMin } = getRoundTimes();
     if (!done.length) { area.innerHTML=''; return; }
 
-    let html = '';
+    // Standardmäßig nur die letzte abgeschlossene Runde aufgeklappt
+    const lastNum = done[done.length-1].roundNumber;
+    if (historyExpanded.size === 0) historyExpanded.add(lastNum);
+
+    let html = `<div class="mt-8 anim-in">
+        <h2 style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">📜 Vergangene Runden</h2>`;
+
     for (const round of [...done].reverse()) {
-        const ti      = round.roundNumber - 1;
-        const timeStr = times[ti]!=null ? `${toHHMM(times[ti])}–${toHHMM(times[ti]+matchMin)}` : '';
-        html += `<div class="history-lbl">Runde ${round.roundNumber}${timeStr?' · '+timeStr:''}</div>`;
-        for (let ci=0; ci<round.courts.length; ci++) {
-            const court = round.courts[ci];
-            const pA    = court.teamA.map(id=>players.find(p=>p.id===id));
-            const pB    = court.teamB.map(id=>players.find(p=>p.id===id));
-            const hasSc = court.scoreA!=null && court.scoreB!=null;
-            const wA    = hasSc && court.scoreA>court.scoreB;
-            const wB    = hasSc && court.scoreB>court.scoreA;
-            const isFoc = focus && [...court.teamA,...court.teamB].some(id=>players.find(p=>p.id===id)?.name===focus);
-            html += `<div class="history-card ${isFoc?'focused':''}">
-                <div class="court-label" style="margin-bottom:8px">Court ${esc(getCourtName(ci))}</div>
-                <div class="teams-row">
-                    <div class="team" style="opacity:${wB?.45:1}">
-                        ${pA.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}
+        const ti        = round.roundNumber - 1;
+        const timeStr   = times[ti]!=null ? ` · ${toHHMM(times[ti])}` : '';
+        const isOpen    = historyExpanded.has(round.roundNumber);
+
+        // Scores zusammenfassen für Header
+        const scoreSum = round.courts.map(c =>
+            c.scoreA!=null ? `${c.scoreA}:${c.scoreB}` : '–'
+        ).join('  ');
+
+        html += `<div style="margin-bottom:6px">
+            <button onclick="toggleHistory(${round.roundNumber})"
+                style="width:100%;background:none;border:none;cursor:pointer;padding:10px 0;display:flex;align-items:center;gap:10px;text-align:left">
+                <span class="round-time">Runde ${round.roundNumber}${timeStr}</span>
+                <span style="font-size:11px;color:var(--text-dim);font-family:'Space Mono',monospace">${scoreSum}</span>
+                <div style="flex:1;height:1px;background:var(--border)"></div>
+                <span style="font-size:12px;color:var(--text-dim)">${isOpen?'▲':'▼'}</span>
+            </button>`;
+
+        if (isOpen) {
+            for (let ci=0; ci<round.courts.length; ci++) {
+                const court = round.courts[ci];
+                const pA    = court.teamA.map(id=>players.find(p=>p.id===id));
+                const pB    = court.teamB.map(id=>players.find(p=>p.id===id));
+                const hasSc = court.scoreA!=null && court.scoreB!=null;
+                const wA    = hasSc && court.scoreA>court.scoreB;
+                const wB    = hasSc && court.scoreB>court.scoreA;
+                const isFoc = focus && [...court.teamA,...court.teamB].some(id=>players.find(p=>p.id===id)?.name===focus);
+                html += `<div class="history-card ${isFoc?'focused':''}">
+                    <div class="court-label" style="margin-bottom:8px">Court ${esc(getCourtName(ci))}</div>
+                    <div class="teams-row">
+                        <div class="team" style="opacity:${wB?.45:1}">
+                            ${pA.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}
+                        </div>
+                        <div style="text-align:center;flex-shrink:0">
+                            ${hasSc
+                                ? `<div style="font-family:'Space Mono',monospace;font-weight:700;font-size:17px;color:var(--text)">${court.scoreA}:${court.scoreB}</div>`
+                                : `<div class="vs">vs</div>`}
+                        </div>
+                        <div class="team right" style="opacity:${wA?.45:1}">
+                            ${pB.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}
+                        </div>
                     </div>
-                    <div style="text-align:center;flex-shrink:0">
-                        ${hasSc
-                            ? `<div style="font-family:'Space Mono',monospace;font-weight:700;font-size:17px;color:var(--text)">${court.scoreA}:${court.scoreB}</div>`
-                            : `<div class="vs">vs</div>`}
-                    </div>
-                    <div class="team right" style="opacity:${wA?.45:1}">
-                        ${pB.map(p=>`<span class="player-chip" style="font-size:12px">${esc(p?.name||'?')}</span>`).join('')}
-                    </div>
-                </div>
-            </div>`;
+                </div>`;
+            }
         }
+
+        html += `</div>`; // /round block
     }
+
+    html += `</div>`;
     area.innerHTML = html;
 }
 
