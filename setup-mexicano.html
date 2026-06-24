@@ -31,6 +31,17 @@
         <button onclick="logout()" class="btn-sm" style="background:#f1f5f9; color:var(--muted); border:1.5px solid #e2e8f0; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer;">Abmelden</button>
     </div>
 
+    <!-- TURNIER AUSWAHL -->
+    <div class="card">
+        <label class="lbl">Turnier laden oder neu erstellen</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <select id="tournamentSelect" onchange="onTournamentSelected(this.value)" style="flex:1;">
+                <option value="new">— Neues Turnier —</option>
+            </select>
+            <button id="deleteBtn" onclick="deleteTournament()" class="hidden btn-sm" style="background:#fef2f2; color:var(--red); border:1.5px solid #fecaca; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer; white-space:nowrap;">🗑 Löschen</button>
+        </div>
+    </div>
+
     <!-- BASISDATEN -->
     <div class="card">
         <div class="param-grid">
