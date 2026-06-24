@@ -46,6 +46,7 @@ async function init() {
         document.getElementById('adminNameLabel').textContent = currentAdmin.name;
         document.getElementById('app').classList.remove('hidden');
 
+        await loadTournamentList();
         renderSlots();
         updateDerived();
     } catch (e) {
@@ -62,6 +63,145 @@ function showAccessDenied() {
 function logout() {
     sessionStorage.removeItem('ph_admin_code');
     window.location.href = window.location.pathname;
+}
+
+// ============================================================
+// TURNIER LADEN (Dropdown)
+// ============================================================
+let tournamentsList = [];
+
+async function loadTournamentList() {
+    try {
+        // Alle Turniere laden, auf die dieser Admin Zugriff hat
+        const { data: owned } = await supabaseClient
+            .from('mex_tournaments')
+            .select('id, name, date, status')
+            .eq('owner_admin_id', currentAdmin.id)
+            .order('date', { ascending: false });
+
+        const { data: shared } = await supabaseClient
+            .from('mex_tournament_access')
+            .select('tournament_id, mex_tournaments(id, name, date, status)')
+            .eq('admin_id', currentAdmin.id);
+
+        const sharedTournaments = (shared || [])
+            .map(r => r.mex_tournaments)
+            .filter(Boolean);
+
+        // Zusammenführen, Duplikate entfernen
+        const all = [...(owned || [])];
+        for (const t of sharedTournaments) {
+            if (!all.find(x => x.id === t.id)) all.push(t);
+        }
+        // Nach Datum sortieren
+        all.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        tournamentsList = all;
+
+        const sel = document.getElementById('mxTournamentSelect');
+        sel.innerHTML = '<option value="">— Bestehendes Turnier laden —</option>';
+        for (const t of all) {
+            const dateStr = t.date ? new Date(t.date).toLocaleDateString('de-DE') : '';
+            const statusIcon = { draft: '📝', live: '▶', finished: '✅' }[t.status] || '';
+            sel.add(new Option(`${statusIcon} ${t.name}${dateStr ? ' · ' + dateStr : ''}`, t.id));
+        }
+    } catch(e) {
+        console.error('Turnierliste laden fehlgeschlagen:', e);
+    }
+}
+
+async function loadExistingTournament(id) {
+    if (!id) return;
+    const t = tournamentsList.find(x => x.id === id);
+    if (!t) return;
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('mex_tournaments')
+            .select('*, mex_tournament_players(player_id, start_level, mex_players(name))')
+            .eq('id', id)
+            .single();
+        if (error || !data) throw error || new Error('Nicht gefunden');
+
+        const s = data.data?.settings || {};
+
+        // Felder befüllen
+        document.getElementById('mxName').value        = data.name || '';
+        document.getElementById('mxDate').value        = data.date || '';
+        document.getElementById('mxPassword').value    = s.password || '';
+        document.getElementById('mxStartTime').value   = s.startTime || '14:00';
+        document.getElementById('mxWarmup').value      = s.warmupMin ?? 10;
+        document.getElementById('mxMatchMin').value    = s.matchMin  ?? 20;
+        document.getElementById('mxBreakMin').value    = s.breakMin  ?? 5;
+        document.getElementById('mxTotalHours').value  = s.totalHours ?? 3;
+
+        const playerCount = s.playerCount || 12;
+        document.getElementById('mxCount').value = playerCount;
+        lastValidCount = playerCount;
+
+        // Slots rendern und Spieler eintragen
+        renderSlots();
+
+        const rows = data.mex_tournament_players || [];
+        rows.forEach((row, i) => {
+            const nameEl  = document.getElementById('mxName_' + i);
+            const levelEl = document.getElementById('mxLevel_' + i);
+            if (nameEl)  nameEl.value  = row.mex_players?.name || '';
+            if (levelEl) levelEl.value = row.start_level ?? 1.0;
+            slotPlayerId[i] = row.player_id || null;
+        });
+
+        // Court-Namen
+        updateDerived(); // rendert Court-Name-Inputs
+        const courtNames = s.courtNames || [];
+        courtNames.forEach((name, i) => {
+            const el = document.getElementById(`mxCourtName_${i}`);
+            if (el) el.value = name;
+        });
+
+        // Info anzeigen + Live-Link direkt zeigen
+        const infoEl = document.getElementById('mxLoadedInfo');
+        infoEl.textContent = `📂 Geladen: "${data.name}" (${data.status})`;
+        infoEl.classList.remove('hidden');
+
+        // Save-Button auf "Aktualisieren" umschalten
+        document.getElementById('mxSaveBtn').textContent = '💾 Turnier aktualisieren';
+        currentlyLoadedId = id;
+
+        // Live-Link direkt zeigen
+        showLiveLink(id);
+
+    } catch(e) {
+        alert('Fehler beim Laden: ' + e.message);
+    }
+}
+
+let currentlyLoadedId = null;
+
+function resetToNew() {
+    currentlyLoadedId = null;
+    document.getElementById('mxTournamentSelect').value = '';
+    document.getElementById('mxLoadedInfo').classList.add('hidden');
+    document.getElementById('mxLiveLinkBox').classList.add('hidden');
+    document.getElementById('mxSaveError').classList.add('hidden');
+    document.getElementById('mxSaveSuccess').classList.add('hidden');
+    document.getElementById('mxSaveBtn').textContent = '🎾 Mexicano-Turnier anlegen';
+
+    // Felder leeren
+    document.getElementById('mxName').value       = '';
+    document.getElementById('mxDate').value       = '';
+    document.getElementById('mxPassword').value   = '';
+    document.getElementById('mxStartTime').value  = '14:00';
+    document.getElementById('mxWarmup').value     = 10;
+    document.getElementById('mxMatchMin').value   = 20;
+    document.getElementById('mxBreakMin').value   = 5;
+    document.getElementById('mxTotalHours').value = 3;
+    document.getElementById('mxCount').value      = 12;
+    lastValidCount = 12;
+    slotPlayerId   = [];
+    previewOrder   = [];
+
+    renderSlots();
+    updateDerived();
 }
 
 // ============================================================
@@ -433,7 +573,7 @@ async function saveMexicanoTournament() {
             }
         }
 
-        // 2) Turnier anlegen
+        // 2) Turnier anlegen oder aktualisieren
         const data = {
             settings: {
                 playerCount: count,
@@ -450,30 +590,55 @@ async function saveMexicanoTournament() {
             rounds: [] // wird später von der Live-Seite befüllt
         };
 
-        const { data: tournament, error: tErr } = await supabaseClient
-            .from('mex_tournaments')
-            .insert({ name, date, type: 'mexicano', status: 'draft', owner_admin_id: currentAdmin.id, data })
-            .select().single();
-        if (tErr) throw tErr;
+        let tournamentId;
+        if (currentlyLoadedId) {
+            // UPDATE — settings aktualisieren, rounds NICHT überschreiben
+            const { data: existing } = await supabaseClient
+                .from('mex_tournaments').select('data').eq('id', currentlyLoadedId).single();
+            data.rounds = existing?.data?.rounds || [];
+
+            const { error: tErr } = await supabaseClient
+                .from('mex_tournaments')
+                .update({ name, date, data })
+                .eq('id', currentlyLoadedId);
+            if (tErr) throw tErr;
+            tournamentId = currentlyLoadedId;
+
+            // Bestehende Teilnehmer-Zeilen löschen und neu schreiben
+            await supabaseClient.from('mex_tournament_players').delete().eq('tournament_id', tournamentId);
+        } else {
+            // INSERT — neues Turnier
+            const { data: tournament, error: tErr } = await supabaseClient
+                .from('mex_tournaments')
+                .insert({ name, date, type: 'mexicano', status: 'draft', owner_admin_id: currentAdmin.id, data })
+                .select().single();
+            if (tErr) throw tErr;
+            tournamentId = tournament.id;
+        }
 
         // 3) Teilnahme-Zeilen anlegen
         const rows = slots.map(s => ({
-            tournament_id: tournament.id,
+            tournament_id: tournamentId,
             player_id: s.playerId,
             start_level: s.level
         }));
         const { error: tpErr } = await supabaseClient.from('mex_tournament_players').insert(rows);
         if (tpErr) throw tpErr;
 
-        saveOk.textContent = `✅ "${name}" angelegt mit ${slots.length} von ${count} Plätzen besetzt.`;
+        saveOk.textContent = currentlyLoadedId
+            ? `✅ "${name}" aktualisiert.`
+            : `✅ "${name}" angelegt mit ${slots.length} von ${count} Plätzen besetzt.`;
         saveOk.classList.remove('hidden');
-        showLiveLink(tournament.id);
+        showLiveLink(tournamentId);
+        await loadTournamentList(); // Dropdown aktualisieren
     } catch (e) {
         saveErr.textContent = 'Fehler beim Speichern: ' + e.message;
         saveErr.classList.remove('hidden');
     } finally {
         isSaving = false;
         document.getElementById('mxSaveBtn').disabled = false;
-        document.getElementById('mxSaveBtn').textContent = '🎾 Mexicano-Turnier anlegen';
+        document.getElementById('mxSaveBtn').textContent = currentlyLoadedId
+            ? '💾 Turnier aktualisieren'
+            : '🎾 Mexicano-Turnier anlegen';
     }
 }
