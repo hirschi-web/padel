@@ -1,1 +1,336 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Padel Hirsch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+    --slate:  #0f172a;
+    --blue:   #2563eb;
+    --muted:  #64748b;
+    --bg:     #f1f5f9;
+    --white:  #ffffff;
+    --green:  #16a34a;
+    --amber:  #d97706;
+    --border: #e2e8f0;
+}
+
+html, body {
+    height: 100%;
+    font-family: Arial, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--slate);
+    -webkit-font-smoothing: antialiased;
+}
+
+.display { font-family: 'Barlow Condensed', sans-serif; }
+
+/* ── LAYOUT ── */
+.page {
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+}
+
+/* ── HERO SPLIT ── */
+.hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 52vh;
+}
+
+@media (max-width: 640px) {
+    .hero { grid-template-columns: 1fr; min-height: auto; }
+    .hero-right { padding: 28px 20px; }
+}
+
+/* LEFT — dark brand panel */
+.hero-left {
+    background: var(--slate);
+    padding: 52px 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+}
+
+/* court-line texture */
+.hero-left::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 59px,
+            rgba(255,255,255,.03) 59px,
+            rgba(255,255,255,.03) 60px
+        ),
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 59px,
+            rgba(255,255,255,.03) 59px,
+            rgba(255,255,255,.03) 60px
+        );
+    pointer-events: none;
+}
+
+.hero-brand {
+    position: relative;
+    z-index: 1;
+}
+
+.hero-brand .eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 10px;
+    display: block;
+}
+
+.hero-brand h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: clamp(52px, 6vw, 80px);
+    font-weight: 900;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: -.02em;
+    line-height: .95;
+    color: var(--white);
+}
+
+.hero-brand h1 em {
+    color: var(--blue);
+    font-style: italic;
+}
+
+.hero-brand p {
+    font-size: 12px;
+    color: #475569;
+    margin-top: 18px;
+    line-height: 1.6;
+    max-width: 240px;
+}
+
+.hero-meta {
+    position: relative;
+    z-index: 1;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #334155;
+}
+
+/* RIGHT — nav cards */
+.hero-right {
+    background: var(--bg);
+    padding: 40px 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+}
+
+.hero-right .section-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+/* ── NAV CARDS ── */
+.nav-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 20px 22px;
+    text-decoration: none;
+    color: var(--slate);
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    transition: border-color .15s, box-shadow .15s, transform .12s;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-card::after {
+    content: '→';
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 18px;
+    color: var(--border);
+    position: absolute;
+    right: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: color .15s, right .15s;
+}
+
+.nav-card:hover {
+    border-color: var(--blue);
+    box-shadow: 0 4px 20px rgba(37,99,235,.12);
+    transform: translateY(-1px);
+}
+
+.nav-card:hover::after {
+    color: var(--blue);
+    right: 18px;
+}
+
+.nav-card:active { transform: translateY(0); }
+
+.nav-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.nav-icon.blue   { background: #eff6ff; }
+.nav-icon.green  { background: #f0fdf4; }
+.nav-icon.amber  { background: #fffbeb; }
+.nav-icon.slate  { background: #f8fafc; }
+
+.nav-text { flex: 1; min-width: 0; }
+
+.nav-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 17px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    line-height: 1;
+    margin-bottom: 3px;
+}
+
+.nav-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+/* divider between card groups */
+.nav-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+}
+
+/* ── BOTTOM STRIP ── */
+.bottom-strip {
+    background: var(--slate);
+    padding: 16px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.bottom-strip .lbl {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #475569;
+}
+
+.bottom-strip .version {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #334155;
+    letter-spacing: .08em;
+}
+
+@media (max-width: 640px) {
+    .hero-left { padding: 36px 24px 28px; }
+    .bottom-strip { padding: 14px 20px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+    <div class="hero">
+
+        <!-- LEFT: Brand -->
+        <div class="hero-left">
+            <div class="hero-brand">
+                <span class="eyebrow">Padel Verwaltung</span>
+                <h1>Padel<br><em>Hirsch</em></h1>
+                <p>Turnierverwaltung, Spieler&shy;pool und Live-Ergebnisse — alles an einem Ort.</p>
+            </div>
+            <div class="hero-meta">Smart-Mix Engine v2.0</div>
+        </div>
+
+        <!-- RIGHT: Navigation -->
+        <div class="hero-right">
+            <div class="section-label">Admin-Bereich</div>
+
+            <a href="spieler.html" class="nav-card">
+                <div class="nav-icon green">👥</div>
+                <div class="nav-text">
+                    <div class="nav-title">Spielerverwaltung</div>
+                    <div class="nav-desc">Spieler:innen anlegen, Level pflegen, Turniere vorbereiten</div>
+                </div>
+            </a>
+
+            <a href="setup.html" class="nav-card">
+                <div class="nav-icon blue">⚙️</div>
+                <div class="nav-text">
+                    <div class="nav-title">Turnier Setup</div>
+                    <div class="nav-desc">Americano, K.O., Gruppen — Spielplan erstellen &amp; verwalten</div>
+                </div>
+            </a>
+
+            <a href="setup-mexicano.html" class="nav-card">
+                <div class="nav-icon amber">🏅</div>
+                <div class="nav-text">
+                    <div class="nav-title">Mexicano Setup</div>
+                    <div class="nav-desc">Dynamische Paarungen nach aktuellem Punktestand</div>
+                </div>
+            </a>
+
+            <div class="nav-divider"></div>
+
+            <a href="live.html" class="nav-card">
+                <div class="nav-icon slate">📺</div>
+                <div class="nav-text">
+                    <div class="nav-title">Live-Ansicht</div>
+                    <div class="nav-desc">Ergebnisse eingeben &amp; Tabelle live verfolgen</div>
+                </div>
+            </a>
+
+        </div>
+    </div>
+
+    <div class="bottom-strip">
+        <span class="lbl">Padel Hirsch · Turniersystem</span>
+        <span class="version">v2.0</span>
+    </div>
+
+</div>
+</body>
+</html>
