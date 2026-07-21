@@ -1,417 +1,1123 @@
 // ============================================================
-// PADEL — SPIELERVERWALTUNG
+// PADEL HIRSCH - SETUP FUNCTIONS
+// Americano System & Core Functions
 // ============================================================
 
-// ------------------------------------------------------------
-// SUPABASE — selbes Projekt wie das bestehende Turniersystem.
-// Neue Tabellen tragen das Präfix "mex_", damit es keine Kollision
-// mit der bestehenden "tournaments"-Tabelle gibt.
-// ------------------------------------------------------------
+// ============================================================
+// SUPABASE
+// ============================================================
 const SB_URL = "https://vjcvchczbyvhweiwrunp.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY3ZjaGN6Ynl2aHdlaXdydW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NjkzNjYsImV4cCI6MjA4NTM0NTM2Nn0.A01bxl9dNzgmeDcOV2HZIIa2pN5vhWg3q0_FhqO1R2M";
 const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-// ------------------------------------------------------------
-// STATE
-// ------------------------------------------------------------
-let currentAdmin = null;       // { id, name, code }
-let allPlayers = [];           // mex_players-Tabelle
-let latestLevelByPlayer = {};  // player_id -> letztes bekanntes Level (global)
-let activeAdmins = [];         // für "Freigeben für…"
-let currentDetailPlayerId = null;
-let prepSelected = {};         // player_id -> start_level (Auswahl im "Turnier vorbereiten")
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+let currentSchedule = [];
+let players = [];
+let tournamentsList = [];
+let currentAppMode = 'americano';
+let courtNames = ['1','2','3'];
 
 // ============================================================
-// INIT / LOGIN PER CODE
+// MODE TOGGLE
+// ============================================================
+function switchMode(mode) {
+    currentAppMode = mode;
+    document.getElementById('modeBtn_americano').classList.toggle('active', mode === 'americano');
+    document.getElementById('modeBtn_ko').classList.toggle('active', mode === 'ko');
+    document.getElementById('modeBtn_groups').classList.toggle('active', mode === 'groups');
+    document.getElementById('americanoSection').classList.toggle('hidden', mode !== 'americano');
+    document.getElementById('koSection').classList.toggle('hidden', mode !== 'ko');
+    document.getElementById('groupsSection').classList.toggle('hidden', mode !== 'groups');
+    document.getElementById('headerSubtitle').textContent = {
+        americano: 'Smart-Mix Engine v2.0 · Americano Optimizer',
+        ko:        'K.O. System · 8 oder 16 Teams · Vorrunde + Bracket',
+        groups:    'Gruppen-System · 8 Teams · 2 Gruppen · 5h'
+    }[mode] || '';
+    if (mode === 'ko')     koUpdateTeamInputs();
+    if (mode === 'groups') grpInit();
+}
+
+// ============================================================
+// INIT
 // ============================================================
 async function init() {
-    const urlCode = new URLSearchParams(window.location.search).get('code');
-    if (urlCode) sessionStorage.setItem('ph_admin_code', urlCode);
-    const code = sessionStorage.getItem('ph_admin_code');
-
-    if (!code) { showAccessDenied(); return; }
-
     try {
-        const { data, error } = await supabaseClient
-            .from('mex_admins')
-            .select('id, name, code, active')
-            .eq('code', code)
-            .eq('active', true)
-            .maybeSingle();
+        const { data } = await supabaseClient.from('tournaments').select('id, data');
+        tournamentsList = data || [];
+        const sel = document.getElementById('tournamentSelect');
+        while (sel.options.length > 1) sel.remove(1);
+        tournamentsList.filter(t => t.id !== 'LIVE_CONFIG').forEach(t => sel.add(new Option(t.id, t.id)));
+        const urlParam = window.location.search.substring(1);
+        if (urlParam && tournamentsList.some(t => t.id === urlParam)) {
+            sel.value = urlParam; loadTournament(urlParam);
+        } else { updatePlayerInputs(); }
+    } catch(e) { console.warn('Supabase offline.', e); updatePlayerInputs(); }
+    toggleModeUI();
+    koUpdateTeamInputs();
+}
 
-        if (error || !data) { showAccessDenied(); return; }
-
-        currentAdmin = data;
-        document.getElementById('adminNameLabel').textContent = currentAdmin.name;
-        document.getElementById('app').classList.remove('hidden');
-
-        await loadPlayers();
-        await loadActiveAdmins();
-        renderPlayerList();
-    } catch (e) {
-        console.error(e);
-        showAccessDenied();
+// ============================================================
+// LOAD TOURNAMENT
+// ============================================================
+async function loadTournament(id) {
+    if (id === 'new') {
+        document.getElementById('deleteBtn').classList.add('hidden');
+        document.getElementById('tName').value = '';
+        document.getElementById('tPassword').value = '';
+        document.getElementById('previewArea').classList.add('hidden');
+        document.getElementById('koBracketArea').classList.add('hidden');
+        updatePlayerInputs();
+        return;
     }
-}
+    const entry = tournamentsList.find(t => t.id === id);
+    if (!entry?.data) return;
+    const d = entry.data;
 
-function showAccessDenied() {
-    document.getElementById('accessDenied').classList.remove('hidden');
-    document.getElementById('app').classList.add('hidden');
-}
-
-function logout() {
-    sessionStorage.removeItem('ph_admin_code');
-    window.location.href = window.location.pathname;
-}
-
-// ============================================================
-// TAB NAVIGATION
-// ============================================================
-function showTab(tab) {
-    ['players', 'prepare', 'mine'].forEach(t => {
-        document.getElementById('tab_' + t).classList.toggle('hidden', t !== tab);
-        document.getElementById('tabBtn_' + t).classList.toggle('active', t === tab);
-    });
-    if (tab === 'prepare') renderPreparePicker();
-    if (tab === 'mine') loadMyTournaments();
-}
-
-// ============================================================
-// ACCESSIBLE TOURNAMENTS (eigene + freigegebene)
-// ============================================================
-async function getAccessibleTournamentIds() {
-    const [{ data: owned }, { data: granted }] = await Promise.all([
-        supabaseClient.from('mex_tournaments').select('id').eq('owner_admin_id', currentAdmin.id),
-        supabaseClient.from('mex_tournament_access').select('tournament_id').eq('admin_id', currentAdmin.id)
-    ]);
-    const ids = new Set();
-    (owned || []).forEach(t => ids.add(t.id));
-    (granted || []).forEach(g => ids.add(g.tournament_id));
-    return Array.from(ids);
-}
-
-// ============================================================
-// PLAYERS — LIST / ADD / ACTIVATE / DETAIL
-// ============================================================
-async function loadPlayers() {
-    const { data: playerRows } = await supabaseClient
-        .from('mex_players').select('id, name, active').order('name');
-    allPlayers = playerRows || [];
-
-    const { data: levels } = await supabaseClient
-        .from('mex_player_latest_level').select('player_id, latest_level');
-    latestLevelByPlayer = {};
-    (levels || []).forEach(l => { latestLevelByPlayer[l.player_id] = l.latest_level; });
-}
-
-async function loadActiveAdmins() {
-    const { data } = await supabaseClient.from('mex_admins').select('id, name').eq('active', true);
-    activeAdmins = (data || []).filter(a => a.id !== currentAdmin.id);
-}
-
-function levelBadgeClass(level) {
-    if (level == null) return 'badge-slate';
-    if (level >= 3.2) return 'badge-purple';
-    if (level >= 2.5) return 'badge-amber';
-    if (level >= 2.0) return 'badge-blue';
-    return 'badge-slate';
-}
-
-function renderPlayerList() {
-    const search = document.getElementById('playerSearch').value.trim().toLowerCase();
-    const showInactive = document.getElementById('showInactive').checked;
-    const container = document.getElementById('playerList');
-
-    const list = allPlayers
-        .filter(p => showInactive || p.active)
-        .filter(p => p.name.toLowerCase().includes(search));
-
-    if (!list.length) {
-        container.innerHTML = '<p style="text-align:center; color:var(--muted); font-size:12px; padding:20px;">Keine Spieler:innen gefunden.</p>';
+    // K.O. TOURNAMENT
+    if (d.tournament_type === 'knockout') {
+        switchMode('ko');
+        document.getElementById('koTName').value = id;
+        document.getElementById('koTPassword').value = d.password || '';
+        if (d.koCourts) document.getElementById('koCourts').value = d.koCourts;
+        if (d.koStartTime) document.getElementById('koStartTime').value = d.koStartTime;
+        if (d.koMatchTime) document.getElementById('koMatchTime').value = d.koMatchTime;
+        if (d.koPause != null) document.getElementById('koPause').value = d.koPause;
+        if (d.koCourtHours != null) document.getElementById('koCourtHours').value = d.koCourtHours;
+        if (d.koCourtNames?.length) {
+            d.koCourtNames.forEach((name, i) => {
+                const el = document.getElementById(`koCourt${i+1}Name`);
+                if (el) el.value = name;
+            });
+            koUpdateCourtNamesSection();
+        }
+        if (d.expiry_date) {
+            document.getElementById('koExpiryEnabled').checked = true;
+            koToggleExpiry();
+            const dateObj = new Date(d.expiry_date);
+            const localISO = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+            document.getElementById('koExpiryDate').value = localISO;
+        }
+        koTeamCount = d.koTeamCount || 8;
+        koSelectTeamCount(koTeamCount, true);
+        if (d.koTeams?.length) {
+            koTeams = d.koTeams;
+            koUpdateTeamInputs(d.koTeams);
+        }
+        if (d.koBracket) {
+            koBracketData = d.koBracket;
+            if (koTeamCount === 8) { ko8RenderAll(); }
+            else { ko16RenderAll(); }
+            document.getElementById('koBracketArea').classList.remove('hidden');
+        }
+        document.getElementById('deleteBtn').classList.remove('hidden');
         return;
     }
 
-    container.innerHTML = list.map(p => {
-        const lvl = latestLevelByPlayer[p.id];
-        const lvlText = lvl != null ? `Level ${Number(lvl).toFixed(2)}` : 'noch kein Level';
-        return `
-            <div class="row-card ${p.active ? '' : 'inactive'}" onclick="openPlayerDetail('${p.id}')">
+    // GRUPPEN TOURNAMENT
+    if (d.tournament_type === 'groups') {
+        grpLoadTournament(d, id);
+        document.getElementById('deleteBtn').classList.remove('hidden');
+        return;
+    }
+
+    // AMERICANO TOURNAMENT
+    switchMode('americano');
+    document.getElementById('tName').value = id;
+    document.getElementById('tPassword').value = d.password || '';
+    if (d.t) {
+        if (d.t.start != null) document.getElementById('startTime').value = d.t.start;
+        if (d.t.warmup != null) document.getElementById('warmup').value = d.t.warmup;
+        if (d.t.match != null) document.getElementById('matchTime').value = d.t.match;
+    }
+    if (d.courts != null) document.getElementById('cCount').value = d.courts;
+    if (d.totalHours != null) document.getElementById('totalHours').value = d.totalHours;
+    if (d.mode) {
+        const el = document.querySelector(`input[name="mode"][value="${d.mode}"]`);
+        if(el) el.checked = true;
+    }
+    if (d.isTeam != null) {
+        const el = document.querySelector(`input[name="tType"][value="${d.isTeam?'team':'solo'}"]`);
+        if(el) el.checked = true;
+    }
+    if (d.p?.length) {
+        document.getElementById('pCount').value = d.p.length;
+        updatePlayerInputs(d.p);
+    }
+    if (d.courtNames?.length) {
+        d.courtNames.forEach((name, i) => {
+            const el = document.getElementById(`court${i+1}Name`);
+            if (el) el.value = name;
+        });
+        updateCourtNamesSection();
+    }
+    if (d.expiry_date) {
+        document.getElementById('expiryEnabled').checked = true;
+        toggleExpiry();
+        const dateObj = new Date(d.expiry_date);
+        const localISO = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+        document.getElementById('expiryDate').value = localISO;
+    }
+    if (d.s_new?.length) {
+        players = d.p || [];
+        currentSchedule = d.s_new;
+        renderPreview(false, false, true);
+    }
+    document.getElementById('deleteBtn').classList.remove('hidden');
+    toggleModeUI();
+    checkConsistency();
+}
+
+// ============================================================
+// PASSWORD TOGGLE
+// ============================================================
+function togglePw() {
+    const el = document.getElementById('tPassword');
+    const btn = document.getElementById('eyeBtn');
+    if(el.type === 'password') {
+        el.type = 'text';
+        btn.innerText = '🙈';
+    } else {
+        el.type = 'password';
+        btn.innerText = '👁️';
+    }
+}
+
+// ============================================================
+// COURT NAMES MANAGEMENT
+// ============================================================
+function updateCourtNamesSection() {
+    const count = parseInt(document.getElementById('cCount').value) || 1;
+    const section = document.getElementById('courtNamesSection');
+    if (count > 1) {
+        section.classList.remove('hidden');
+        for (let i = 1; i <= 3; i++) {
+            const el = document.getElementById(`court${i}Name`);
+            if (el) el.style.display = i <= count ? 'block' : 'none';
+        }
+    } else {
+        section.classList.add('hidden');
+    }
+}
+
+function readCourtNames() {
+    const count = parseInt(document.getElementById('cCount').value) || 1;
+    courtNames = [];
+    for (let i = 0; i < count; i++) {
+        const val = document.getElementById(`court${i+1}Name`)?.value.trim() || (i+1).toString();
+        courtNames.push(val);
+    }
+    return courtNames;
+}
+
+// ============================================================
+// EXPIRY DATE MANAGEMENT
+// ============================================================
+function toggleExpiry() {
+    const enabled = document.getElementById('expiryEnabled').checked;
+    document.getElementById('expiryDateSection').classList.toggle('hidden', !enabled);
+}
+
+function getExpiryDate() {
+    const enabled = document.getElementById('expiryEnabled')?.checked;
+    if (!enabled) return null;
+    const val = document.getElementById('expiryDate')?.value;
+    return val ? new Date(val).toISOString() : null;
+}
+
+// ============================================================
+// MODE UI (Americano)
+// ============================================================
+function toggleModeUI() {
+    const isTime = document.querySelector('input[name="mode"]:checked').value === 'time';
+    document.getElementById('optSection').style.display = isTime ? 'block' : 'none';
+    document.getElementById('pointsModeInfo').classList.toggle('hidden', isTime);
+    updateCountLabel();
+    checkConsistency();
+}
+
+function updateCountLabel() {
+    const isTeam = document.querySelector('input[name="tType"]:checked')?.value === 'team';
+    const label = document.querySelector('label[for="pCount"]') || document.querySelectorAll('.lbl')[2];
+    if (label) {
+        label.innerHTML = isTeam
+            ? 'Anzahl Teams <span style="font-size:8px;opacity:0.7;">(je 2 Spieler)</span>'
+            : 'Spieler';
+    }
+}
+
+// ============================================================
+// PLAYER INPUTS (Americano)
+// ============================================================
+function updatePlayerInputs(preloadNames = null) {
+    updateCountLabel();
+    const count = parseInt(document.getElementById('pCount').value) || 6;
+    const isTeam = document.querySelector('input[name="tType"]:checked').value === 'team';
+    const existing = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value);
+    document.getElementById('playerListLabel').textContent = isTeam ? 'Feste 2er-Teams' : 'Teilnehmer:innen';
+    document.getElementById('teamModeInfo').classList.toggle('hidden', !isTeam);
+    let html = '';
+    if(isTeam) {
+        for(let teamIdx = 0; teamIdx < count; teamIdx++) {
+            const playerAIdx = teamIdx * 2;
+            const playerBIdx = teamIdx * 2 + 1;
+            const valA = preloadNames?.[playerAIdx] || existing[playerAIdx] || `Spieler ${playerAIdx+1}`;
+            const valB = preloadNames?.[playerBIdx] || existing[playerBIdx] || `Spieler ${playerBIdx+1}`;
+            html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:6px;">
                 <div>
-                    <div style="font-weight:700; font-size:13px;">${escapeHtml(p.name)}</div>
-                    <div style="font-size:10px; color:var(--muted);">${p.active ? '' : 'Inaktiv · '}${lvlText}</div>
+                    <label style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:3px;">Team ${teamIdx+1} · Spieler A</label>
+                    <input type="text" id="pIdx_${playerAIdx}" value="${valA.replace(/"/g,'&quot;')}" style="margin:0;">
                 </div>
-                <span class="badge ${levelBadgeClass(lvl)}">${lvl != null ? Number(lvl).toFixed(1) : '–'}</span>
+                <div>
+                    <label style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:3px;">Spieler B</label>
+                    <input type="text" id="pIdx_${playerBIdx}" value="${valB.replace(/"/g,'&quot;')}" style="margin:0;">
+                </div>
             </div>`;
-    }).join('');
-}
-
-function toggleAddPlayerForm() {
-    const form = document.getElementById('addPlayerForm');
-    const isHidden = form.classList.contains('hidden');
-    form.classList.toggle('hidden');
-    if (isHidden) {
-        document.getElementById('newPlayerName').value = '';
-        resetDuplicateWarning();
-    }
-}
-
-function resetDuplicateWarning() {
-    document.getElementById('duplicateWarning').classList.add('hidden');
-    document.getElementById('addPlayerActions').style.display = 'flex';
-}
-
-async function addPlayer(force = false) {
-    const name = document.getElementById('newPlayerName').value.trim();
-    if (!name) { alert('Bitte einen Namen eingeben.'); return; }
-
-    // Dubletten-Check (case-insensitiv) — nur wenn nicht bereits bestätigt
-    if (!force) {
-        const nameLower = name.toLowerCase();
-        const duplicates = allPlayers.filter(p => p.name.toLowerCase() === nameLower);
-        if (duplicates.length) {
-            const existing = duplicates.map(p => `„${p.name}"${p.active ? '' : ' (inaktiv)'}`).join(', ');
-            document.getElementById('duplicateWarningText').textContent =
-                `Bereits vorhanden: ${existing}. Wirklich nochmal anlegen?`;
-            document.getElementById('duplicateWarning').classList.remove('hidden');
-            document.getElementById('addPlayerActions').style.display = 'none';
-            return;
+        }
+    } else {
+        for(let i = 0; i < count; i++) {
+            let val = preloadNames?.[i] || existing[i] || `Spieler ${i+1}`;
+            html += `<input type="text" id="pIdx_${i}" value="${val.replace(/"/g,'&quot;')}">`;
         }
     }
+    document.getElementById('playerList').innerHTML = html;
+}
 
-    const { error } = await supabaseClient.from('mex_players').insert({ name });
-    if (error) {
-        // Fallback falls DB-Unique-Constraint greift (sollte durch Frontend schon abgefangen sein)
-        if (error.code === '23505') {
-            alert(`„${name}" existiert bereits in der Datenbank.`);
+// ============================================================
+// CONSISTENCY CHECK (Americano)
+// ============================================================
+function checkConsistency() {
+    const countRaw = parseInt(document.getElementById('pCount').value) || 0;
+    const isTeam = document.querySelector('input[name="tType"]:checked')?.value === 'team';
+    const count = isTeam ? countRaw * 2 : countRaw;
+    const courts = parseInt(document.getElementById('cCount').value) || 1;
+    const totalMin = parseFloat(document.getElementById('totalHours').value) * 60 || 0;
+    const matchTime = parseInt(document.getElementById('matchTime').value) || 0;
+    const warmup = parseInt(document.getElementById('warmup').value) || 0;
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const errBox = document.getElementById('inputError');
+    const warnBox = document.getElementById('consistencyWarning');
+    let errors = [];
+    let warnings = [];
+
+    if(count < 2) errors.push('Mindestens 2 Spieler/Teams nötig.');
+    if(courts < 1) errors.push('Mindestens 1 Platz nötig.');
+    if(matchTime < 5) errors.push('Match-Zeit muss mindestens 5 Min. sein.');
+    if(totalMin < 10) errors.push('Gesamtdauer muss mindestens 10 Min. sein.');
+    if(warmup >= totalMin) errors.push('Aufwärm-Zeit darf nicht länger als Gesamtdauer sein.');
+    if(count < 4 && courts >= 1) errors.push('Mindestens 4 Spieler/Teams für ein Match nötig.');
+
+    if(!errors.length && matchTime > 0) {
+        const netto = totalMin - warmup;
+        const rounds = Math.floor(netto / matchTime);
+        if(rounds < 1) {
+            errors.push('Zu wenig Zeit für 1 Runde.');
         } else {
-            alert('Fehler: ' + error.message);
+            const slots = rounds * courts * 4;
+            if(slots % count !== 0) {
+                warnings.push(`⚠️ ${slots} Slots für ${count} Spieler → ungleiche Verteilung. Nutze "Setup-Optionen" für fairen Plan. Puffer: ${netto-(rounds*matchTime)} Min.`);
+            }
+            if(mode === 'points') {
+                warnings.push(`🎯 Ca. ${rounds} Runden geschätzt (max. ${matchTime} Min./Runde).`);
+            }
         }
-        return;
-    }
-    toggleAddPlayerForm();
-    await loadPlayers();
-    renderPlayerList();
-}
-
-async function openPlayerDetail(playerId) {
-    currentDetailPlayerId = playerId;
-    const player = allPlayers.find(p => p.id === playerId);
-    if (!player) return;
-
-    document.getElementById('playerListView').classList.add('hidden');
-    document.getElementById('playerDetailView').classList.remove('hidden');
-    document.getElementById('detailName').value = player.name;
-    updateDetailActiveBtn(player.active);
-
-    document.getElementById('playerHistoryTable').innerHTML = '<p style="font-size:12px; color:var(--muted); text-align:center; padding:14px;">Lädt…</p>';
-    const accessibleIds = await getAccessibleTournamentIds();
-
-    const { data, error } = await supabaseClient
-        .from('mex_tournament_players')
-        .select('start_level, final_points, final_level, placement, mex_tournaments(id, name, date, type)')
-        .eq('player_id', playerId);
-
-    if (error) {
-        document.getElementById('playerHistoryTable').innerHTML = '<p style="font-size:12px; color:var(--red);">Fehler beim Laden.</p>';
-        return;
     }
 
-    const rows = (data || [])
-        .filter(r => r.mex_tournaments && accessibleIds.includes(r.mex_tournaments.id))
-        .sort((a, b) => new Date(b.mex_tournaments.date || 0) - new Date(a.mex_tournaments.date || 0));
-
-    if (!rows.length) {
-        document.getElementById('playerHistoryTable').innerHTML = '<p style="font-size:12px; color:var(--muted); text-align:center; padding:14px;">Noch keine Turniere für dich sichtbar.</p>';
-        return;
-    }
-
-    document.getElementById('playerHistoryTable').innerHTML = `
-        <table class="hist">
-            <thead><tr><th>Datum</th><th>Turnier</th><th>Platz</th><th>Punkte</th><th>Level</th></tr></thead>
-            <tbody>
-                ${rows.map(r => `
-                    <tr>
-                        <td>${r.mex_tournaments.date ? new Date(r.mex_tournaments.date).toLocaleDateString('de-DE') : '–'}</td>
-                        <td>${escapeHtml(r.mex_tournaments.name)}</td>
-                        <td>${r.placement ?? '–'}</td>
-                        <td>${r.final_points ?? '–'}</td>
-                        <td>${r.final_level != null ? Number(r.final_level).toFixed(2) : '–'}</td>
-                    </tr>`).join('')}
-            </tbody>
-        </table>`;
-}
-
-function updateDetailActiveBtn(active) {
-    const btn = document.getElementById('detailActiveBtn');
-    btn.textContent = active ? 'Auf Inaktiv setzen' : 'Auf Aktiv setzen';
-}
-
-function closePlayerDetail() {
-    currentDetailPlayerId = null;
-    document.getElementById('playerDetailView').classList.add('hidden');
-    document.getElementById('playerListView').classList.remove('hidden');
-}
-
-async function savePlayerName() {
-    const name = document.getElementById('detailName').value.trim();
-    if (!name) { alert('Bitte einen Namen eingeben.'); return; }
-    const { error } = await supabaseClient.from('mex_players').update({ name }).eq('id', currentDetailPlayerId);
-    if (error) { alert('Fehler: ' + error.message); return; }
-    await loadPlayers();
-    renderPlayerList();
-    alert('✅ Gespeichert.');
-}
-
-async function togglePlayerActive() {
-    const player = allPlayers.find(p => p.id === currentDetailPlayerId);
-    if (!player) return;
-    const { error } = await supabaseClient.from('mex_players').update({ active: !player.active }).eq('id', player.id);
-    if (error) { alert('Fehler: ' + error.message); return; }
-    await loadPlayers();
-    updateDetailActiveBtn(!player.active);
-    renderPlayerList();
+    errBox.classList.toggle('hidden', !errors.length);
+    errBox.innerHTML = errors.join('<br>');
+    warnBox.classList.toggle('hidden', !warnings.length);
+    warnBox.innerHTML = warnings.join('<br>');
+    updateCourtNamesSection();
 }
 
 // ============================================================
-// TAB: TURNIER VORBEREITEN
+// SETUP OPTIONS (Americano)
 // ============================================================
-function renderPreparePicker() {
-    const search = document.getElementById('prepSearch').value.trim().toLowerCase();
-    const container = document.getElementById('preparePicker');
-    const list = allPlayers.filter(p => p.active && p.name.toLowerCase().includes(search));
+function showOptimalProposals() {
+    const countRaw = parseInt(document.getElementById('pCount').value) || 6;
+    const isTeam = document.querySelector('input[name="tType"]:checked')?.value === 'team';
+    const count = isTeam ? countRaw * 2 : countRaw;
+    const courts = parseInt(document.getElementById('cCount').value) || 1;
+    const netto = parseFloat(document.getElementById('totalHours').value) * 60 - (parseInt(document.getElementById('warmup').value) || 0);
 
-    container.innerHTML = list.map(p => {
-        const checked = prepSelected.hasOwnProperty(p.id);
-        const defaultLevel = latestLevelByPlayer[p.id] != null ? Number(latestLevelByPlayer[p.id]).toFixed(2) : '1.00';
-        const levelValue = checked ? prepSelected[p.id] : defaultLevel;
-        return `
-            <div class="picker-row">
-                <label>
-                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="togglePrepSelect('${p.id}', '${defaultLevel}', this.checked)">
-                    ${escapeHtml(p.name)}
-                </label>
-                <input type="number" step="0.1" min="1" max="5" value="${levelValue}"
-                       ${checked ? '' : 'disabled'}
-                       onchange="setPrepLevel('${p.id}', this.value)"
-                       style="padding:6px 8px; font-size:12px;">
+    let options = [];
+    for (let r = 2; r <= 40; r++) {
+        const mt = Math.floor(netto / r / 5) * 5;
+        if (mt < 10 || mt * r > netto) continue;
+        const slots = r * courts * 4;
+        const ppp   = slots / count;
+        const isFair  = Number.isInteger(ppp);
+        const buffer  = netto - mt * r;
+        if (!isFair && buffer < 5) continue;
+        if (ppp < 4) continue;
+        options.push({ r, mt, slots, ppp, isFair, buffer });
+    }
+
+    const byMt = {};
+    options.forEach(o => {
+        if (!byMt[o.mt] || o.r > byMt[o.mt].r) byMt[o.mt] = o;
+    });
+    options = Object.values(byMt).sort((a, b) => b.ppp - a.ppp);
+
+    let html = '';
+    if (!options.length) {
+        html = `<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">Keine sinnvollen Optionen. Bitte Dauer oder Plätze anpassen.</div>`;
+    } else {
+        options.slice(0, 6).forEach(({ r, mt, ppp, isFair, buffer }) => {
+            const playsMin   = Math.floor(ppp) * mt;
+            const playsMax   = Math.ceil(ppp)  * mt;
+            const playsLabel = isFair ? `~${playsMin} Min. pro Person` : `~${playsMin}–${playsMax} Min. pro Person`;
+            const fairLabel  = isFair ? 'Perfekt fair' : 'Ausgleich nötig';
+            const fairBadge  = isFair ? 'badge-amber'  : 'badge-blue';
+            const bufferIcon = buffer >= 15 ? '🔥' : buffer >= 5 ? '👍' : '⚡';
+            const playsInfo  = isFair ? `✅ Jeder spielt genau ${Math.round(ppp)}×` : `⌀ ${ppp.toFixed(1)}× · Ausgleichsrunde am Ende`;
+            html += `<div class="opt-card">
+                <div>
+                    <span class="badge ${fairBadge}">${fairLabel}</span>
+                    <div class="opt-time" style="margin:10px 0 4px;">${mt}<span style="font-size:16px;font-weight:700"> Min.</span></div>
+                    <p style="font-size:11px;color:var(--muted);font-weight:500;">🎾 ${r} Runden · ${courts} ${courts > 1 ? 'Plätze' : 'Platz'}</p>
+                    <p style="font-size:11px;color:var(--blue);font-weight:700;margin-top:4px;">${playsLabel}</p>
+                    <div style="font-size:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 8px;margin-top:8px;">
+                        <span style="color:var(--muted);">Puffer: </span><strong>${buffer} Min. ${bufferIcon}</strong>
+                        <span style="display:block;color:${isFair ? 'var(--green)' : 'var(--muted)'};">${playsInfo}</span>
+                    </div>
+                </div>
+                <button class="opt-apply" onclick="applyOpt(${mt})">Wählen</button>
             </div>`;
+        });
+    }
+
+    const disp = document.getElementById('optDisplay');
+    disp.innerHTML = html;
+    disp.style.display = 'grid';
+}
+
+function applyOpt(val) {
+    document.getElementById('matchTime').value = val;
+    checkConsistency();
+    document.getElementById('optDisplay').style.display = 'none';
+}
+
+// ============================================================
+// INPUT HELPER
+// ============================================================
+function getInputs() {
+    const countRaw = parseInt(document.getElementById('pCount').value) || 6;
+    const isTeam = document.querySelector('input[name="tType"]:checked').value === 'team';
+    const count = isTeam ? countRaw * 2 : countRaw;
+    const courts = parseInt(document.getElementById('cCount').value) || 1;
+    const totalMin = parseFloat(document.getElementById('totalHours').value) * 60 || 120;
+    const matchTime = parseInt(document.getElementById('matchTime').value) || 15;
+    const warmup = parseInt(document.getElementById('warmup').value) || 0;
+    const start = document.getElementById('startTime').value || '18:00';
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+
+    const rawRounds = Math.floor((totalMin - warmup) / matchTime);
+    const maxInBalance = courts * 4;
+
+    // Finde optimale Rundenanzahl von rawRounds abwärts:
+    // perfekt fair (kein Ausgleich) ODER underPlayed <= maxInBalance (Ausgleich passt)
+    let numRounds = rawRounds;
+    for (let r = rawRounds; r >= 1; r--) {
+        const slots = r * courts * 4;
+        if (slots % count === 0) { numRounds = r; break; }
+        if ((count - (slots % count)) <= maxInBalance) { numRounds = r; break; }
+    }
+
+    return {
+        count, courts, totalMin, matchTime, warmup, start, mode, isTeam,
+        nettoMin: totalMin - warmup,
+        numRounds: Math.max(1, numRounds)
+    };
+}
+
+// ============================================================
+// OPTIMIZATION ENGINE
+// ============================================================
+function isRealPlayer(p, numPlayers) {
+    return p !== null && p !== undefined && typeof p === 'number' && p < numPlayers;
+}
+
+function calcPenalty(schedule, numPlayers) {
+    const partner = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
+    const opponent = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
+    const plays = new Array(numPlayers).fill(0);
+
+    schedule.forEach(r => {
+        r.matches.forEach(m => {
+            const [a, b, c, d] = [m.team1[0], m.team1[1], m.team2[0], m.team2[1]];
+            [a, b, c, d].filter(p => isRealPlayer(p, numPlayers)).forEach(p => plays[p]++);
+            if(isRealPlayer(a, numPlayers) && isRealPlayer(b, numPlayers)) {
+                partner[a][b]++; partner[b][a]++;
+            }
+            if(isRealPlayer(c, numPlayers) && isRealPlayer(d, numPlayers)) {
+                partner[c][d]++; partner[d][c]++;
+            }
+            [a, b].forEach(t1 => {
+                [c, d].forEach(t2 => {
+                    if(isRealPlayer(t1, numPlayers) && isRealPlayer(t2, numPlayers)) {
+                        opponent[t1][t2]++; opponent[t2][t1]++;
+                    }
+                });
+            });
+        });
+    });
+
+    const numRounds = schedule.length;
+    let penalty = 0;
+    const avgPlays = plays.reduce((a, b) => a + b, 0) / numPlayers;
+    plays.forEach(p => {
+        penalty += Math.pow(p - avgPlays, 2) * 100;
+        const pauses = numRounds - p;
+        penalty += Math.pow(pauses - (numRounds - avgPlays), 2) * 100;
+    });
+    for(let i = 0; i < numPlayers; i++) {
+        for(let j = i + 1; j < numPlayers; j++) {
+            if(partner[i][j] > 1) penalty += Math.pow(partner[i][j] - 1, 2) * 10;
+            if(opponent[i][j] > 2) penalty += Math.pow(opponent[i][j] - 2, 2) * 3;
+        }
+    }
+
+    return { penalty, plays, partner, opponent };
+}
+
+function smartSelect(pool, needed, partnerCount, opponentCount) {
+    if(pool.length <= needed) return [...pool];
+    let remaining = [...pool];
+    let selected = [];
+    const firstIdx = Math.floor(Math.random() * Math.max(1, Math.ceil(remaining.length / 3)));
+    selected.push(remaining.splice(firstIdx, 1)[0]);
+
+    while(selected.length < needed && remaining.length > 0) {
+        let best = null;
+        let bestScore = Infinity;
+        remaining.forEach(p => {
+            const score = selected.reduce((sum, s) => sum + partnerCount[p][s] * 10 + opponentCount[p][s] * 3, 0) + Math.random() * 2;
+            if(score < bestScore) {
+                bestScore = score;
+                best = p;
+            }
+        });
+        selected.push(best);
+        remaining = remaining.filter(p => p !== best);
+    }
+
+    if(needed === 4 && selected.length === 4) {
+        const [a, b, c, d] = selected;
+        const pairings = [[a, b, c, d], [a, c, b, d], [a, d, b, c]];
+        let bestPair = pairings[0];
+        let bestPairScore = Infinity;
+        pairings.forEach(([p1, p2, p3, p4]) => {
+            const sc = partnerCount[p1][p2] * 20 + partnerCount[p3][p4] * 20 +
+                      opponentCount[p1][p3] * 3 + opponentCount[p1][p4] * 3 +
+                      opponentCount[p2][p3] * 3 + opponentCount[p2][p4] * 3;
+            if(sc < bestPairScore) {
+                bestPairScore = sc;
+                bestPair = [p1, p2, p3, p4];
+            }
+        });
+        return bestPair;
+    }
+
+    return selected;
+}
+
+function generateVariant(inputs) {
+    const { count, courts, matchTime, warmup, start, numRounds } = inputs;
+    let [sH, sM] = start.split(':').map(Number);
+    let schedule = [];
+    let playTracker = new Array(count).fill(0);
+    let lastPlayedRound = new Array(count).fill(-99);
+    let consecPauses = new Array(count).fill(0);
+    const partnerCount = Array.from({length: count}, () => new Array(count).fill(0));
+    const opponentCount = Array.from({length: count}, () => new Array(count).fill(0));
+    const PROTECTED = new Set([1, 2, numRounds - 1, numRounds]);
+
+    for(let r = 1; r <= numRounds; r++) {
+        const tMin = sH * 60 + sM + warmup + (r - 1) * matchTime;
+        const timeStr = `${String(Math.floor(tMin / 60) % 24).padStart(2, '0')}:${String(tMin % 60).padStart(2, '0')}`;
+        const isProtected = PROTECTED.has(r);
+
+        const mustPlay   = [...Array(count).keys()].filter(p => consecPauses[p] >= 2);
+        const justPaused = [...Array(count).keys()].filter(p => consecPauses[p] === 1);
+        const rested     = [...Array(count).keys()].filter(p => consecPauses[p] === 0);
+
+        mustPlay.sort((a, b) => playTracker[a] - playTracker[b]);
+        justPaused.sort((a, b) => playTracker[a] - playTracker[b]);
+        rested.sort((a, b) => {
+            const d = playTracker[a] - playTracker[b];
+            return d !== 0 ? d : lastPlayedRound[a] - lastPlayedRound[b];
+        });
+
+        let rem = [...mustPlay, ...justPaused, ...rested];
+        let round = { id: r, time: timeStr, pause: [], matches: [] };
+
+        for(let c = 0; c < courts; c++) {
+            if(rem.length < 4) break;
+            const hasMust = rem.some(p => mustPlay.includes(p));
+            const strict = hasMust || (isProtected && r > 1);
+            const chosen = strict
+                ? rem.splice(0, 4)
+                : smartSelect(rem, 4, partnerCount, opponentCount);
+            rem = rem.filter(p => !chosen.includes(p));
+            const [p1, p2, p3, p4] = chosen;
+            [p1, p2, p3, p4].forEach(p => {
+                if(p !== undefined) { playTracker[p]++; lastPlayedRound[p] = r; }
+            });
+            if(p1 !== undefined && p2 !== undefined) {
+                partnerCount[p1][p2]++; partnerCount[p2][p1]++;
+            }
+            if(p3 !== undefined && p4 !== undefined) {
+                partnerCount[p3][p4]++; partnerCount[p4][p3]++;
+            }
+            [p1, p2].forEach(a => {
+                [p3, p4].forEach(b => {
+                    if(a !== undefined && b !== undefined) {
+                        opponentCount[a][b]++; opponentCount[b][a]++;
+                    }
+                });
+            });
+            round.matches.push({ court: c + 1, team1: [p1, p2], team2: [p3, p4] });
+        }
+
+        // Pausen-Tracker updaten (kein rem.push - rem enthält bereits korrekte Pause-Spieler)
+        for(let p = 0; p < count; p++) {
+            if(round.matches.some(m => m.team1.includes(p) || m.team2.includes(p))) {
+                consecPauses[p] = 0;
+            } else {
+                consecPauses[p]++;
+            }
+        }
+        round.pause = rem.filter(p => !round.matches.some(m => m.team1.includes(p) || m.team2.includes(p)));
+        schedule.push(round);
+    }
+
+    return schedule;
+}
+
+async function runOptimization() {
+    if(!document.getElementById('inputError').classList.contains('hidden')) {
+        alert('Bitte zuerst die Eingabefehler beheben!');
+        return;
+    }
+
+    players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value.trim()).filter(Boolean);
+    const inputs = getInputs();
+    const totalSlots = inputs.numRounds * inputs.courts * 4;
+    const remainder = totalSlots % players.length;
+    const isPerfectlyFair = (remainder === 0);
+    const isDummyMode = !isPerfectlyFair;
+    const isFinalMode = isPerfectlyFair;
+
+    const btn = document.getElementById('mixBtn');
+    const txt = document.getElementById('mixBtnText');
+    const spin = document.getElementById('mixSpinner');
+    btn.disabled = true;
+    txt.textContent = 'Optimiere…';
+    spin.classList.remove('hidden');
+    await new Promise(r => setTimeout(r, 30));
+
+    let bestSchedule = null;
+    let lowestPenalty = Infinity;
+    for(let i = 0; i < 500; i++) {
+        const sched = generateVariant(inputs);
+        const { penalty } = calcPenalty(sched, players.length);
+        if(penalty < lowestPenalty) {
+            lowestPenalty = penalty;
+            bestSchedule = sched;
+        }
+    }
+
+    const lastTime = bestSchedule[bestSchedule.length - 1];
+    const [lH, lM] = lastTime.time.split(':').map(Number);
+    const nextMin = lH * 60 + lM + inputs.matchTime;
+    const nextTime = `${String(Math.floor(nextMin / 60) % 24).padStart(2, '0')}:${String(nextMin % 60).padStart(2, '0')}`;
+
+    if(isDummyMode) {
+        const { plays } = calcPenalty(bestSchedule, players.length);
+        const minPlays = Math.min(...plays);
+
+        const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
+        const maxInBalance = inputs.courts * 4;
+        const spielende = underPlayed.slice(0, maxInBalance);
+        const pauseUnderPlayed = underPlayed.slice(maxInBalance);
+
+        const balanceMatches = [];
+        let rem = [...spielende];
+        let courtNum = 1;
+        while(rem.length >= 1 && courtNum <= inputs.courts) {
+            const p1 = rem.shift();
+            const p2 = rem.length > 0 ? rem.shift() : null;
+            balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: [null, null] });
+        }
+        // Freie Courts mit komplett virtuellen Spielern auffüllen
+        while(courtNum <= inputs.courts) {
+            balanceMatches.push({ court: courtNum++, team1: [null, null], team2: [null, null] });
+        }
+
+        const overPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
+        const balancePause = [...overPlayed, ...pauseUnderPlayed];
+
+        bestSchedule.push({
+            id: bestSchedule.length + 1,
+            time: nextTime,
+            isBalance: true,
+            matches: balanceMatches,
+            pause: balancePause
+        });
+    } else {
+        bestSchedule.push({
+            id: bestSchedule.length + 1,
+            time: nextTime,
+            isFinale: true,
+            matches: [{ court: 1, team1: ['PLATZ1', 'PLATZ4'], team2: ['PLATZ2', 'PLATZ3'] }],
+            pause: []
+        });
+    }
+
+    currentSchedule = bestSchedule;
+    btn.disabled = false;
+    txt.textContent = 'Plan bestmöglich mischen';
+    spin.classList.add('hidden');
+    renderPreview(isDummyMode, isFinalMode, false);
+}
+
+// ============================================================
+// RENDER PREVIEW
+// ============================================================
+function renderPreview(isDummyMode, isFinalMode, isReadonly) {
+    if(!players.length) players = Array.from(document.querySelectorAll('#playerList input')).map(i => i.value.trim());
+    document.getElementById('previewArea').classList.remove('hidden');
+    const mode = document.querySelector('input[name="mode"]:checked')?.value || 'time';
+    const ccls = ['c1', 'c2', 'c3', 'c4'];
+
+    document.getElementById('previewList').innerHTML = currentSchedule.map((r, idx) => {
+        const isLast = idx === currentSchedule.length - 1;
+        let roundLabel = `Runde ${r.id}`;
+        let cardCls = 'round-card';
+        let extra = '';
+        let badgeHtml = '';
+
+        if(!isReadonly && isLast && isFinalMode) {
+            roundLabel = '🏆 Finale der besten 4';
+            cardCls = 'round-card round-finale';
+            badgeHtml = '<span class="badge badge-amber">Finale</span>';
+            extra = `<p style="font-size:9px;color:#92400e;text-align:center;margin-top:8px;font-weight:600;">Zählt nicht für Statistik</p>`;
+        } else if(!isReadonly && isLast && isDummyMode) {
+            roundLabel = '⚖️ Ausgleichsspiel';
+            cardCls = 'round-card round-balance';
+            badgeHtml = '<span class="badge badge-blue">Ausgleich</span>';
+            extra = `<p style="font-size:9px;color:#1e40af;text-align:center;margin-top:8px;font-weight:600;">Echte Spieler werden normal gewertet · Virtuelle Gegner zählen nicht</p>`;
+        }
+
+        const matchHtml = r.matches.map(m => {
+            let p1, p2, p3, p4;
+            if(r.isFinale) {
+                p1 = '🥇 Platz 1'; p2 = '🥈 Platz 4'; p3 = '🥈 Platz 2'; p4 = '🥉 Platz 3';
+            } else if(r.isBalance) {
+                p1 = isRealPlayer(m.team1[0], players.length) ? (players[m.team1[0]] || 'Virtuell 1') : 'Virtuell 1';
+                p2 = isRealPlayer(m.team1[1], players.length) ? (players[m.team1[1]] || 'Virtuell 2') : 'Virtuell 2';
+                p3 = 'Virtuell 1';
+                p4 = 'Virtuell 2';
+            } else {
+                p1 = players[m.team1[0]] || 'Virtuell 1';
+                p2 = players[m.team1[1]] || 'Virtuell 2';
+                p3 = players[m.team2[0]] || 'Virtuell 1';
+                p4 = players[m.team2[1]] || 'Virtuell 2';
+            }
+            const v = n => n && (n.startsWith('Virtuell'));
+            const cc = ccls[(m.court - 1) % ccls.length];
+            const courtLabel = courtNames[m.court - 1] || m.court;
+            return `<div class="match-row ${cc}">
+                <span class="court-tag">C${courtLabel}</span>
+                <div class="match-names">
+                    <span class="${v(p1)?'virt':''}">${p1}</span> <span style="color:#cbd5e1;">+</span> <span class="${v(p2)?'virt':''}">${p2}</span>
+                    <span class="vs-tag" style="margin:0 6px;">VS</span>
+                    <span class="${v(p3)?'virt':''}">${p3}</span> <span style="color:#cbd5e1;">+</span> <span class="${v(p4)?'virt':''}">${p4}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        const pauseIndices = [...new Set(r.pause || [])];
+        let pauseNames;
+        if(r.isFinale) {
+            pauseNames = 'Alle außer den 4 Finalteilnehmern';
+        } else {
+            pauseNames = pauseIndices.map(p => players[p]).filter(Boolean).join(', ') || 'Keiner';
+        }
+
+        return `<div class="${cardCls} fade-up">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;">${roundLabel}</span>
+                <div style="display:flex;align-items:center;gap:6px;">${badgeHtml}<span style="font-size:11px;color:var(--muted);font-weight:600;">${r.time}${mode==='points'?' (ca.)':''}</span></div>
+            </div>
+            ${matchHtml}
+            <p style="font-size:9px;color:#f97316;font-weight:600;margin-top:8px;text-align:center;">Pause: ${pauseNames}</p>
+            ${extra}
+        </div>`;
     }).join('');
-    updatePrepCount();
+    updateStats(isDummyMode, isFinalMode, isReadonly);
 }
 
-function togglePrepSelect(playerId, defaultLevel, isChecked) {
-    if (isChecked) prepSelected[playerId] = defaultLevel;
-    else delete prepSelected[playerId];
-    renderPreparePicker();
+// ============================================================
+// UPDATE STATS
+// ============================================================
+function updateStats(isDummyMode, isFinalMode, isReadonly) {
+    const scoredRounds = currentSchedule.filter(r => !r.isFinale);
+    const { plays, partner, opponent } = calcPenalty(scoredRounds, players.length);
+    const mTime = parseInt(document.getElementById('matchTime').value) || 15;
+
+    document.getElementById('fairnessStats').innerHTML = players.map((name, i) => `
+        <div class="stat-card">
+            <p style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</p>
+            <p style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--blue);line-height:1;">${plays[i]}<span style="font-size:11px;">×</span></p>
+            <p style="font-size:10px;color:var(--muted);font-weight:500;">~${plays[i]*mTime} Min.</p>
+        </div>`).join('');
+
+    let mx = `<div style="overflow-x:auto;"><table style="border-collapse:collapse;font-size:9px;font-weight:700;width:100%;">
+        <thead><tr><th style="padding:3px;min-width:50px;"></th>
+        ${players.map(nm => `<th style="padding:3px;color:var(--muted);min-width:36px;font-weight:800;" title="${nm}">${nm.substring(0,5)}</th>`).join('')}
+        </tr></thead><tbody>`;
+
+    players.forEach((name, i) => {
+        mx += `<tr><td style="padding:3px;font-weight:800;color:var(--slate);text-align:right;padding-right:8px;font-size:8px;" title="${name}">${name.substring(0,7)}</td>`;
+        players.forEach((_, j) => {
+            if(i === j) {
+                mx += `<td class="matrix-cell" style="background:#f1f5f9;color:#cbd5e1;">—</td>`;
+                return;
+            }
+            const p = partner[i][j];
+            const o = opponent[i][j];
+            let bg = 'background:#f8fafc;color:#cbd5e1;';
+            if(p > 1) bg = 'background:#fef2f2;color:#dc2626;';
+            else if(p > 0) bg = 'background:#f0fdf4;color:#16a34a;';
+            else if(o > 0) bg = 'background:#eff6ff;color:#2563eb;';
+            const lbl = p > 0 ? `P${p}${o>0?'/G'+o:''}` : o > 0 ? `G${o}` : '·';
+            mx += `<td class="matrix-cell" style="${bg}" title="Mit ${players[j]}: ${p}× Partner, ${o}× Gegner">${lbl}</td>`;
+        });
+        mx += `</tr>`;
+    });
+
+    mx += `</tbody></table>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:9px;font-weight:700;color:var(--muted);">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f0fdf4;border:1px solid #bbf7d0;margin-right:3px;"></span>P = Partner</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#eff6ff;border:1px solid #bfdbfe;margin-right:3px;"></span>G = Gegner</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#fef2f2;border:1px solid #fecaca;margin-right:3px;"></span>Doppel-Partnerschaft ⚠️</span>
+        <span>· = noch kein Kontakt</span>
+    </div>`;
+
+    // Match/Pause Übersicht pro Spieler
+    const mainRounds = currentSchedule.filter(r => !r.isFinale);
+    mx += `<div style="margin-top:20px;">
+        <p class="lbl" style="margin-bottom:8px;">📋 Match / Pause pro Runde</p>
+        <table style="border-collapse:collapse;font-size:10px;font-weight:600;width:100%;">
+            <thead><tr>
+                <th style="padding:4px 8px;text-align:left;color:var(--muted);font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;min-width:80px;">Spieler</th>`;
+    mainRounds.forEach((r, idx) => {
+        mx += `<th style="padding:4px 6px;text-align:center;color:var(--muted);font-size:9px;font-weight:700;">R${idx+1}</th>`;
+    });
+    mx += `</tr></thead><tbody>`;
+    players.forEach((name, pi) => {
+        mx += `<tr><td style="padding:4px 8px;font-weight:700;color:var(--slate);font-size:10px;white-space:nowrap;" title="${name}">${name.substring(0,12)}</td>`;
+        mainRounds.forEach(r => {
+            const playing = r.matches.some(m => m.team1.includes(pi) || m.team2.includes(pi));
+            mx += playing
+                ? `<td style="padding:4px 6px;text-align:center;background:#f0fdf4;color:#16a34a;border-radius:4px;font-weight:900;">M</td>`
+                : `<td style="padding:4px 6px;text-align:center;background:#f8fafc;color:#94a3b8;font-weight:500;">P</td>`;
+        });
+        mx += `</tr>`;
+    });
+    mx += `</tbody></table>
+        <div style="display:flex;gap:12px;margin-top:8px;font-size:9px;font-weight:700;color:var(--muted);">
+            <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0fdf4;border:1px solid #bbf7d0;margin-right:3px;vertical-align:middle;"></span>M = Match</span>
+            <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f8fafc;border:1px solid #e2e8f0;margin-right:3px;vertical-align:middle;"></span>P = Pause</span>
+        </div>
+    </div></div>`;
+
+    document.getElementById('partnerStats').innerHTML = mx;
+
+    const mode = document.querySelector('input[name="mode"]:checked')?.value;
+    const isTeam = document.querySelector('input[name="tType"]:checked')?.value === 'team';
+    const modeBox = document.getElementById('modeStatsBox');
+    let info = [];
+    if(mode === 'points') info.push('🎯 Punkte-Modus: Zeiten sind Schätzwerte.');
+    if(isTeam) info.push('👥 Team-Modus: Nur Gegner-Optimierung aktiv.');
+    modeBox.classList.toggle('hidden', !info.length);
+    document.getElementById('modeStatsContent').innerHTML = info.join('<br>');
 }
 
-function setPrepLevel(playerId, value) {
-    if (prepSelected.hasOwnProperty(playerId)) prepSelected[playerId] = value;
-}
+// ============================================================
+// SAVE & DELETE
+// ============================================================
+async function saveFinal() {
+    const name = document.getElementById('tName').value.trim();
+    if(!name) { alert('Bitte Turniernamen eingeben.'); return; }
+    if(!currentSchedule.length) { alert('Bitte zuerst einen Plan erstellen.'); return; }
 
-function updatePrepCount() {
-    document.getElementById('prepSelectedCount').textContent = Object.keys(prepSelected).length + ' ausgewählt';
-}
+    const inp = getInputs();
+    const password = document.getElementById('tPassword').value.trim();
+    const expiryDate = getExpiryDate();
+    const courtNamesData = readCourtNames();
 
-async function saveDraftTournament() {
-    const name = document.getElementById('prepName').value.trim();
-    const date = document.getElementById('prepDate').value || null;
-    const type = document.getElementById('prepType').value;
-    const errorBox = document.getElementById('prepError');
-    errorBox.classList.add('hidden');
-
-    const selectedIds = Object.keys(prepSelected);
-    if (!name) { errorBox.textContent = 'Bitte einen Turniernamen eingeben.'; errorBox.classList.remove('hidden'); return; }
-    if (!selectedIds.length) { errorBox.textContent = 'Bitte mindestens eine:n Teilnehmer:in auswählen.'; errorBox.classList.remove('hidden'); return; }
+    const payload = {
+        tournament_type: 'roundrobin',
+        p: players,
+        s_new: currentSchedule,
+        courts: inp.courts,
+        courtNames: courtNamesData,
+        totalHours: inp.totalMin / 60,
+        mode: inp.mode,
+        isTeam: inp.isTeam,
+        password: password || null,
+        expiry_date: expiryDate,
+        t: { start: inp.start, warmup: inp.warmup, match: inp.matchTime }
+    };
 
     try {
-        const { data: tournament, error: tErr } = await supabaseClient
-            .from('mex_tournaments')
-            .insert({ name, date, type, status: 'draft', owner_admin_id: currentAdmin.id })
-            .select().single();
-        if (tErr) throw tErr;
+        const { error } = await supabaseClient.from('tournaments').upsert({
+            id: name,
+            data: payload,
+            tournament_type: 'roundrobin',
+            expiry_date: expiryDate
+        });
+        if(error) throw error;
+        document.getElementById('lastActionTime').textContent = `Gespeichert: ${new Date().toLocaleTimeString('de-DE')}`;
+        alert(`✅ "${name}" gespeichert!`);
+        init();
+    } catch(e) {
+        alert('Fehler beim Speichern: ' + e.message);
+    }
+}
 
-        const rows = selectedIds.map(pid => ({
-            tournament_id: tournament.id,
-            player_id: pid,
-            start_level: parseFloat(prepSelected[pid])
-        }));
-        const { error: tpErr } = await supabaseClient.from('mex_tournament_players').insert(rows);
-        if (tpErr) throw tpErr;
-
-        alert(`✅ "${name}" als Entwurf angelegt (${selectedIds.length} Teilnehmer:innen).`);
-        prepSelected = {};
-        document.getElementById('prepName').value = '';
-        document.getElementById('prepDate').value = '';
-        renderPreparePicker();
-        showTab('mine');
-    } catch (e) {
-        errorBox.textContent = 'Fehler beim Speichern: ' + e.message;
-        errorBox.classList.remove('hidden');
+async function deleteTournament() {
+    const id = document.getElementById('tournamentSelect').value;
+    if(id === 'new') return;
+    if(!confirm(`Turnier "${id}" wirklich löschen?`)) return;
+    try {
+        await supabaseClient.from('tournaments').delete().eq('id', id);
+        location.reload();
+    } catch(e) {
+        alert('Fehler: ' + e.message);
     }
 }
 
 // ============================================================
-// TAB: MEINE TURNIERE
+// PRINT FUNCTION
 // ============================================================
-async function loadMyTournaments() {
-    const container = document.getElementById('myTournamentsList');
-    container.innerHTML = '<p style="font-size:12px; color:var(--muted); text-align:center; padding:14px;">Lädt…</p>';
-
-    const ids = await getAccessibleTournamentIds();
-    if (!ids.length) {
-        container.innerHTML = '<p style="font-size:12px; color:var(--muted); text-align:center; padding:14px;">Noch keine Turniere.</p>';
+function printAmericano() {
+    if (!currentSchedule.length || !players.length) {
+        alert('Bitte zuerst einen Spielplan erstellen oder ein Turnier laden.');
         return;
     }
 
-    const { data: tournamentRows, error } = await supabaseClient
-        .from('mex_tournaments').select('id, name, date, type, status, owner_admin_id')
-        .in('id', ids).order('created_at', { ascending: false });
-    if (error) { container.innerHTML = '<p style="font-size:12px; color:var(--red);">Fehler beim Laden.</p>'; return; }
+    const tName = document.getElementById('tName')?.value?.trim() || 'Americano';
+    const matchTime = parseInt(document.getElementById('matchTime')?.value) || 20;
 
-    const { data: accessRows } = await supabaseClient
-        .from('mex_tournament_access').select('tournament_id, admin_id, mex_admins(name)').in('tournament_id', ids);
+    const mainRounds = currentSchedule.filter(r => !r.isFinale && !r.isBalance);
+    const balanceRound = currentSchedule.find(r => r.isBalance) || null;
 
-    container.innerHTML = (tournamentRows || []).map(t => {
-        const isOwner = t.owner_admin_id === currentAdmin.id;
-        const sharedWith = (accessRows || []).filter(a => a.tournament_id === t.id);
-        const statusBadge = { draft: 'badge-slate', live: 'badge-amber', finished: 'badge-green' }[t.status] || 'badge-slate';
+    const sortedPlayers = players
+        .map((name, idx) => ({ name, idx }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'de'));
 
-        const adminOptions = activeAdmins
-            .filter(a => !sharedWith.some(s => s.admin_id === a.id))
-            .map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    const cNames = courtNames || ['1', '2', '3'];
+    const allRounds = [...mainRounds, ...(balanceRound ? [balanceRound] : [])];
 
-        return `
-            <div class="card" style="margin-bottom:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-                    <div>
-                        <div style="font-weight:700; font-size:14px;">${escapeHtml(t.name)}</div>
-                        <div style="font-size:10px; color:var(--muted);">${t.date ? new Date(t.date).toLocaleDateString('de-DE') : 'kein Datum'} · ${escapeHtml(t.type || '')}${isOwner ? '' : ' · freigegeben für dich'}</div>
+    // Runden in zwei Zeilen aufteilen
+    const half = Math.ceil(allRounds.length / 2);
+    const row1Rounds = allRounds.slice(0, half);
+    const row2Rounds = allRounds.slice(half);
+
+    function buildRoundCard(r) {
+        const isBalance = !!r.isBalance;
+        const roundLabel = isBalance ? '⚖️ Ausgleich' : `Runde ${r.id}`;
+        const borderColor = isBalance ? '#2563eb' : '#0f172a';
+        const bgHeader    = isBalance ? '#eff6ff' : '#0f172a';
+        const colorHeader = isBalance ? '#1e40af' : '#ffffff';
+
+        let matchesHtml = '';
+        r.matches.forEach(m => {
+            const p1 = isRealPlayer(m.team1[0], players.length) ? (players[m.team1[0]] || '?') : 'Virtuell 1';
+            const p2 = isRealPlayer(m.team1[1], players.length) ? (players[m.team1[1]] || '?') : 'Virtuell 2';
+            const p3 = isBalance
+                ? 'Virtuell 1'
+                : (isRealPlayer(m.team2[0], players.length) ? (players[m.team2[0]] || '?') : 'Virtuell 1');
+            const p4 = isBalance
+                ? 'Virtuell 2'
+                : (isRealPlayer(m.team2[1], players.length) ? (players[m.team2[1]] || '?') : 'Virtuell 2');
+
+            const courtLabel    = cNames[(m.court - 1)] || m.court;
+            const isVirt        = s => s.startsWith('Virtuell');
+            const scoreAreaBg   = isBalance ? '#eff6ff' : '#f0f9ff';
+            const scoreBoxBdr   = isBalance ? '#60a5fa' : '#93c5fd';
+            const courtBg       = isBalance ? '#eff6ff' : '#f8fafc';
+            const courtColor    = isBalance ? '#3b82f6' : '#64748b';
+            const courtBdrColor = isBalance ? '#bfdbfe' : '#e2e8f0';
+
+            matchesHtml += `
+                <div style="border:1px solid ${isBalance ? '#bfdbfe' : '#e2e8f0'}; border-radius:6px; overflow:hidden; margin-bottom:4px;">
+                    <div style="font-size:6pt; font-weight:700; color:${courtColor}; padding:2px 6px;
+                                background:${courtBg}; border-bottom:1px solid ${courtBdrColor};
+                                letter-spacing:.04em; text-transform:uppercase;">
+                        Court ${courtLabel}
                     </div>
-                    <span class="badge ${statusBadge}">${t.status}</span>
+                    <div style="display:flex; align-items:center; gap:3px; padding:3px 5px;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:7pt; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                        ${isVirt(p1) ? 'color:#93c5fd; font-style:italic;' : 'color:#0f172a;'}">${p1}</div>
+                            <div style="font-size:7pt; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                        ${isVirt(p2) ? 'color:#93c5fd; font-style:italic;' : 'color:#0f172a;'}">${p2}</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
+                            <div style="width:20px; height:16px; border:1.5px solid ${scoreBoxBdr}; border-radius:3px; background:${scoreAreaBg};"></div>
+                            <div style="font-size:8pt; font-weight:900; color:#94a3b8;">:</div>
+                            <div style="width:20px; height:16px; border:1.5px solid ${scoreBoxBdr}; border-radius:3px; background:${scoreAreaBg};"></div>
+                        </div>
+                        <div style="flex:1; min-width:0; text-align:right;">
+                            <div style="font-size:7pt; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                        ${isVirt(p3) ? 'color:#93c5fd; font-style:italic;' : 'color:#0f172a;'}">${p3}</div>
+                            <div style="font-size:7pt; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                        ${isVirt(p4) ? 'color:#93c5fd; font-style:italic;' : 'color:#0f172a;'}">${p4}</div>
+                        </div>
+                    </div>
+                </div>`;
+        });
+
+        const pauseIndices = [...new Set(r.pause || [])];
+        const pauseNames   = pauseIndices.map(p => players[p]).filter(Boolean).join(', ') || '–';
+
+        return `<div style="break-inside:avoid; border:1.5px solid ${borderColor}; border-radius:8px; overflow:hidden; min-width:120px; flex:1;">
+            <div style="background:${bgHeader}; color:${colorHeader}; padding:5px 8px;">
+                <div style="font-family:'Barlow Condensed',sans-serif; font-size:9.5pt; font-weight:900; letter-spacing:.05em; text-transform:uppercase;">${roundLabel}</div>
+                <div style="font-size:7pt; opacity:.8; margin-top:1px;">${r.time} · ${matchTime} Min.</div>
+            </div>
+            <div style="padding:5px;">
+                ${matchesHtml}
+                <div style="margin-top:3px; font-size:6pt; color:#f97316; font-weight:700;">
+                    Pause: ${pauseNames}
                 </div>
-                ${sharedWith.length ? `<div style="margin-bottom:8px;">${sharedWith.map(s => `<span class="badge badge-blue" style="margin-right:4px;">${escapeHtml(s.mex_admins?.name || '?')}</span>`).join('')}</div>` : ''}
-                ${isOwner && adminOptions ? `
-                    <div style="display:flex; gap:6px;">
-                        <select id="shareSelect_${t.id}" style="font-size:12px;">${adminOptions}</select>
-                        <button onclick="grantAccess('${t.id}')" class="btn-sm" style="background:var(--blue); color:#fff; border:none; border-radius:10px; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; cursor:pointer;">Freigeben</button>
-                    </div>` : ''}
-            </div>`;
-    }).join('');
+            </div>
+        </div>`;
+    }
+
+    const planRow1 = row1Rounds.map(buildRoundCard).join('');
+    const planRow2 = row2Rounds.map(buildRoundCard).join('');
+
+    // Punktetabelle
+    let tableHead = `<th style="${thStyle('120px', true)}">Spieler</th>`;
+    mainRounds.forEach((r, i) => {
+        tableHead += `<th style="${thStyle()}">${r.time}<br><span style="font-weight:400;font-size:6.5pt;">R${i+1}</span></th>`;
+    });
+    if (balanceRound) {
+        tableHead += `<th style="${thStyle('', false, true)}">⚖️<br><span style="font-weight:400;font-size:6.5pt;">Ausgl.</span></th>`;
+    }
+    tableHead += `<th style="${thStyle('50px')}">∑</th>`;
+
+    let tableRows = '';
+    sortedPlayers.forEach(({ name, idx }, rowIdx) => {
+        const rowBg = rowIdx % 2 === 0 ? '#ffffff' : '#f8fafc';
+        let row = `<td style="${tdStyle('', rowBg, true)}">${name}</td>`;
+
+        mainRounds.forEach(r => {
+            const isPlaying = r.matches.some(m => m.team1.includes(idx) || m.team2.includes(idx));
+            if (isPlaying) {
+                row += `<td style="${tdStyle('', rowBg)}"></td>`;
+            } else {
+                row += `<td style="${tdStyle('', '#fef9f0')}"><span style="color:#f97316;font-weight:700;font-size:9pt;">P</span></td>`;
+            }
+        });
+
+        if (balanceRound) {
+            const isPlaying = balanceRound.matches.some(m =>
+                isRealPlayer(m.team1[0], players.length) && m.team1[0] === idx ||
+                isRealPlayer(m.team1[1], players.length) && m.team1[1] === idx
+            );
+            if (isPlaying) {
+                row += `<td style="${tdStyle('', '#eff6ff', false, true)}"></td>`;
+            } else {
+                row += `<td style="${tdStyle('', '#fef9f0', false, true)}"><span style="color:#f97316;font-weight:700;font-size:9pt;">P</span></td>`;
+            }
+        }
+
+        row += `<td style="${tdStyle('50px', '#f0f9ff')}"></td>`;
+        tableRows += `<tr>${row}</tr>`;
+    });
+
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>${tName} – Spielplan & Punkte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, system-ui, sans-serif; background: white; color: #0f172a; }
+    @media print {
+        @page { size: A3 landscape; margin: 8mm 10mm; }
+        .page-break { page-break-after: always; }
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    .page { padding: 8mm 10mm; }
+    h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 22pt; font-weight: 900;
+         font-style: italic; color: #2563eb; text-transform: uppercase; letter-spacing: -.01em; }
+    .meta { font-size: 8pt; color: #64748b; margin-top: 2px; margin-bottom: 10px; }
+    .rounds-grid { display: flex; gap: 6px; flex-wrap: nowrap; align-items: flex-start; margin-bottom: 8px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+<div class="page page-break">
+    <h1>${tName}</h1>
+    <div class="meta">Spielplan · ${mainRounds.length} Runden · ${matchTime} Min./Runde · ${players.length} Spieler:innen</div>
+    <div class="rounds-grid">${planRow1}</div>
+    <div class="rounds-grid">${planRow2}</div>
+</div>
+<div class="page">
+    <h1>${tName} – Punktetabelle</h1>
+    <div class="meta">Alphabetisch sortiert · P = Pause · Leere Felder = Punkte eintragen</div>
+    <table style="margin-top:8px;">
+        <thead>
+            <tr style="background:#0f172a; color:white;">${tableHead}</tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+    </table>
+</div>
+<script>
+    window.onload = function() { setTimeout(function() { window.print(); }, 400); };
+<\/script>
+</body>
+</html>`);
+    win.document.close();
 }
 
-async function grantAccess(tournamentId) {
-    const select = document.getElementById('shareSelect_' + tournamentId);
-    const adminId = select.value;
-    if (!adminId) return;
-    const { error } = await supabaseClient.from('mex_tournament_access').insert({ tournament_id: tournamentId, admin_id: adminId });
-    if (error) { alert('Fehler: ' + error.message); return; }
-    loadMyTournaments();
+function thStyle(width, isName, isBalance) {
+    return [
+        'padding: 3px 2px',
+        'text-align: center',
+        'font-family: Barlow Condensed, sans-serif',
+        'font-size: 7pt',
+        'font-weight: 900',
+        'letter-spacing: .04em',
+        'text-transform: uppercase',
+        'line-height: 1.2',
+        width ? `width: ${width}` : 'min-width: 22px',
+        isName ? 'text-align: left; padding-left: 6px;' : '',
+        isBalance ? 'background: #1e3a8a; color: #bfdbfe;' : '',
+    ].filter(Boolean).join('; ');
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
-function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function tdStyle(width, bg, isName, isBalance) {
+    return [
+        'padding: 0',
+        'text-align: center',
+        'vertical-align: middle',
+        'height: 12mm',
+        width ? `width: ${width}` : '',
+        bg ? `background: ${bg}` : '',
+        isName ? 'text-align: left; padding-left: 6px; font-weight: 700; font-size: 8pt; white-space: nowrap;' : 'font-size: 9pt;',
+    ].filter(Boolean).join('; ');
 }
