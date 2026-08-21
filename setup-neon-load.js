@@ -5,6 +5,7 @@
     const sel = document.getElementById('tournamentSelect');
     if (!sel) return;
     try {
+      if (!window.phNeon?.getClient) throw new Error('padel-api.js nicht initialisiert');
       const client = await window.phNeon.getClient();
       const { data: rows, error } = await client.from('tournaments').select('id,data').order('id', { ascending: true });
       if (error) throw error;
@@ -17,19 +18,21 @@
         sel.value = raw;
         if (typeof window.loadTournament === 'function') await window.loadTournament(raw);
       }
+      const old = document.getElementById('neonLoadError'); if (old) old.remove();
       console.info(`[Neon] ${window.tournamentsList.length} Turniere geladen.`);
     } catch (e) {
       console.error('[Neon] Turnierliste konnte nicht geladen werden.', e);
-      if (!document.getElementById('neonLoadError')) {
-        const p = document.createElement('p');
-        p.id = 'neonLoadError';
-        p.style.cssText = 'margin:8px 0;color:#dc2626;font-size:11px;font-weight:700;';
-        p.textContent = 'Turnierliste konnte nicht aus Neon geladen werden.';
+      let p = document.getElementById('neonLoadError');
+      if (!p) {
+        p = document.createElement('p'); p.id='neonLoadError';
+        p.style.cssText='margin:8px 0;color:#dc2626;font-size:11px;font-weight:700;white-space:pre-wrap;';
         sel.parentElement?.appendChild(p);
       }
+      const msg = e?.message || e?.error_description || String(e);
+      p.textContent = 'Neon-Fehler: ' + msg;
     }
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(loadTournamentListFromNeon, 0), { once: true });
-  else setTimeout(loadTournamentListFromNeon, 0);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(loadTournamentListFromNeon, 100), { once: true });
+  else setTimeout(loadTournamentListFromNeon, 100);
 })();
