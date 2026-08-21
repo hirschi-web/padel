@@ -1,5 +1,5 @@
 // PADEL HIRSCH — Neon compatibility layer
-// Replaces Supabase data access without exposing database credentials.
+// Safe bridge for the existing Supabase-style frontend calls.
 (() => {
   'use strict';
 
@@ -16,54 +16,54 @@
         auth: { url: AUTH_URL },
         dataApi: { url: DATA_API_URL }
       }, {
+        // Neon creates/uses a browser-scoped anonymous auth session. The
+        // session may later be linked to one of the existing Padel admins.
         auth: { allowAnonymous: true }
       }));
     }
     return rawClientPromise;
   }
 
-  async function sha256Hex(value) {
-    const bytes = new TextEncoder().encode(value);
-    const digest = await crypto.subtle.digest('SHA-256', bytes);
-    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  async function isAdmin() {
+    try {
+      const client = await rawClient();
+      const result = await client.rpc('app_is_admin');
+      adminReady = !result?.error && result?.data === true;
+      return adminReady;
+    } catch (_) {
+      adminReady = false;
+      return false;
+    }
   }
 
-  async function authenticateAdmin(code) {
+  async function claimAdmin(code) {
     code = (code || '').trim();
     if (!code) throw new Error('Admin-Code fehlt.');
 
     const client = await rawClient();
-    const hash = await sha256Hex(code);
-    const email = `padel-${hash.slice(0, 24)}@example.com`;
-    const password = `PH!${code}#2026`;
-
-    let result = await client.auth.signIn.email({ email, password });
-    if (result?.error) {
-      result = await client.auth.signUp.email({ email, password, name: 'Padel Admin' });
+    // check_admin_code verifies the bcrypt hash server-side and links only the
+    // current Neon Auth user id. No admin secret is persisted in the browser.
+    const result = await client.rpc('check_admin_code', { input_code: code });
+    if (result?.error || !Array.isArray(result?.data) || result.data.length === 0) {
+      throw new Error(result?.error?.message || 'Ungültiger Admin-Code.');
     }
-    if (result?.error) throw new Error(result.error.message || 'Anmeldung fehlgeschlagen.');
-
-    const claim = await client.rpc('check_admin_code', { input_code: code });
-    if (claim?.error || !claim?.data?.length) {
-      try { await client.auth.signOut(); } catch (_) {}
-      throw new Error('Ungültiger oder bereits anders verknüpfter Admin-Code.');
-    }
-
-    sessionStorage.setItem('ph_admin_code', code);
     adminReady = true;
-    return claim.data[0];
+    return result.data[0];
   }
 
   async function ensureAdmin() {
-    if (adminReady) return true;
-    let code = sessionStorage.getItem('ph_admin_code') || '';
-    if (!code) code = window.prompt('Admin-Code für Änderungen:') || '';
-    if (!code) throw new Error('Änderung abgebrochen: kein Admin-Code.');
-    await authenticateAdmin(code);
+    if (adminReady || await isAdmin()) return true;
+    const code = window.prompt('Admin-Code für Änderungen:');
+    if (code === null) throw new Error('Änderung abgebrochen.');
+    await claimAdmin(code);
     return true;
   }
 
   const MUTATIONS = new Set(['insert', 'upsert', 'update', 'delete']);
+  const ADMIN_ONLY_TABLES = new Set([
+    'mex_admins', 'mex_players', 'mex_player_level_history',
+    'mex_tournaments', 'mex_tournament_access', 'mex_tournament_players'
+  ]);
 
   class DeferredQuery {
     constructor(table) {
@@ -99,11 +99,16 @@
     maybeSingle(...a){ return this._op('maybeSingle', ...a); }
 
     async _run() {
-      if (this.isMutation) await ensureAdmin();
+      // Any write and any read from the private Mexicano/player area requires
+      // a linked Padel admin. Public tournament SELECT remains anonymous.
+      if (this.isMutation || ADMIN_ONLY_TABLES.has(this.table)) await ensureAdmin();
+
       const client = await rawClient();
       let q = client.from(this.table);
       for (const [name, args] of this.ops) {
-        if (typeof q[name] !== 'function') throw new Error(`Nicht unterstützte DB-Operation: ${name}`);
+        if (typeof q[name] !== 'function') {
+          throw new Error(`Nicht unterstützte DB-Operation: ${name}`);
+        }
         q = q[name](...args);
       }
       return await q;
@@ -115,10 +120,11 @@
 
   const compatClient = {
     from(table) { return new DeferredQuery(table); },
+
     async rpc(name, args = {}) {
       if (name === 'check_admin_code') {
         try {
-          const admin = await authenticateAdmin(args.input_code);
+          const admin = await claimAdmin(args.input_code);
           return { data: [admin], error: null };
         } catch (e) {
           return { data: null, error: { message: e.message } };
@@ -127,10 +133,16 @@
       const client = await rawClient();
       return client.rpc(name, args);
     },
+
+    // Neon Data API has no Supabase Realtime channel. Returning a failed
+    // channel intentionally activates the existing polling fallback in live.html.
     channel() {
       const noop = {
         on() { return noop; },
-        subscribe(cb) { if (cb) setTimeout(() => cb('CHANNEL_ERROR'), 0); return noop; },
+        subscribe(cb) {
+          if (cb) setTimeout(() => cb('CHANNEL_ERROR'), 0);
+          return noop;
+        },
         unsubscribe() { return Promise.resolve(); }
       };
       return noop;
@@ -139,19 +151,19 @@
   };
 
   window.phNeon = {
-    ensureAdmin,
-    authenticateAdmin,
     getClient: rawClient,
+    ensureAdmin,
+    isAdmin,
+    claimAdmin,
     logout: async () => {
       const client = await rawClient();
       try { await client.auth.signOut(); } catch (_) {}
-      sessionStorage.removeItem('ph_admin_code');
       adminReady = false;
     }
   };
 
-  // Existing application files call supabase.createClient(...).
-  // Keep that API shape, but ignore the legacy Supabase URL/key completely.
+  // Existing application files use supabase.createClient(...). The supplied
+  // legacy URL/key are deliberately ignored; all calls go to Neon.
   window.supabase = {
     createClient() { return compatClient; }
   };
