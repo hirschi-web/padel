@@ -15,11 +15,26 @@
       rawClientPromise = import(MODULE_URL).then(({ createClient }) => createClient({
         auth: { url: AUTH_URL },
         dataApi: { url: DATA_API_URL }
-      }, {
-        auth: { allowAnonymous: true }
       }));
     }
     return rawClientPromise;
+  }
+
+  async function signInOrCreateAccount() {
+    const client = await rawClient();
+    const email = (window.prompt('Neon Admin E-Mail:') || '').trim();
+    if (!email) throw new Error('Anmeldung abgebrochen.');
+    const password = window.prompt('Neon Admin Passwort:') || '';
+    if (!password) throw new Error('Anmeldung abgebrochen.');
+
+    let result = await client.auth.signIn.email({ email, password });
+    if (result?.error) {
+      const create = window.confirm('Für diese E-Mail wurde keine gültige Anmeldung gefunden. Neues Neon-Admin-Konto anlegen?');
+      if (!create) throw new Error(result.error.message || 'Anmeldung fehlgeschlagen.');
+      result = await client.auth.signUp.email({ email, password, name: 'Padel Admin' });
+    }
+    if (result?.error) throw new Error(result.error.message || 'Neon Auth Anmeldung fehlgeschlagen.');
+    return true;
   }
 
   async function isAdmin() {
@@ -34,13 +49,20 @@
     }
   }
 
+  async function ensureSignedIn() {
+    if (await isAdmin()) return true;
+    await signInOrCreateAccount();
+    return true;
+  }
+
   async function claimAdmin(code) {
     code = (code || '').trim();
     if (!code) throw new Error('Admin-Code fehlt.');
+    await ensureSignedIn();
     const client = await rawClient();
     const result = await client.rpc('check_admin_code', { input_code: code });
     if (result?.error || !Array.isArray(result?.data) || result.data.length === 0) {
-      throw new Error(result?.error?.message || 'Ungültiger Admin-Code.');
+      throw new Error(result?.error?.message || 'Ungültiger Admin-Code oder Konto bereits anders verknüpft.');
     }
     adminReady = true;
     return result.data[0];
@@ -48,9 +70,16 @@
 
   async function ensureAdmin() {
     if (adminReady || await isAdmin()) return true;
-    const code = window.prompt('Admin-Code für Änderungen:');
+    await signInOrCreateAccount();
+    if (await isAdmin()) return true;
+    const code = window.prompt('Einmaliger Padel Admin-Code zur Verknüpfung:');
     if (code === null) throw new Error('Änderung abgebrochen.');
-    await claimAdmin(code);
+    const client = await rawClient();
+    const result = await client.rpc('check_admin_code', { input_code: code.trim() });
+    if (result?.error || !Array.isArray(result?.data) || result.data.length === 0) {
+      throw new Error(result?.error?.message || 'Admin-Verknüpfung fehlgeschlagen.');
+    }
+    adminReady = true;
     return true;
   }
 
@@ -73,20 +102,11 @@
   ]);
 
   class DeferredQuery {
-    constructor(table) {
-      this.table = table;
-      this.ops = [];
-      this.isMutation = false;
-    }
+    constructor(table) { this.table = table; this.ops = []; this.isMutation = false; }
     _op(name, ...args) {
       if (MUTATIONS.has(name)) {
         this.isMutation = true;
-        // Existing setup code still includes password fields inside tournament
-        // JSON. Strip them centrally so no browser code can reintroduce cleartext
-        // secrets into the publicly readable tournaments table.
-        if (this.table === 'tournaments' && name !== 'delete') {
-          args = args.map(removeSecrets);
-        }
+        if (this.table === 'tournaments' && name !== 'delete') args = args.map(removeSecrets);
       }
       this.ops.push([name, args]);
       return this;
@@ -112,7 +132,6 @@
     range(...a){ return this._op('range', ...a); }
     single(...a){ return this._op('single', ...a); }
     maybeSingle(...a){ return this._op('maybeSingle', ...a); }
-
     async _run() {
       if (this.isMutation || ADMIN_ONLY_TABLES.has(this.table)) await ensureAdmin();
       const client = await rawClient();
@@ -158,6 +177,7 @@
     ensureAdmin,
     isAdmin,
     claimAdmin,
+    login: signInOrCreateAccount,
     logout: async () => {
       const client = await rawClient();
       try { await client.auth.signOut(); } catch (_) {}
@@ -165,7 +185,5 @@
     }
   };
 
-  window.supabase = {
-    createClient() { return compatClient; }
-  };
+  window.supabase = { createClient() { return compatClient; } };
 })();
