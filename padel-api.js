@@ -16,8 +16,6 @@
         auth: { url: AUTH_URL },
         dataApi: { url: DATA_API_URL }
       }, {
-        // Neon creates/uses a browser-scoped anonymous auth session. The
-        // session may later be linked to one of the existing Padel admins.
         auth: { allowAnonymous: true }
       }));
     }
@@ -39,10 +37,7 @@
   async function claimAdmin(code) {
     code = (code || '').trim();
     if (!code) throw new Error('Admin-Code fehlt.');
-
     const client = await rawClient();
-    // check_admin_code verifies the bcrypt hash server-side and links only the
-    // current Neon Auth user id. No admin secret is persisted in the browser.
     const result = await client.rpc('check_admin_code', { input_code: code });
     if (result?.error || !Array.isArray(result?.data) || result.data.length === 0) {
       throw new Error(result?.error?.message || 'Ungültiger Admin-Code.');
@@ -59,9 +54,21 @@
     return true;
   }
 
+  function removeSecrets(value) {
+    if (Array.isArray(value)) return value.map(removeSecrets);
+    if (!value || typeof value !== 'object') return value;
+    const out = {};
+    for (const [key, val] of Object.entries(value)) {
+      const k = key.toLowerCase();
+      if (k === 'password' || k === 'pw' || k === 'admin_password' || k === 'adminpassword') continue;
+      out[key] = removeSecrets(val);
+    }
+    return out;
+  }
+
   const MUTATIONS = new Set(['insert', 'upsert', 'update', 'delete']);
   const ADMIN_ONLY_TABLES = new Set([
-    'mex_admins', 'mex_players', 'mex_player_level_history',
+    'mex_admins', 'mex_players', 'mex_player_level_history', 'mex_player_latest_level',
     'mex_tournaments', 'mex_tournament_access', 'mex_tournament_players'
   ]);
 
@@ -72,7 +79,15 @@
       this.isMutation = false;
     }
     _op(name, ...args) {
-      if (MUTATIONS.has(name)) this.isMutation = true;
+      if (MUTATIONS.has(name)) {
+        this.isMutation = true;
+        // Existing setup code still includes password fields inside tournament
+        // JSON. Strip them centrally so no browser code can reintroduce cleartext
+        // secrets into the publicly readable tournaments table.
+        if (this.table === 'tournaments' && name !== 'delete') {
+          args = args.map(removeSecrets);
+        }
+      }
       this.ops.push([name, args]);
       return this;
     }
@@ -99,16 +114,11 @@
     maybeSingle(...a){ return this._op('maybeSingle', ...a); }
 
     async _run() {
-      // Any write and any read from the private Mexicano/player area requires
-      // a linked Padel admin. Public tournament SELECT remains anonymous.
       if (this.isMutation || ADMIN_ONLY_TABLES.has(this.table)) await ensureAdmin();
-
       const client = await rawClient();
       let q = client.from(this.table);
       for (const [name, args] of this.ops) {
-        if (typeof q[name] !== 'function') {
-          throw new Error(`Nicht unterstützte DB-Operation: ${name}`);
-        }
+        if (typeof q[name] !== 'function') throw new Error(`Nicht unterstützte DB-Operation: ${name}`);
         q = q[name](...args);
       }
       return await q;
@@ -120,7 +130,6 @@
 
   const compatClient = {
     from(table) { return new DeferredQuery(table); },
-
     async rpc(name, args = {}) {
       if (name === 'check_admin_code') {
         try {
@@ -133,16 +142,10 @@
       const client = await rawClient();
       return client.rpc(name, args);
     },
-
-    // Neon Data API has no Supabase Realtime channel. Returning a failed
-    // channel intentionally activates the existing polling fallback in live.html.
     channel() {
       const noop = {
         on() { return noop; },
-        subscribe(cb) {
-          if (cb) setTimeout(() => cb('CHANNEL_ERROR'), 0);
-          return noop;
-        },
+        subscribe(cb) { if (cb) setTimeout(() => cb('CHANNEL_ERROR'), 0); return noop; },
         unsubscribe() { return Promise.resolve(); }
       };
       return noop;
@@ -162,8 +165,6 @@
     }
   };
 
-  // Existing application files use supabase.createClient(...). The supplied
-  // legacy URL/key are deliberately ignored; all calls go to Neon.
   window.supabase = {
     createClient() { return compatClient; }
   };
