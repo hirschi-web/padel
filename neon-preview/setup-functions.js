@@ -1,34 +1,80 @@
-// Neon preview bootstrap. No document.write and no Supabase network client.
-// The inline init() in setup.html may run before the real setup logic is loaded,
-// so keep it harmless until Neon + the unchanged tournament logic are ready.
+// Neon preview diagnostics + compatibility bootstrap.
+// This file intentionally logs every startup step visibly on the page.
 window.init = function () {};
 
-(function bootstrapNeonSetup() {
-  const neon = document.createElement('script');
-  neon.src = '/padel/neon-preview/padel-api.js?v=20260821-4';
-  neon.async = false;
-  neon.onload = function () {
-    const app = document.createElement('script');
-    app.src = '/padel/setup-functions.js?v=20260821-4';
-    app.async = false;
-    app.onload = function () {
-      if (typeof window.init === 'function') {
-        Promise.resolve(window.init()).catch(err => {
-          console.error('[Neon setup] init failed', err);
-          const sel = document.getElementById('tournamentSelect');
-          if (sel && !document.getElementById('neonLoadError')) {
-            const p = document.createElement('p');
-            p.id = 'neonLoadError';
-            p.style.cssText = 'margin:8px 0;color:#dc2626;font-size:11px;font-weight:700';
-            p.textContent = 'Neon-Fehler: ' + (err?.message || String(err));
-            sel.parentElement?.appendChild(p);
-          }
-        });
-      }
-    };
-    app.onerror = () => console.error('[Neon setup] setup-functions.js konnte nicht geladen werden');
-    document.head.appendChild(app);
-  };
-  neon.onerror = () => console.error('[Neon setup] padel-api.js konnte nicht geladen werden');
-  document.head.appendChild(neon);
+(function () {
+  'use strict';
+  const entries = [];
+  let box;
+  function ensureBox() {
+    if (box) return box;
+    box = document.createElement('div');
+    box.id = 'neonDebugLog';
+    box.style.cssText = 'margin:24px auto 0;max-width:900px;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:14px;font:12px/1.5 monospace;white-space:pre-wrap;overflow:auto';
+    box.innerHTML = '<b style="color:#fff">Neon Debug Log</b>\n';
+    (document.body || document.documentElement).appendChild(box);
+    return box;
+  }
+  function log(step, detail) {
+    const msg = `[${new Date().toLocaleTimeString()}] ${step}${detail !== undefined ? ': ' + (typeof detail === 'string' ? detail : JSON.stringify(detail)) : ''}`;
+    entries.push(msg); console.log('[Neon debug]', step, detail ?? '');
+    if (document.body) ensureBox().append(document.createTextNode(msg + '\n'));
+  }
+  function fail(step, err) {
+    const msg = err?.message || String(err);
+    log('ERROR ' + step, msg); console.error('[Neon debug]', step, err);
+  }
+  window.neonDebugLog = entries;
+  window.addEventListener('error', e => fail('window.error', e.error || e.message));
+  window.addEventListener('unhandledrejection', e => fail('unhandledrejection', e.reason));
+
+  async function boot() {
+    log('1 bootstrap started', location.href);
+    log('2 loading padel-api.js');
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = '/padel/neon-preview/padel-api.js?v=20260821-debug1';
+      s.onload = resolve; s.onerror = () => reject(new Error('padel-api.js konnte nicht geladen werden'));
+      document.head.appendChild(s);
+    });
+    log('3 padel-api loaded', { phNeon: !!window.phNeon, supabaseCompat: !!window.supabase });
+
+    if (!window.phNeon?.getClient) throw new Error('phNeon.getClient fehlt');
+    log('4 creating Neon client');
+    const client = await window.phNeon.getClient();
+    log('5 Neon client created');
+
+    log('6 direct anonymous SELECT tournaments');
+    const direct = await client.from('tournaments').select('id,data').order('id', { ascending: true });
+    if (direct?.error) throw new Error('Neon SELECT: ' + (direct.error.message || JSON.stringify(direct.error)));
+    log('7 direct SELECT successful', { rows: direct?.data?.length || 0, ids: (direct?.data || []).map(x => x.id) });
+
+    // Fill the dropdown immediately, independent of the legacy init function.
+    const sel = document.getElementById('tournamentSelect');
+    if (!sel) throw new Error('tournamentSelect nicht im DOM gefunden');
+    while (sel.options.length > 1) sel.remove(1);
+    (direct.data || []).filter(t => t.id !== 'LIVE_CONFIG').forEach(t => sel.add(new Option(t.id, t.id)));
+    log('8 dropdown populated', { options: sel.options.length });
+
+    log('9 loading existing setup application logic');
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = '/padel/setup-functions.js?v=20260821-debug1';
+      s.onload = resolve; s.onerror = () => reject(new Error('setup-functions.js konnte nicht geladen werden'));
+      document.head.appendChild(s);
+    });
+    log('10 setup-functions loaded');
+
+    // The legacy file creates its client through supabase.createClient; padel-api.js
+    // supplies that compatibility object and ignores the old Supabase URL/key.
+    log('11 running application init');
+    await window.init();
+    log('12 application init completed');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { ensureBox(); boot().catch(e => fail('BOOT', e)); }, { once: true });
+  } else {
+    ensureBox(); boot().catch(e => fail('BOOT', e));
+  }
 })();
