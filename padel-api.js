@@ -37,6 +37,16 @@
     return true;
   }
 
+  async function hasSession() {
+    try {
+      const client = await rawClient();
+      const result = await client.auth.getSession();
+      return !!result?.data?.session;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function isAdmin() {
     try {
       const client = await rawClient();
@@ -50,7 +60,7 @@
   }
 
   async function ensureSignedIn() {
-    if (await isAdmin()) return true;
+    if (await hasSession()) return true;
     await signInOrCreateAccount();
     return true;
   }
@@ -70,7 +80,7 @@
 
   async function ensureAdmin() {
     if (adminReady || await isAdmin()) return true;
-    await signInOrCreateAccount();
+    await ensureSignedIn();
     if (await isAdmin()) return true;
     const code = window.prompt('Einmaliger Padel Admin-Code zur Verknüpfung:');
     if (code === null) throw new Error('Änderung abgebrochen.');
