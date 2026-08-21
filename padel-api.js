@@ -42,9 +42,7 @@
       const client = await rawClient();
       const result = await client.auth.getSession();
       return !!result?.data?.session;
-    } catch (_) {
-      return false;
-    }
+    } catch (_) { return false; }
   }
 
   async function isAdmin() {
@@ -105,6 +103,22 @@
     return out;
   }
 
+  function findSecretRecord(value) {
+    const rows = Array.isArray(value) ? value : [value];
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue;
+      const data = row.data && typeof row.data === 'object' ? row.data : {};
+      const hasPassword = Object.prototype.hasOwnProperty.call(data, 'password') || Object.prototype.hasOwnProperty.call(data, 'pw');
+      if (row.id && hasPassword) {
+        return {
+          id: String(row.id),
+          password: Object.prototype.hasOwnProperty.call(data, 'password') ? (data.password ?? '') : (data.pw ?? '')
+        };
+      }
+    }
+    return null;
+  }
+
   const MUTATIONS = new Set(['insert', 'upsert', 'update', 'delete']);
   const ADMIN_ONLY_TABLES = new Set([
     'mex_admins', 'mex_players', 'mex_player_level_history', 'mex_player_latest_level',
@@ -112,11 +126,20 @@
   ]);
 
   class DeferredQuery {
-    constructor(table) { this.table = table; this.ops = []; this.isMutation = false; }
+    constructor(table) {
+      this.table = table;
+      this.ops = [];
+      this.isMutation = false;
+      this.tournamentSecret = null;
+    }
     _op(name, ...args) {
       if (MUTATIONS.has(name)) {
         this.isMutation = true;
-        if (this.table === 'tournaments' && name !== 'delete') args = args.map(removeSecrets);
+        if (this.table === 'tournaments' && name !== 'delete') {
+          const secret = args.length ? findSecretRecord(args[0]) : null;
+          if (secret) this.tournamentSecret = secret;
+          args = args.map(removeSecrets);
+        }
       }
       this.ops.push([name, args]);
       return this;
@@ -142,6 +165,7 @@
     range(...a){ return this._op('range', ...a); }
     single(...a){ return this._op('single', ...a); }
     maybeSingle(...a){ return this._op('maybeSingle', ...a); }
+
     async _run() {
       if (this.isMutation || ADMIN_ONLY_TABLES.has(this.table)) await ensureAdmin();
       const client = await rawClient();
@@ -150,7 +174,17 @@
         if (typeof q[name] !== 'function') throw new Error(`Nicht unterstützte DB-Operation: ${name}`);
         q = q[name](...args);
       }
-      return await q;
+      const result = await q;
+      if (!result?.error && this.tournamentSecret) {
+        const secretResult = await client.rpc('set_tournament_password', {
+          input_tournament_id: this.tournamentSecret.id,
+          input_password: String(this.tournamentSecret.password ?? '')
+        });
+        if (secretResult?.error || secretResult?.data !== true) {
+          return { ...result, error: secretResult?.error || { message: 'Turnier-Passwort konnte nicht sicher gespeichert werden.' } };
+        }
+      }
+      return result;
     }
     then(resolve, reject) { return this._run().then(resolve, reject); }
     catch(reject) { return this._run().catch(reject); }
