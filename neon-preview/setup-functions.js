@@ -33,7 +33,7 @@ window.init = function () {};
     log('2 loading padel-api.js');
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = '/padel/neon-preview/padel-api.js?v=20260821-debug1';
+      s.src = '/padel/neon-preview/padel-api.js?v=20260822-admin2';
       s.onload = resolve; s.onerror = () => reject(new Error('padel-api.js konnte nicht geladen werden'));
       document.head.appendChild(s);
     });
@@ -44,12 +44,16 @@ window.init = function () {};
     const client = await window.phNeon.getClient();
     log('5 Neon client created');
 
-    log('6 direct anonymous SELECT tournaments');
+    if (window.phNeon.sessionStatus) {
+      try { log('5a auth status', await window.phNeon.sessionStatus()); }
+      catch (e) { log('5a auth status unavailable', e?.message || String(e)); }
+    }
+
+    log('6 SELECT tournaments');
     const direct = await client.from('tournaments').select('id,data').order('id', { ascending: true });
     if (direct?.error) throw new Error('Neon SELECT: ' + (direct.error.message || JSON.stringify(direct.error)));
-    log('7 direct SELECT successful', { rows: direct?.data?.length || 0, ids: (direct?.data || []).map(x => x.id) });
+    log('7 SELECT successful', { rows: direct?.data?.length || 0, ids: (direct?.data || []).map(x => x.id) });
 
-    // Fill the dropdown immediately, independent of the legacy init function.
     const sel = document.getElementById('tournamentSelect');
     if (!sel) throw new Error('tournamentSelect nicht im DOM gefunden');
     while (sel.options.length > 1) sel.remove(1);
@@ -59,14 +63,11 @@ window.init = function () {};
     log('9 loading existing setup application logic');
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = '/padel/setup-functions.js?v=20260821-debug1';
+      s.src = '/padel/setup-functions.js?v=20260822-admin2';
       s.onload = resolve; s.onerror = () => reject(new Error('setup-functions.js konnte nicht geladen werden'));
       document.head.appendChild(s);
     });
     log('10 setup-functions loaded');
-
-    // The legacy file creates its client through supabase.createClient; padel-api.js
-    // supplies that compatibility object and ignores the old Supabase URL/key.
     log('11 running application init');
     await window.init();
     log('12 application init completed');
