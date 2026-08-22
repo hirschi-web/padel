@@ -50,8 +50,6 @@
     throw new Error('Google-Anmeldung wird geöffnet.');
   }
 
-  // No client-side identity decision here. The DB function verifies the
-  // authenticated Neon user and allowed email server-side.
   async function claimGoogleAdmin(){
     await ensureSignedIn();
     const c=await rawClient();
@@ -90,13 +88,20 @@
     }
     return o;
   }
+
   function findSecretRecord(v){
     for(const row of(Array.isArray(v)?v:[v])){
       if(!row||typeof row!=='object') continue;
       const d=row.data&&typeof row.data==='object'?row.data:{};
-      if(row.id&&(Object.prototype.hasOwnProperty.call(d,'password')||Object.prototype.hasOwnProperty.call(d,'pw'))){
-        return {id:String(row.id),password:Object.prototype.hasOwnProperty.call(d,'password')?(d.password??''):(d.pw??'')};
-      }
+      if(!row.id) continue;
+      let password;
+      if(Object.prototype.hasOwnProperty.call(d,'password')) password=d.password;
+      else if(Object.prototype.hasOwnProperty.call(d,'pw')) password=d.pw;
+      else continue;
+      // Migrated tournaments intentionally load with a blank password field.
+      // Blank means "keep the existing server-side secret unchanged".
+      if(password===null||password===undefined||String(password).trim()==='') return null;
+      return {id:String(row.id),password:String(password)};
     }
     return null;
   }
@@ -129,7 +134,7 @@
       const r=await q;
       if(r?.error) return r;
       if(this.secret){
-        const sr=await c.rpc('set_tournament_password',{input_tournament_id:this.secret.id,input_password:String(this.secret.password??'')});
+        const sr=await c.rpc('set_tournament_password',{input_tournament_id:this.secret.id,input_password:this.secret.password});
         if(sr?.error||sr?.data!==true) return {...r,error:sr?.error||{message:'Turnier-Passwort konnte nicht sicher gespeichert werden.'}};
       }
       return r;
