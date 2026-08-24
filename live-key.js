@@ -6,7 +6,7 @@
 
   function applyLiveScores(liveData) {
     const scores = liveData && typeof liveData === 'object' ? liveData.roundrobin_scores : null;
-    if (!scores || !window.tournamentData?.s_new) return;
+    if (!scores || typeof tournamentData === 'undefined' || !tournamentData?.s_new) return;
     for (const [k, score] of Object.entries(scores)) {
       const [r, m] = k.split('-').map(Number);
       if (!Number.isInteger(r) || !Number.isInteger(m)) continue;
@@ -24,7 +24,7 @@
 
   window.loadTournament = async function () {
     await originalLoadTournament();
-    if (!window.tournamentData) return;
+    if (typeof tournamentData === 'undefined' || !tournamentData) return;
     try {
       await refreshLiveScores();
       if (typeof renderAll === 'function') renderAll();
@@ -131,7 +131,6 @@
     startPolling();
   };
 
-  const oldInitKnockout = window.initKnockout;
   window.initKnockout = function (record) {
     const suffix = liveKey ? '#key=' + encodeURIComponent(liveKey) : '';
     window.location.href = `liveturnier.html?id=${encodeURIComponent(record.id)}${suffix}`;
