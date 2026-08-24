@@ -98,9 +98,12 @@
       renderAll();
       showToast('💾 Alle Ergebnisse gespeichert', 'success');
     } catch (e) {
-      for (const job of jobs) pendingSaves.push({ ...job, retries: 0 });
-      showToast(e.message?.includes('ungültig') ? '❌ Ungültiger Bearbeiten-Key' : '⚠️ Offline - wird synchronisiert', e.message?.includes('ungültig') ? 'error' : 'warning');
-      startRetryQueue();
+      const invalid = (e.message || '').includes('ungültig');
+      if (!invalid) {
+        for (const job of jobs) pendingSaves.push({ ...job, retries: 0 });
+        startRetryQueue();
+      }
+      showToast(invalid ? '❌ Ungültiger Bearbeiten-Key' : '⚠️ Offline - wird synchronisiert', invalid ? 'error' : 'warning');
     } finally { isSaving = false; }
   };
 
