@@ -6,7 +6,7 @@
     h=h.replace(/<script[^>]*src=["'][^"']*@supabase\/supabase-js[^"']*["'][^>]*><\/script>/i,'');
     h=h.replace('<head>','<head><base href="/padel/neon-preview/"><style>#neonDebugLog{display:none!important}</style>');
     h=h.replace('<script src="setup-functions.js"></script>','<script src="/padel/setup-neon-bootstrap.js?v=20260824-2"><\/script>');
-    h=h.replace('</body>','<script src="/padel/setup-live-links.js?v=20260824-2"><\/script></body>');
+    h=h.replace('</body>','<script src="/padel/setup-live-links.js?v=20260824-2"><\/script><script src="/padel/americano-court-fairness.js?v=20260831-1"><\/script></body>');
     document.open();
     document.write(h);
     document.close();
