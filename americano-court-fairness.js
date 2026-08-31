@@ -18,37 +18,143 @@
     section.appendChild(row);
   }
 
-  function addCourtPenalty(result, schedule, numPlayers) {
-    if (!isEnabled() || numPlayers < 1) return result;
+  function realPlayers(match, numPlayers) {
+    return [...(match.team1 || []), ...(match.team2 || [])]
+      .filter(p => typeof p === 'number' && p >= 0 && p < numPlayers);
+  }
 
-    const courtCounts = Array.from({ length: numPlayers }, () => [0, 0, 0]);
+  function getCourtCounts(schedule, numPlayers) {
+    const counts = Array.from({ length: numPlayers }, () => [0, 0, 0]);
     schedule.forEach(round => {
       (round.matches || []).forEach(match => {
         const ci = Number(match.court) - 1;
         if (ci < 0 || ci > 2) return;
-        [...(match.team1 || []), ...(match.team2 || [])].forEach(player => {
-          if (typeof player === 'number' && player >= 0 && player < numPlayers) {
-            courtCounts[player][ci]++;
-          }
-        });
+        realPlayers(match, numPlayers).forEach(p => counts[p][ci]++);
       });
     });
+    return counts;
+  }
 
-    const court2Average = courtCounts.reduce((sum, c) => sum + c[1], 0) / numPlayers;
-    let extraPenalty = 0;
+  function courtScore(schedule, numPlayers) {
+    const counts = getCourtCounts(schedule, numPlayers);
+    let score = 0;
 
-    courtCounts.forEach(counts => {
-      const total = counts[0] + counts[1] + counts[2];
+    counts.forEach(c => {
+      const total = c[0] + c[1] + c[2];
       if (!total) return;
-      const playerAverage = total / 3;
 
-      // Alle Courts möglichst gleichmäßig verteilen.
-      extraPenalty += counts.reduce((sum, n) => sum + Math.pow(n - playerAverage, 2), 0) * 35;
-      // Court 2 ist in der Racketworld der eingeschränkte Court: starke Ausreißer zusätzlich vermeiden.
-      extraPenalty += Math.pow(counts[1] - court2Average, 2) * 90;
+      const avg = total / 3;
+      // Alle drei Courts grundsätzlich möglichst gleichmäßig verteilen.
+      score += c.reduce((sum, n) => sum + Math.pow(n - avg, 2), 0) * 25;
+
+      // Court 2: bei 7–8 Spielen sind 2–3 Einsätze ideal.
+      const low = Math.floor(total / 3);
+      const high = Math.ceil(total / 3);
+      if (c[1] < low) score += Math.pow(low - c[1], 2) * 180;
+      if (c[1] > high) score += Math.pow(c[1] - high, 2) * 260;
+
+      // Harte Ausreißer auf dem eingeschränkten Court deutlich unattraktiv machen.
+      if (c[1] === 1 && total >= 6) score += 220;
+      if (c[1] === 4) score += 900;
+      if (c[1] >= 5) score += 5000 + (c[1] - 5) * 5000;
+
+      // Auch Court 1/3 sollen nicht extrem einseitig werden.
+      const spread = Math.max(...c) - Math.min(...c);
+      if (spread > 1) score += Math.pow(spread - 1, 2) * 120;
     });
 
-    return { ...result, penalty: result.penalty + extraPenalty };
+    return score;
+  }
+
+  function permutations(values) {
+    if (values.length <= 1) return [values.slice()];
+    const out = [];
+    values.forEach((v, i) => {
+      const rest = values.slice(0, i).concat(values.slice(i + 1));
+      permutations(rest).forEach(p => out.push([v, ...p]));
+    });
+    return out;
+  }
+
+  function applyCourtPermutation(round, courts) {
+    round.matches.forEach((match, i) => { match.court = courts[i]; });
+  }
+
+  function cloneSchedule(schedule) {
+    return schedule.map(round => ({
+      ...round,
+      pause: Array.isArray(round.pause) ? [...round.pause] : round.pause,
+      matches: (round.matches || []).map(match => ({
+        ...match,
+        team1: Array.isArray(match.team1) ? [...match.team1] : match.team1,
+        team2: Array.isArray(match.team2) ? [...match.team2] : match.team2
+      }))
+    }));
+  }
+
+  function optimizeCourtAssignments(schedule, numPlayers) {
+    if (!isEnabled() || !Array.isArray(schedule) || numPlayers < 1) return schedule;
+
+    const eligible = [];
+    schedule.forEach((round, ri) => {
+      const matches = round.matches || [];
+      if (matches.length < 2 || matches.length > 3) return;
+      const courts = matches.map(m => Number(m.court));
+      if (new Set(courts).size !== courts.length) return;
+      if (courts.some(c => c < 1 || c > 3)) return;
+      eligible.push({ ri, perms: permutations(courts) });
+    });
+    if (!eligible.length) return schedule;
+
+    let best = cloneSchedule(schedule);
+    let bestScore = courtScore(best, numPlayers);
+
+    // Mehrere Starts verhindern, dass eine lokal gute frühe Runde den Rest blockiert.
+    for (let restart = 0; restart < 24; restart++) {
+      const candidate = cloneSchedule(schedule);
+
+      if (restart > 0) {
+        eligible.forEach(({ ri, perms }) => {
+          applyCourtPermutation(candidate[ri], perms[Math.floor(Math.random() * perms.length)]);
+        });
+      }
+
+      let improved = true;
+      let passes = 0;
+      while (improved && passes < 8) {
+        improved = false;
+        passes++;
+
+        // Reihenfolge pro Durchlauf variieren, damit nicht immer dieselben Runden bevorzugt werden.
+        const order = [...eligible].sort(() => Math.random() - 0.5);
+        order.forEach(({ ri, perms }) => {
+          const round = candidate[ri];
+          const original = round.matches.map(m => Number(m.court));
+          let localBest = original;
+          let localScore = courtScore(candidate, numPlayers);
+
+          perms.forEach(perm => {
+            applyCourtPermutation(round, perm);
+            const s = courtScore(candidate, numPlayers);
+            if (s < localScore) {
+              localScore = s;
+              localBest = perm.slice();
+            }
+          });
+
+          applyCourtPermutation(round, localBest);
+          if (localBest.some((c, i) => c !== original[i])) improved = true;
+        });
+      }
+
+      const score = courtScore(candidate, numPlayers);
+      if (score < bestScore) {
+        best = candidate;
+        bestScore = score;
+      }
+    }
+
+    return best;
   }
 
   async function readStoredSetting(id) {
@@ -83,13 +189,14 @@
   function installHooks() {
     injectCheckbox();
 
-    if (typeof window.calcPenalty === 'function' && !window.calcPenalty.__rwCourtFairnessWrapped) {
-      const originalCalcPenalty = window.calcPenalty;
-      const wrapped = function(schedule, numPlayers) {
-        return addCourtPenalty(originalCalcPenalty(schedule, numPlayers), schedule, numPlayers);
+    if (typeof window.generateVariant === 'function' && !window.generateVariant.__rwCourtFairnessWrapped) {
+      const originalGenerateVariant = window.generateVariant;
+      const wrapped = function(inputs) {
+        const schedule = originalGenerateVariant.apply(this, arguments);
+        return optimizeCourtAssignments(schedule, Number(inputs?.count) || 0);
       };
       wrapped.__rwCourtFairnessWrapped = true;
-      window.calcPenalty = wrapped;
+      window.generateVariant = wrapped;
     }
 
     if (typeof window.loadTournament === 'function' && !window.loadTournament.__rwCourtFairnessWrapped) {
@@ -122,7 +229,7 @@
   const timer = setInterval(() => {
     injectCheckbox();
     installHooks();
-    if (typeof window.calcPenalty === 'function' && typeof window.loadTournament === 'function' && typeof window.saveFinal === 'function') {
+    if (typeof window.generateVariant === 'function' && typeof window.loadTournament === 'function' && typeof window.saveFinal === 'function') {
       clearInterval(timer);
     }
   }, 100);
