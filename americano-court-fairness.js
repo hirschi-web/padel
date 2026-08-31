@@ -44,19 +44,21 @@
       if (!total) return;
 
       const avg = total / 3;
-      score += c.reduce((sum, n) => sum + Math.pow(n - avg, 2), 0) * 25;
+      score += c.reduce((sum, n) => sum + Math.pow(n - avg, 2), 0) * 20;
 
       const low = Math.floor(total / 3);
       const high = Math.ceil(total / 3);
-      if (c[1] < low) score += Math.pow(low - c[1], 2) * 180;
-      if (c[1] > high) score += Math.pow(c[1] - high, 2) * 260;
+      if (c[1] < low) score += Math.pow(low - c[1], 2) * 350;
+      if (c[1] > high) score += Math.pow(c[1] - high, 2) * 450;
 
-      if (c[1] === 1 && total >= 6) score += 220;
-      if (c[1] === 4) score += 900;
-      if (c[1] >= 5) score += 5000 + (c[1] - 5) * 5000;
+      // Bei 7–8 Spielen soll Court 2 praktisch immer 2–3x vorkommen.
+      if (c[1] === 1 && total >= 6) score += 1200;
+      if (c[1] === 4) score += 1800;
+      if (c[1] >= 5) score += 10000 + (c[1] - 5) * 10000;
 
+      // Court 1/3 weiterhin mitberücksichtigen, aber Court 2 hat klar Vorrang.
       const spread = Math.max(...c) - Math.min(...c);
-      if (spread > 1) score += Math.pow(spread - 1, 2) * 120;
+      if (spread > 1) score += Math.pow(spread - 1, 2) * 80;
     });
 
     return score;
@@ -76,33 +78,36 @@
     round.matches.forEach((match, i) => { match.court = courts[i]; });
   }
 
+  function optimizeRound(schedule, round, numPlayers) {
+    const matches = round.matches || [];
+    if (matches.length < 2 || matches.length > 3) return;
+
+    const originalCourts = matches.map(m => Number(m.court));
+    if (new Set(originalCourts).size !== originalCourts.length) return;
+    if (originalCourts.some(c => c < 1 || c > 3)) return;
+
+    let bestCourts = originalCourts.slice();
+    let bestScore = courtScore(schedule, numPlayers);
+
+    permutations(originalCourts).forEach(perm => {
+      applyCourtPermutation(round, perm);
+      const score = courtScore(schedule, numPlayers);
+      if (score < bestScore) {
+        bestScore = score;
+        bestCourts = perm.slice();
+      }
+    });
+
+    applyCourtPermutation(round, bestCourts);
+  }
+
   function optimizeCourtAssignments(schedule, numPlayers) {
     if (!isEnabled() || !Array.isArray(schedule) || numPlayers < 1) return schedule;
 
-    // Bewusst leichtgewichtig: Die Americano-Engine erzeugt selbst 500 Varianten.
-    // Deshalb pro Variante nur ein Greedy-Durchlauf über die fertigen Matches.
-    schedule.forEach(round => {
-      const matches = round.matches || [];
-      if (matches.length < 2 || matches.length > 3) return;
-
-      const originalCourts = matches.map(m => Number(m.court));
-      if (new Set(originalCourts).size !== originalCourts.length) return;
-      if (originalCourts.some(c => c < 1 || c > 3)) return;
-
-      let bestCourts = originalCourts.slice();
-      let bestScore = courtScore(schedule, numPlayers);
-
-      permutations(originalCourts).forEach(perm => {
-        applyCourtPermutation(round, perm);
-        const score = courtScore(schedule, numPlayers);
-        if (score < bestScore) {
-          bestScore = score;
-          bestCourts = perm.slice();
-        }
-      });
-
-      applyCourtPermutation(round, bestCourts);
-    });
+    // Zwei sehr leichte Greedy-Pässe statt teurer globaler Suche:
+    // vorwärts für den Grundausgleich, rückwärts um frühe lokale Festlegungen zu korrigieren.
+    schedule.forEach(round => optimizeRound(schedule, round, numPlayers));
+    [...schedule].reverse().forEach(round => optimizeRound(schedule, round, numPlayers));
 
     return schedule;
   }
