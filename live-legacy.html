@@ -166,6 +166,9 @@ async function loadTournament(){
         
         // Round-Robin (default)
         tournamentData=data[0].data;
+        if (typeof window.__padelApplyLiveScores === 'function') {
+            window.__padelApplyLiveScores(data[0].live_data || {});
+        }
         document.getElementById('tournamentTitle').innerText=data[0].id.toUpperCase();
         document.getElementById('offlineWarning').style.display='none';
         
@@ -472,7 +475,7 @@ function updateRanking(){
     else{stats=tournamentData.p.map((n,i)=>({name:n,ids:[i],points:0,diff:0,wins:0,losses:0,played:0,history:[]}))}
     
     let totalMatches=0,playedMatches=0;
-    tournamentData.s_new.forEach(r=>{
+    tournamentData.s_new.filter(r=>!r.isFinale&&!r.isBalance).forEach(r=>{
         totalMatches+=r.matches.length;
         r.matches.forEach(m=>{
             if(m.score&&m.score[0]!==""&&m.score[0]!==null){
