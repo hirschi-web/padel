@@ -163,6 +163,22 @@ async function loadTournament(id) {
         players = d.p || [];
         currentSchedule = d.s_new;
         renderPreview(false, false, true);
+
+        // Bestehende alte Pläne nur anzeigen, aber klar als neu zu berechnen markieren,
+        // wenn sie die aktuelle Fairness-/Zeitlogik nicht erfüllen.
+        try {
+            const integrity = validateScheduleIntegrity(currentSchedule, players.length, getInputs());
+            if (!integrity.valid) {
+                const warnBox = document.getElementById('consistencyWarning');
+                if (warnBox) {
+                    warnBox.classList.remove('hidden');
+                    warnBox.innerHTML = '⚠️ Gespeicherter Alt-Plan ist nach aktueller Logik ungültig: ' +
+                        integrity.reason + ' Bitte „Plan bestmöglich mischen“ und neu speichern.';
+                }
+            }
+        } catch(e) {
+            console.warn('Alt-Plan-Prüfung fehlgeschlagen', e);
+        }
     }
     document.getElementById('deleteBtn').classList.remove('hidden');
     toggleModeUI();
@@ -1014,6 +1030,81 @@ function updateStats(isDummyMode, isFinalMode, isReadonly) {
     document.getElementById('modeStatsContent').innerHTML = info.join('<br>');
 }
 
+function validateScheduleIntegrity(schedule, numPlayers, inputs) {
+    const mainRounds = schedule.filter(r => !r.isFinale && !r.isBalance);
+    const balanceRound = schedule.find(r => r.isBalance) || null;
+    const finaleRound = schedule.find(r => r.isFinale) || null;
+
+    if (!mainRounds.length) return { valid: false, reason: 'Keine Hauptrunden vorhanden.' };
+
+    const mainFair = getPlayFairness(mainRounds, numPlayers);
+    if (!mainFair.valid) {
+        return { valid: false, reason: 'Hauptrunden sind nicht fair verteilt (Differenz größer als 1 oder falsche Einsatzanzahl).' };
+    }
+
+    const [sH, sM] = (inputs.start || '00:00').split(':').map(Number);
+    const bookingEnd = sH * 60 + sM + inputs.totalMin;
+
+    const roundEnd = r => {
+        const [h, m] = r.time.split(':').map(Number);
+        let startMin = h * 60 + m;
+        if (startMin < sH * 60 + sM) startMin += 24 * 60;
+        return startMin + inputs.matchTime;
+    };
+
+    if (balanceRound) {
+        if (mainFair.max - mainFair.min !== 1) {
+            return { valid: false, reason: 'Ausgleichsspiel vorhanden, obwohl die Hauptrunden nicht genau um 1 Einsatz auseinanderliegen.' };
+        }
+
+        const underPlayed = mainFair.plays
+            .map((p, i) => ({ p, i }))
+            .filter(x => x.p === mainFair.min)
+            .map(x => x.i);
+
+        const realBalancePlayers = [];
+        balanceRound.matches.forEach(m => {
+            [...m.team1, ...m.team2].forEach(p => {
+                if (isRealPlayer(p, numPlayers)) realBalancePlayers.push(p);
+            });
+        });
+
+        const uniqueReal = [...new Set(realBalancePlayers)];
+        const expected = [...underPlayed].sort((a,b)=>a-b);
+        const actual = [...uniqueReal].sort((a,b)=>a-b);
+
+        if (actual.length !== expected.length || actual.some((p,i) => p !== expected[i])) {
+            return { valid: false, reason: 'Im Ausgleichsspiel spielen nicht exakt alle Spieler:innen mit einem Einsatz weniger.' };
+        }
+
+        if (uniqueReal.length > inputs.courts * 2) {
+            return { valid: false, reason: 'Zu viele echte Spieler:innen für eine Ausgleichsrunde: maximal 2 pro Court.' };
+        }
+
+        if (roundEnd(balanceRound) > bookingEnd) {
+            return { valid: false, reason: 'Das Ausgleichsspiel endet nach der gebuchten Turnierzeit.' };
+        }
+
+        const balancedFair = getPlayFairness([...mainRounds, balanceRound], numPlayers);
+        if (balancedFair.min !== balancedFair.max) {
+            return { valid: false, reason: 'Nach dem Ausgleich haben nicht alle gleich viele Einsätze.' };
+        }
+    } else if (mainFair.min !== mainFair.max) {
+        return { valid: false, reason: 'Es fehlt ein erforderliches Ausgleichsspiel.' };
+    }
+
+    if (finaleRound) {
+        if (mainFair.min !== mainFair.max) {
+            return { valid: false, reason: 'Finale nur zulässig, wenn die Hauptrunden bereits exakt fair sind.' };
+        }
+        if (roundEnd(finaleRound) > bookingEnd) {
+            return { valid: false, reason: 'Das Finale endet nach der gebuchten Turnierzeit.' };
+        }
+    }
+
+    return { valid: true };
+}
+
 // ============================================================
 // SAVE & DELETE
 // ============================================================
@@ -1023,12 +1114,20 @@ async function saveFinal() {
     if(!currentSchedule.length) { alert('Bitte zuerst einen Plan erstellen.'); return; }
 
     const inp = getInputs();
+
+    const integrity = validateScheduleIntegrity(currentSchedule, players.length, inp);
+    if (!integrity.valid) {
+        alert('Spielplan ist nicht gültig: ' + integrity.reason + ' Bitte neu mischen.');
+        return;
+    }
+
     const password = document.getElementById('tPassword').value.trim();
     const expiryDate = getExpiryDate();
     const courtNamesData = readCourtNames();
 
     const payload = {
         tournament_type: 'roundrobin',
+        generator_version: '20260907-2',
         p: players,
         s_new: currentSchedule,
         courts: inp.courts,
