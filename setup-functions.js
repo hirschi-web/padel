@@ -316,7 +316,13 @@ function checkConsistency() {
         } else {
             const slots = rounds * courts * 4;
             if(slots % count !== 0) {
-                warnings.push(`⚠️ ${slots} Slots für ${count} Spieler → ungleiche Verteilung. Nutze "Setup-Optionen" für fairen Plan. Puffer: ${netto-(rounds*matchTime)} Min.`);
+                const underPlayed = count - (slots % count);
+                const balanceCapacity = courts * 2;
+                const balanceFits = warmup + (rounds + 1) * matchTime <= totalMin;
+                const balanceOk = underPlayed <= balanceCapacity && balanceFits;
+                warnings.push(balanceOk
+                    ? `⚖️ ${underPlayed} Spieler:innen brauchen 1 Ausgleichsspiel. Zusatzrunde ist innerhalb der Buchungszeit möglich.`
+                    : `⚠️ ${slots} Slots für ${count} Spieler sind nicht direkt fair. Diese Rundenzahl kann nicht mit einer einzigen Ausgleichsrunde innerhalb der Buchung korrigiert werden – nutze "Beste Optionen".`);
             }
             if(mode === 'points') {
                 warnings.push(`🎯 Ca. ${rounds} Runden geschätzt (max. ${matchTime} Min./Runde).`);
@@ -334,59 +340,106 @@ function checkConsistency() {
 // ============================================================
 // SETUP OPTIONS (Americano)
 // ============================================================
+function getRoundPlanMeta(count, courts, totalMin, warmup, matchTime, mainRounds) {
+    const slots = mainRounds * courts * 4;
+    const remainder = slots % count;
+    const isFair = remainder === 0;
+    const underPlayed = isFair ? 0 : count - remainder;
+
+    // Ausgleich: pro Court spielen max. 2 echte Spieler gegen 2 virtuelle.
+    const balanceCapacity = courts * 2;
+    const needsBalance = !isFair;
+    const balancePossible = !needsBalance || underPlayed <= balanceCapacity;
+
+    const mainEndMin = warmup + mainRounds * matchTime;
+    const balanceFits = !needsBalance || (mainEndMin + matchTime <= totalMin);
+    const finaleFits = isFair && (mainEndMin + matchTime <= totalMin);
+
+    return {
+        slots, remainder, isFair, underPlayed, balanceCapacity,
+        needsBalance, balancePossible, balanceFits, finaleFits,
+        totalTimedRounds: mainRounds + (needsBalance ? 1 : (finaleFits ? 1 : 0)),
+        endMin: mainEndMin + (needsBalance && balanceFits ? matchTime : (finaleFits ? matchTime : 0))
+    };
+}
+
 function showOptimalProposals() {
     const countRaw = parseInt(document.getElementById('pCount').value) || 6;
     const isTeam = document.querySelector('input[name="tType"]:checked')?.value === 'team';
     const count = isTeam ? countRaw * 2 : countRaw;
     const courts = parseInt(document.getElementById('cCount').value) || 1;
-    const netto = parseFloat(document.getElementById('totalHours').value) * 60 - (parseInt(document.getElementById('warmup').value) || 0);
+    const totalMin = parseFloat(document.getElementById('totalHours').value) * 60 || 120;
+    const warmup = parseInt(document.getElementById('warmup').value) || 0;
+    const netto = totalMin - warmup;
 
     let options = [];
+
+    // Kandidaten bewusst über Rundenanzahl berechnen. Bei Ausgleich wird die
+    // Zusatzrunde vollständig mitgerechnet; bei fairen Plänen wird ein Finale
+    // nur angeboten, wenn es ebenfalls vollständig in die Buchung passt.
     for (let r = 2; r <= 40; r++) {
-        const mt = Math.floor(netto / r / 5) * 5;
-        if (mt < 10 || mt * r > netto) continue;
         const slots = r * courts * 4;
-        const ppp   = slots / count;
         const remainder = slots % count;
-        const isFair  = (remainder === 0);
+        const isFair = remainder === 0;
         const underPlayed = isFair ? 0 : count - remainder;
-        const balancePossible = isFair || underPlayed <= courts * 4;
-        const buffer  = netto - mt * r;
-        if (!balancePossible) continue;
-        if (!isFair && buffer < 5) continue;
-        if (ppp < 4) continue;
-        options.push({ r, mt, slots, ppp, isFair, underPlayed, buffer });
+        const balanceCapacity = courts * 2;
+        if (!isFair && underPlayed > balanceCapacity) continue;
+
+        const timedRounds = r + (isFair ? 0 : 1);
+        let mt = Math.floor((netto / timedRounds) / 5) * 5;
+        if (mt < 10) continue;
+
+        let meta = getRoundPlanMeta(count, courts, totalMin, warmup, mt, r);
+        if (!meta.balancePossible || !meta.balanceFits) continue;
+
+        // Für faire Pläne: wenn bei dieser Matchdauer noch ein Finale hineinpasst,
+        // wird es als sinnvolle Zusatzoption ausgewiesen, aber nie erzwungen.
+        const ppp = slots / count;
+        const equalizedPlays = isFair ? Math.round(ppp) : Math.ceil(ppp);
+        const buffer = totalMin - meta.endMin;
+
+        options.push({
+            r, mt, ppp, equalizedPlays, isFair, underPlayed,
+            finaleFits: meta.finaleFits, buffer
+        });
     }
 
+    // Pro Matchdauer nur die Variante mit mehr regulären Spielen behalten.
     const byMt = {};
     options.forEach(o => {
         if (!byMt[o.mt] || o.r > byMt[o.mt].r) byMt[o.mt] = o;
     });
-    options = Object.values(byMt).sort((a, b) => b.ppp - a.ppp);
+    options = Object.values(byMt).sort((a, b) => {
+        if (b.equalizedPlays !== a.equalizedPlays) return b.equalizedPlays - a.equalizedPlays;
+        if (a.isFair !== b.isFair) return a.isFair ? -1 : 1;
+        return b.mt - a.mt;
+    });
 
     let html = '';
     if (!options.length) {
-        html = `<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">Keine sinnvollen Optionen. Bitte Dauer oder Plätze anpassen.</div>`;
+        html = `<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">Keine vollständig faire Option innerhalb der gebuchten Zeit. Bitte Matchdauer, Dauer oder Plätze anpassen.</div>`;
     } else {
-        options.slice(0, 6).forEach(({ r, mt, ppp, isFair, underPlayed, buffer }) => {
-            const playsMin   = Math.floor(ppp) * mt;
-            const playsMax   = Math.ceil(ppp)  * mt;
-            const playsLabel = isFair ? `~${playsMin} Min. pro Person` : `~${playsMin}–${playsMax} Min. + Ausgleich`;
-            const fairLabel  = isFair ? 'Perfekt fair' : 'Fair mit Ausgleich';
-            const fairBadge  = isFair ? 'badge-amber'  : 'badge-blue';
+        options.slice(0, 6).forEach(({ r, mt, equalizedPlays, isFair, underPlayed, finaleFits, buffer }, idx) => {
+            const fairLabel = isFair ? 'Perfekt fair' : 'Fair mit Ausgleich';
+            const fairBadge = isFair ? 'badge-amber' : 'badge-blue';
+            const bestLabel = idx === 0 ? '<span class="badge badge-green" style="margin-left:6px;">Beste Option</span>' : '';
             const bufferIcon = buffer >= 15 ? '🔥' : buffer >= 5 ? '👍' : '⚡';
-            const playsInfo  = isFair
-                ? `✅ Jeder spielt genau ${Math.round(ppp)}×`
-                : `⚖️ ${underPlayed} Spieler:innen erhalten 1 nicht gewertetes Ausgleichsspiel`;
+            const extraInfo = isFair
+                ? (finaleFits ? '🏆 Finale passt zusätzlich in die Buchungszeit' : '✅ Kein Ausgleich nötig')
+                : `⚖️ ${underPlayed} Spieler:innen spielen 1 nicht gewertetes Ausgleichsspiel gegen virtuelle Gegner`;
+            const playsInfo = isFair
+                ? `✅ Jeder spielt regulär genau ${equalizedPlays}×`
+                : `✅ Nach Ausgleich hat jeder ${equalizedPlays} Einsätze`;
+
             html += `<div class="opt-card">
                 <div>
-                    <span class="badge ${fairBadge}">${fairLabel}</span>
+                    <div><span class="badge ${fairBadge}">${fairLabel}</span>${bestLabel}</div>
                     <div class="opt-time" style="margin:10px 0 4px;">${mt}<span style="font-size:16px;font-weight:700"> Min.</span></div>
-                    <p style="font-size:11px;color:var(--muted);font-weight:500;">🎾 ${r} Runden · ${courts} ${courts > 1 ? 'Plätze' : 'Platz'}</p>
-                    <p style="font-size:11px;color:var(--blue);font-weight:700;margin-top:4px;">${playsLabel}</p>
+                    <p style="font-size:11px;color:var(--muted);font-weight:500;">🎾 ${r} Hauptrunden · ${courts} ${courts > 1 ? 'Plätze' : 'Platz'}</p>
+                    <p style="font-size:11px;color:var(--blue);font-weight:700;margin-top:4px;">${playsInfo}</p>
                     <div style="font-size:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 8px;margin-top:8px;">
-                        <span style="color:var(--muted);">Puffer: </span><strong>${buffer} Min. ${bufferIcon}</strong>
-                        <span style="display:block;color:${isFair ? 'var(--green)' : 'var(--muted)'};">${playsInfo}</span>
+                        <span style="display:block;">${extraInfo}</span>
+                        <span style="display:block;color:var(--muted);margin-top:2px;">Puffer nach geplantem Ablauf: <strong>${buffer} Min. ${bufferIcon}</strong></span>
                     </div>
                 </div>
                 <button class="opt-apply" onclick="applyOpt(${mt})">Wählen</button>
@@ -420,21 +473,39 @@ function getInputs() {
     const mode = document.querySelector('input[name="mode"]:checked').value;
 
     const rawRounds = Math.floor((totalMin - warmup) / matchTime);
-    const maxInBalance = courts * 4;
 
-    // Finde optimale Rundenanzahl von rawRounds abwärts:
-    // perfekt fair (kein Ausgleich) ODER underPlayed <= maxInBalance (Ausgleich passt)
-    let numRounds = rawRounds;
+    // Von maximal möglicher Rundenanzahl abwärts die erste Variante wählen,
+    // die entweder exakt fair ist oder mit EINER vollständigen Ausgleichsrunde
+    // innerhalb der Buchungszeit fair gemacht werden kann.
+    let numRounds = 0;
+    let planMeta = null;
+
     for (let r = rawRounds; r >= 1; r--) {
-        const slots = r * courts * 4;
-        if (slots % count === 0) { numRounds = r; break; }
-        if ((count - (slots % count)) <= maxInBalance) { numRounds = r; break; }
+        const meta = getRoundPlanMeta(count, courts, totalMin, warmup, matchTime, r);
+        if (meta.isFair) {
+            numRounds = r;
+            planMeta = meta;
+            break;
+        }
+        if (meta.balancePossible && meta.balanceFits) {
+            numRounds = r;
+            planMeta = meta;
+            break;
+        }
+    }
+
+    if (!numRounds) {
+        numRounds = Math.max(1, rawRounds);
+        planMeta = getRoundPlanMeta(count, courts, totalMin, warmup, matchTime, numRounds);
     }
 
     return {
         count, courts, totalMin, matchTime, warmup, start, mode, isTeam,
         nettoMin: totalMin - warmup,
-        numRounds: Math.max(1, numRounds)
+        numRounds,
+        addBalance: !!(planMeta?.needsBalance && planMeta?.balancePossible && planMeta?.balanceFits),
+        addFinale: !!(planMeta?.isFair && planMeta?.finaleFits),
+        planMeta
     };
 }
 
@@ -650,8 +721,8 @@ async function runOptimization() {
     const totalSlots = inputs.numRounds * inputs.courts * 4;
     const remainder = totalSlots % players.length;
     const isPerfectlyFair = (remainder === 0);
-    const isDummyMode = !isPerfectlyFair;
-    const isFinalMode = isPerfectlyFair;
+    const isDummyMode = !!inputs.addBalance;
+    const isFinalMode = !!inputs.addFinale;
 
     const btn = document.getElementById('mixBtn');
     const txt = document.getElementById('mixBtnText');
@@ -696,27 +767,35 @@ async function runOptimization() {
     if(isDummyMode) {
         const { plays } = calcPenalty(bestSchedule, players.length);
         const minPlays = Math.min(...plays);
+        const maxPlays = Math.max(...plays);
 
+        // Durch die harte Fairnessprüfung darf die Differenz hier nur 1 sein.
         const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
-        const maxInBalance = inputs.courts * 4;
-        const spielende = underPlayed.slice(0, maxInBalance);
-        const pauseUnderPlayed = underPlayed.slice(maxInBalance);
+        const balanceCapacity = inputs.courts * 2;
+
+        if (maxPlays - minPlays !== 1 || underPlayed.length > balanceCapacity) {
+            btn.disabled = false;
+            txt.textContent = 'Plan bestmöglich mischen';
+            spin.classList.add('hidden');
+            alert('Interner Fairnessfehler: Ausgleich passt nicht in eine Runde. Bitte Setup neu berechnen.');
+            return;
+        }
 
         const balanceMatches = [];
-        let rem = [...spielende];
+        let rem = [...underPlayed];
         let courtNum = 1;
-        while(rem.length >= 1 && courtNum <= inputs.courts) {
+        while(rem.length > 0 && courtNum <= inputs.courts) {
             const p1 = rem.shift();
             const p2 = rem.length > 0 ? rem.shift() : null;
             balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: [null, null] });
         }
-        // Freie Courts mit komplett virtuellen Spielern auffüllen
+
+        // Freie Courts bleiben als virtuelle Matches sichtbar, verändern aber nichts.
         while(courtNum <= inputs.courts) {
             balanceMatches.push({ court: courtNum++, team1: [null, null], team2: [null, null] });
         }
 
-        const overPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p > minPlays).map(x => x.i);
-        const balancePause = [...overPlayed, ...pauseUnderPlayed];
+        const balancePause = plays.map((_, i) => i).filter(i => !underPlayed.includes(i));
 
         bestSchedule.push({
             id: bestSchedule.length + 1,
@@ -725,7 +804,7 @@ async function runOptimization() {
             matches: balanceMatches,
             pause: balancePause
         });
-    } else {
+    } else if(isFinalMode) {
         bestSchedule.push({
             id: bestSchedule.length + 1,
             time: nextTime,
