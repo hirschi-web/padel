@@ -16,6 +16,12 @@
     }
   }
 
+  window.__padelApplyLiveScores = applyLiveScores;
+
+  function editStateKey() {
+    return 'liveEditEnabled_' + (typeof tournamentId !== 'undefined' && tournamentId ? tournamentId : 'unknown');
+  }
+
   async function refreshLiveScores() {
     const { data, error } = await supabaseClient.from('tournaments').select('live_data').eq('id', tournamentId);
     if (error) throw error;
@@ -25,24 +31,33 @@
   window.loadTournament = async function () {
     await originalLoadTournament();
     if (typeof tournamentData === 'undefined' || !tournamentData) return;
+
     try {
       await refreshLiveScores();
-      if (typeof renderAll === 'function') renderAll();
     } catch (e) {
       console.warn('[Neon Live] live_data konnte nicht geladen werden', e);
     }
+
     const btn = document.getElementById('editToggle');
-    if (!btn) return;
-    isEditing = false;
+    if (!btn) {
+      if (typeof renderAll === 'function') renderAll();
+      return;
+    }
+
     if (liveKey) {
+      const shouldEdit = sessionStorage.getItem(editStateKey()) === 'true';
+      isEditing = shouldEdit;
       btn.disabled = false;
-      btn.innerText = '🔒 Bearbeiten';
+      btn.innerText = shouldEdit ? '✏️ Bearbeiten' : '🔒 Bearbeiten';
       btn.title = 'Bearbeiten mit Turnier-Key';
     } else {
+      isEditing = false;
       btn.disabled = true;
       btn.innerText = '👁 Nur ansehen';
       btn.title = 'Dieser Link ist nur zum Ansehen';
     }
+
+    if (typeof renderAll === 'function') renderAll();
   };
 
   window.toggleEdit = function () {
@@ -52,6 +67,8 @@
       return;
     }
     isEditing = !isEditing;
+    if (isEditing) sessionStorage.setItem(editStateKey(), 'true');
+    else sessionStorage.removeItem(editStateKey());
     const btn = document.getElementById('editToggle');
     if (btn) btn.innerText = isEditing ? '✏️ Bearbeiten' : '🔒 Bearbeiten';
     renderAll();
@@ -92,7 +109,10 @@
     }
     localStorage.setItem('backup_' + tournamentId, JSON.stringify({ data: tournamentData, timestamp: Date.now() }));
     try {
-      for (const job of jobs) await saveScore(job);
+      for (const job of jobs) {
+        const latestLiveData = await saveScore(job);
+        applyLiveScores(latestLiveData);
+      }
       dirtyMatches.clear();
       updateFloatingButton();
       renderAll();
@@ -113,7 +133,9 @@
       if (pendingSaves.length === 0) { clearInterval(retryInterval); retryInterval = null; return; }
       const save = pendingSaves[0];
       try {
-        await saveScore(save);
+        const latestLiveData = await saveScore(save);
+        applyLiveScores(latestLiveData);
+        if (typeof renderAll === 'function') renderAll();
         pendingSaves.shift();
         showToast('✅ Synchronisiert', 'success');
       } catch (e) {
