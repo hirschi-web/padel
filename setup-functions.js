@@ -374,62 +374,91 @@ function showOptimalProposals() {
 
     let options = [];
 
-    // Kandidaten bewusst über Rundenanzahl berechnen. Bei Ausgleich wird die
-    // Zusatzrunde vollständig mitgerechnet; bei fairen Plänen wird ein Finale
-    // nur angeboten, wenn es ebenfalls vollständig in die Buchung passt.
+    const addOption = (r, mt, kind) => {
+        if (mt < 10) return;
+        const meta = getRoundPlanMeta(count, courts, totalMin, warmup, mt, r);
+        if (!meta.isFair && (!meta.balancePossible || !meta.balanceFits)) return;
+        if (kind === 'finale' && !meta.finaleFits) return;
+        if (kind === 'balance' && !meta.needsBalance) return;
+        if (kind === 'fair' && !meta.isFair) return;
+
+        const ppp = meta.slots / count;
+        const equalizedPlays = meta.isFair ? Math.round(ppp) : Math.ceil(ppp);
+        const playMinutes = equalizedPlays * mt;
+        const plannedEnd = warmup + r * mt + (kind === 'balance' || kind === 'finale' ? mt : 0);
+        const buffer = totalMin - plannedEnd;
+
+        options.push({
+            r, mt, ppp, equalizedPlays, playMinutes,
+            isFair: meta.isFair,
+            underPlayed: meta.underPlayed,
+            kind,
+            buffer
+        });
+    };
+
     for (let r = 2; r <= 40; r++) {
         const slots = r * courts * 4;
         const remainder = slots % count;
         const isFair = remainder === 0;
         const underPlayed = isFair ? 0 : count - remainder;
-        const balanceCapacity = courts * 2;
-        if (!isFair && underPlayed > balanceCapacity) continue;
 
-        const timedRounds = r + (isFair ? 0 : 1);
-        let mt = Math.floor((netto / timedRounds) / 5) * 5;
-        if (mt < 10) continue;
+        if (isFair) {
+            // Variante A: maximale Matchdauer ohne erzwungene Zusatzrunde.
+            const mtFair = Math.floor((netto / r) / 5) * 5;
+            addOption(r, mtFair, 'fair');
 
-        let meta = getRoundPlanMeta(count, courts, totalMin, warmup, mt, r);
-        if (!meta.balancePossible || !meta.balanceFits) continue;
-
-        // Für faire Pläne: wenn bei dieser Matchdauer noch ein Finale hineinpasst,
-        // wird es als sinnvolle Zusatzoption ausgewiesen, aber nie erzwungen.
-        const ppp = slots / count;
-        const equalizedPlays = isFair ? Math.round(ppp) : Math.ceil(ppp);
-        const buffer = totalMin - meta.endMin;
-
-        options.push({
-            r, mt, ppp, equalizedPlays, isFair, underPlayed,
-            finaleFits: meta.finaleFits, buffer
-        });
+            // Variante B: bewusst Platz für ein vollständiges Finale reservieren.
+            const mtFinale = Math.floor((netto / (r + 1)) / 5) * 5;
+            if (mtFinale !== mtFair) addOption(r, mtFinale, 'finale');
+        } else {
+            // Ausgleich benötigt eine vollständige zusätzliche Runde.
+            if (underPlayed > courts * 2) continue;
+            const mtBalance = Math.floor((netto / (r + 1)) / 5) * 5;
+            addOption(r, mtBalance, 'balance');
+        }
     }
 
-    // Pro Matchdauer nur die Variante mit mehr regulären Spielen behalten.
-    const byMt = {};
+    // Gleiche praktisch resultierende Setups zusammenfassen.
+    const unique = {};
     options.forEach(o => {
-        if (!byMt[o.mt] || o.r > byMt[o.mt].r) byMt[o.mt] = o;
+        const key = `${o.mt}|${o.kind}`;
+        if (!unique[key] || o.r > unique[key].r) unique[key] = o;
     });
-    options = Object.values(byMt).sort((a, b) => {
-        if (b.equalizedPlays !== a.equalizedPlays) return b.equalizedPlays - a.equalizedPlays;
-        if (a.isFair !== b.isFair) return a.isFair ? -1 : 1;
-        return b.mt - a.mt;
+    options = Object.values(unique);
+
+    // "Beste Option": meiste faire Spielzeit pro Person; danach exakt faire
+    // Hauptrunden vor Ausgleich, danach längere Matches.
+    options.sort((a, b) => {
+        if (b.playMinutes !== a.playMinutes) return b.playMinutes - a.playMinutes;
+        const rank = { fair: 3, finale: 2, balance: 1 };
+        if (rank[b.kind] !== rank[a.kind]) return rank[b.kind] - rank[a.kind];
+        if (b.mt !== a.mt) return b.mt - a.mt;
+        return b.r - a.r;
     });
 
     let html = '';
     if (!options.length) {
         html = `<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">Keine vollständig faire Option innerhalb der gebuchten Zeit. Bitte Matchdauer, Dauer oder Plätze anpassen.</div>`;
     } else {
-        options.slice(0, 6).forEach(({ r, mt, equalizedPlays, isFair, underPlayed, finaleFits, buffer }, idx) => {
-            const fairLabel = isFair ? 'Perfekt fair' : 'Fair mit Ausgleich';
-            const fairBadge = isFair ? 'badge-amber' : 'badge-blue';
+        options.slice(0, 6).forEach(({ r, mt, equalizedPlays, playMinutes, isFair, underPlayed, kind, buffer }, idx) => {
+            const fairLabel = kind === 'balance' ? 'Fair mit Ausgleich' : (kind === 'finale' ? 'Perfekt fair + Finale' : 'Perfekt fair');
+            const fairBadge = kind === 'balance' ? 'badge-blue' : 'badge-amber';
             const bestLabel = idx === 0 ? '<span class="badge badge-green" style="margin-left:6px;">Beste Option</span>' : '';
             const bufferIcon = buffer >= 15 ? '🔥' : buffer >= 5 ? '👍' : '⚡';
-            const extraInfo = isFair
-                ? (finaleFits ? '🏆 Finale passt zusätzlich in die Buchungszeit' : '✅ Kein Ausgleich nötig')
-                : `⚖️ ${underPlayed} Spieler:innen spielen 1 nicht gewertetes Ausgleichsspiel gegen virtuelle Gegner`;
-            const playsInfo = isFair
-                ? `✅ Jeder spielt regulär genau ${equalizedPlays}×`
-                : `✅ Nach Ausgleich hat jeder ${equalizedPlays} Einsätze`;
+
+            let extraInfo;
+            let playsInfo;
+            if (kind === 'balance') {
+                playsInfo = `✅ Nach Ausgleich hat jeder ${equalizedPlays} Einsätze · ~${playMinutes} Min.`;
+                extraInfo = `⚖️ ${underPlayed} Spieler:innen erhalten 1 nicht gewertetes Ausgleichsspiel gegen virtuelle Gegner`;
+            } else if (kind === 'finale') {
+                playsInfo = `✅ Jeder spielt regulär ${equalizedPlays}× · ~${playMinutes} Min.`;
+                extraInfo = '🏆 Danach Finale der Top 4 · Finale zählt nicht zur Vorrundenstatistik';
+            } else {
+                playsInfo = `✅ Jeder spielt genau ${equalizedPlays}× · ~${playMinutes} Min.`;
+                extraInfo = '✅ Kein Ausgleich nötig';
+            }
 
             html += `<div class="opt-card">
                 <div>
