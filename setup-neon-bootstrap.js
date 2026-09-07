@@ -11,7 +11,7 @@ window.init = function () {};
     });
   }
   async function boot() {
-    await load('/padel/padel-api-prod.js?v=20260824-1');
+    await load('/padel/padel-api-prod.js?v=20260907-2');
     const client = await window.phNeon.getClient();
     const direct = await client.from('tournaments').select('id,data').order('id', { ascending: true });
     if (direct?.error) throw new Error(direct.error.message || 'Turniere konnten nicht geladen werden');
@@ -19,7 +19,7 @@ window.init = function () {};
     if (!sel) throw new Error('tournamentSelect fehlt');
     while (sel.options.length > 1) sel.remove(1);
     (direct.data || []).filter(t => t.id !== 'LIVE_CONFIG').forEach(t => sel.add(new Option(t.id, t.id)));
-    await load('/padel/setup-functions.js?v=20260824-1');
+    await load('/padel/setup-functions.js?v=20260907-2');
     await window.init();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => boot().catch(console.error), { once: true });
