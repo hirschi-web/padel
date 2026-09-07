@@ -347,11 +347,15 @@ function showOptimalProposals() {
         if (mt < 10 || mt * r > netto) continue;
         const slots = r * courts * 4;
         const ppp   = slots / count;
-        const isFair  = Number.isInteger(ppp);
+        const remainder = slots % count;
+        const isFair  = (remainder === 0);
+        const underPlayed = isFair ? 0 : count - remainder;
+        const balancePossible = isFair || underPlayed <= courts * 4;
         const buffer  = netto - mt * r;
+        if (!balancePossible) continue;
         if (!isFair && buffer < 5) continue;
         if (ppp < 4) continue;
-        options.push({ r, mt, slots, ppp, isFair, buffer });
+        options.push({ r, mt, slots, ppp, isFair, underPlayed, buffer });
     }
 
     const byMt = {};
@@ -364,14 +368,16 @@ function showOptimalProposals() {
     if (!options.length) {
         html = `<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:11px;padding:16px;">Keine sinnvollen Optionen. Bitte Dauer oder Plätze anpassen.</div>`;
     } else {
-        options.slice(0, 6).forEach(({ r, mt, ppp, isFair, buffer }) => {
+        options.slice(0, 6).forEach(({ r, mt, ppp, isFair, underPlayed, buffer }) => {
             const playsMin   = Math.floor(ppp) * mt;
             const playsMax   = Math.ceil(ppp)  * mt;
-            const playsLabel = isFair ? `~${playsMin} Min. pro Person` : `~${playsMin}–${playsMax} Min. pro Person`;
-            const fairLabel  = isFair ? 'Perfekt fair' : 'Ausgleich nötig';
+            const playsLabel = isFair ? `~${playsMin} Min. pro Person` : `~${playsMin}–${playsMax} Min. + Ausgleich`;
+            const fairLabel  = isFair ? 'Perfekt fair' : 'Fair mit Ausgleich';
             const fairBadge  = isFair ? 'badge-amber'  : 'badge-blue';
             const bufferIcon = buffer >= 15 ? '🔥' : buffer >= 5 ? '👍' : '⚡';
-            const playsInfo  = isFair ? `✅ Jeder spielt genau ${Math.round(ppp)}×` : `⌀ ${ppp.toFixed(1)}× · Ausgleichsrunde am Ende`;
+            const playsInfo  = isFair
+                ? `✅ Jeder spielt genau ${Math.round(ppp)}×`
+                : `⚖️ ${underPlayed} Spieler:innen erhalten 1 nicht gewertetes Ausgleichsspiel`;
             html += `<div class="opt-card">
                 <div>
                     <span class="badge ${fairBadge}">${fairLabel}</span>
@@ -482,6 +488,22 @@ function calcPenalty(schedule, numPlayers) {
     return { penalty, plays, partner, opponent };
 }
 
+function getPlayFairness(schedule, numPlayers) {
+    const { plays } = calcPenalty(schedule, numPlayers);
+    const total = plays.reduce((a, b) => a + b, 0);
+    const low = Math.floor(total / numPlayers);
+    const high = Math.ceil(total / numPlayers);
+    const remainder = total % numPlayers;
+    const min = Math.min(...plays);
+    const max = Math.max(...plays);
+    const valid = remainder === 0
+        ? plays.every(p => p === low)
+        : plays.every(p => p === low || p === high) &&
+          plays.filter(p => p === high).length === remainder &&
+          (max - min) <= 1;
+    return { valid, plays, min, max, low, high, remainder };
+}
+
 function smartSelect(pool, needed, partnerCount, opponentCount) {
     if(pool.length <= needed) return [...pool];
     let remaining = [...pool];
@@ -528,6 +550,17 @@ function generateVariant(inputs) {
     let [sH, sM] = start.split(':').map(Number);
     let schedule = [];
     let playTracker = new Array(count).fill(0);
+
+    // Harte Einsatz-Fairness: Jeder bekommt vorab ein Soll-Kontingent.
+    // Bei nicht teilbaren Slots haben genau "remainder" Spieler 1 Match mehr;
+    // die übrigen werden anschließend per isBalance um genau 1 Match ausgeglichen.
+    const totalSlots = numRounds * courts * 4;
+    const baseTarget = Math.floor(totalSlots / count);
+    const remainder = totalSlots % count;
+    const targetPlays = new Array(count).fill(baseTarget);
+    const extraOrder = [...Array(count).keys()].sort(() => Math.random() - 0.5);
+    extraOrder.slice(0, remainder).forEach(p => targetPlays[p]++);
+
     let lastPlayedRound = new Array(count).fill(-99);
     let consecPauses = new Array(count).fill(0);
     const partnerCount = Array.from({length: count}, () => new Array(count).fill(0));
@@ -539,23 +572,33 @@ function generateVariant(inputs) {
         const timeStr = `${String(Math.floor(tMin / 60) % 24).padStart(2, '0')}:${String(tMin % 60).padStart(2, '0')}`;
         const isProtected = PROTECTED.has(r);
 
-        const mustPlay   = [...Array(count).keys()].filter(p => consecPauses[p] >= 2);
-        const justPaused = [...Array(count).keys()].filter(p => consecPauses[p] === 1);
-        const rested     = [...Array(count).keys()].filter(p => consecPauses[p] === 0);
+        const eligible = [...Array(count).keys()].filter(p => playTracker[p] < targetPlays[p]);
+        const roundsLeft = numRounds - r + 1;
 
-        mustPlay.sort((a, b) => playTracker[a] - playTracker[b]);
-        justPaused.sort((a, b) => playTracker[a] - playTracker[b]);
-        rested.sort((a, b) => {
+        // Wer sein Soll nur noch erreicht, wenn er ab jetzt jede Runde spielt, hat Vorrang.
+        const targetMustPlay = eligible.filter(p => (targetPlays[p] - playTracker[p]) >= roundsLeft);
+        const mustPlay   = eligible.filter(p => !targetMustPlay.includes(p) && consecPauses[p] >= 2);
+        const justPaused = eligible.filter(p => !targetMustPlay.includes(p) && consecPauses[p] === 1);
+        const rested     = eligible.filter(p => !targetMustPlay.includes(p) && consecPauses[p] === 0);
+
+        const fairnessSort = (a, b) => {
+            const remainingA = targetPlays[a] - playTracker[a];
+            const remainingB = targetPlays[b] - playTracker[b];
+            if (remainingA !== remainingB) return remainingB - remainingA;
             const d = playTracker[a] - playTracker[b];
             return d !== 0 ? d : lastPlayedRound[a] - lastPlayedRound[b];
-        });
+        };
+        targetMustPlay.sort(fairnessSort);
+        mustPlay.sort(fairnessSort);
+        justPaused.sort(fairnessSort);
+        rested.sort(fairnessSort);
 
-        let rem = [...mustPlay, ...justPaused, ...rested];
+        let rem = [...new Set([...targetMustPlay, ...mustPlay, ...justPaused, ...rested])];
         let round = { id: r, time: timeStr, pause: [], matches: [] };
 
         for(let c = 0; c < courts; c++) {
             if(rem.length < 4) break;
-            const hasMust = rem.some(p => mustPlay.includes(p));
+            const hasMust = rem.some(p => targetMustPlay.includes(p) || mustPlay.includes(p));
             const strict = hasMust || (isProtected && r > 1);
             const chosen = strict
                 ? rem.splice(0, 4)
@@ -620,13 +663,29 @@ async function runOptimization() {
 
     let bestSchedule = null;
     let lowestPenalty = Infinity;
-    for(let i = 0; i < 500; i++) {
+    const MAX_ATTEMPTS = 2000;
+
+    for(let i = 0; i < MAX_ATTEMPTS; i++) {
         const sched = generateVariant(inputs);
+        const fairness = getPlayFairness(sched, players.length);
+
+        // Einsatzanzahl ist eine harte Bedingung. Erst danach werden
+        // Partner/Gegner/Pausen über den bestehenden Penalty optimiert.
+        if(!fairness.valid) continue;
+
         const { penalty } = calcPenalty(sched, players.length);
         if(penalty < lowestPenalty) {
             lowestPenalty = penalty;
             bestSchedule = sched;
         }
+    }
+
+    if(!bestSchedule) {
+        btn.disabled = false;
+        txt.textContent = 'Plan bestmöglich mischen';
+        spin.classList.add('hidden');
+        alert('Kein fairer Spielplan gefunden. Bitte Matchdauer, Plätze oder Gesamtdauer anpassen.');
+        return;
     }
 
     const lastTime = bestSchedule[bestSchedule.length - 1];
@@ -708,7 +767,7 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
             roundLabel = '⚖️ Ausgleichsspiel';
             cardCls = 'round-card round-balance';
             badgeHtml = '<span class="badge badge-blue">Ausgleich</span>';
-            extra = `<p style="font-size:9px;color:#1e40af;text-align:center;margin-top:8px;font-weight:600;">Echte Spieler werden normal gewertet · Virtuelle Gegner zählen nicht</p>`;
+            extra = `<p style="font-size:9px;color:#1e40af;text-align:center;margin-top:8px;font-weight:600;">Ausgleich nur für Spielzeit/Fairness · zählt nicht für Rangliste oder Punkte</p>`;
         }
 
         const matchHtml = r.matches.map(m => {
