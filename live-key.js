@@ -3,11 +3,13 @@
   const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
   const liveKey = (hashParams.get('key') || '').trim();
   const originalLoadTournament = window.loadTournament;
+  const originalSafeRefresh = window.safeRefresh;
 
-  function applyLiveScores(liveData) {
+  function applyLiveScores(liveData, preserveDirty = true) {
     const scores = liveData && typeof liveData === 'object' ? liveData.roundrobin_scores : null;
     if (!scores || typeof tournamentData === 'undefined' || !tournamentData?.s_new) return;
     for (const [k, score] of Object.entries(scores)) {
+      if (preserveDirty && typeof dirtyMatches !== 'undefined' && dirtyMatches?.has(k)) continue;
       const [r, m] = k.split('-').map(Number);
       if (!Number.isInteger(r) || !Number.isInteger(m)) continue;
       const match = tournamentData.s_new?.[r]?.matches?.[m];
@@ -20,6 +22,51 @@
 
   function editStateKey() {
     return 'liveEditEnabled_' + (typeof tournamentId !== 'undefined' && tournamentId ? tournamentId : 'unknown');
+  }
+
+  function jobKey(job) {
+    return `${job.rIdx}-${job.mIdx}`;
+  }
+
+  function readJob(rIdx, mIdx) {
+    const el0 = document.getElementById(`s-${rIdx}-${mIdx}-0`);
+    const el1 = document.getElementById(`s-${rIdx}-${mIdx}-1`);
+    if (!el0 || !el1) return null;
+    const v0 = el0.value.trim();
+    const v1 = el1.value.trim();
+    let s0 = null, s1 = null;
+    if (v0 || v1) {
+      s0 = parseInt(v0, 10) || 0;
+      s1 = parseInt(v1, 10) || 0;
+    }
+    return { rIdx, mIdx, s0, s1 };
+  }
+
+  function sameScore(a, b) {
+    return !!a && !!b && a.rIdx === b.rIdx && a.mIdx === b.mIdx && a.s0 === b.s0 && a.s1 === b.s1;
+  }
+
+  function isJobCurrent(job) {
+    const key = jobKey(job);
+    if (!dirtyMatches.has(key)) return false;
+    return sameScore(job, readJob(job.rIdx, job.mIdx));
+  }
+
+  function markJobSaved(job) {
+    const key = jobKey(job);
+    if (isJobCurrent(job)) dirtyMatches.delete(key);
+    for (let i = pendingSaves.length - 1; i >= 0; i--) {
+      if (jobKey(pendingSaves[i]) === key && sameScore(pendingSaves[i], job)) pendingSaves.splice(i, 1);
+    }
+    updateFloatingButton();
+  }
+
+  function enqueueRetry(job) {
+    const key = jobKey(job);
+    for (let i = pendingSaves.length - 1; i >= 0; i--) {
+      if (jobKey(pendingSaves[i]) === key) pendingSaves.splice(i, 1);
+    }
+    pendingSaves.push({ ...job, retries: 0 });
   }
 
   async function refreshLiveScores() {
@@ -90,53 +137,83 @@
   }
 
   window.saveAllDirty = async function () {
-    if (dirtyMatches.size === 0) return;
+    if (dirtyMatches.size === 0 || isSaving) return;
     if (!liveKey) { showToast('🔒 Kein Bearbeiten-Key vorhanden', 'error'); return; }
-    isSaving = true;
+
     const jobs = [];
     for (const key of Array.from(dirtyMatches)) {
       const [rIdx, mIdx] = key.split('-').map(Number);
-      const v0 = document.getElementById(`s-${rIdx}-${mIdx}-0`).value.trim();
-      const v1 = document.getElementById(`s-${rIdx}-${mIdx}-1`).value.trim();
-      let s0 = null, s1 = null;
-      if (!v0 && !v1) {
-        tournamentData.s_new[rIdx].matches[mIdx].score = ['', ''];
-      } else {
-        s0 = parseInt(v0) || 0; s1 = parseInt(v1) || 0;
-        tournamentData.s_new[rIdx].matches[mIdx].score = [String(s0), String(s1)];
-      }
-      jobs.push({ rIdx, mIdx, s0, s1 });
+      const job = readJob(rIdx, mIdx);
+      if (!job) continue;
+      if (job.s0 == null && job.s1 == null) tournamentData.s_new[rIdx].matches[mIdx].score = ['', ''];
+      else tournamentData.s_new[rIdx].matches[mIdx].score = [String(job.s0), String(job.s1)];
+      jobs.push(job);
     }
+    if (jobs.length === 0) return;
+
+    isSaving = true;
     localStorage.setItem('backup_' + tournamentId, JSON.stringify({ data: tournamentData, timestamp: Date.now() }));
+
+    let saved = 0;
+    let failed = 0;
+    let invalidKey = false;
     try {
       for (const job of jobs) {
-        const latestLiveData = await saveScore(job);
-        applyLiveScores(latestLiveData);
+        if (!isJobCurrent(job)) continue;
+        try {
+          const latestLiveData = await saveScore(job);
+          markJobSaved(job);
+          applyLiveScores(latestLiveData);
+          saved++;
+        } catch (e) {
+          if ((e.message || '').includes('ungültig')) {
+            invalidKey = true;
+            break;
+          }
+          enqueueRetry(job);
+          failed++;
+        }
       }
-      dirtyMatches.clear();
+
       updateFloatingButton();
-      renderAll();
-      showToast('💾 Alle Ergebnisse gespeichert', 'success');
-    } catch (e) {
-      const invalid = (e.message || '').includes('ungültig');
-      if (!invalid) {
-        for (const job of jobs) pendingSaves.push({ ...job, retries: 0 });
+      if (dirtyMatches.size === 0 && typeof renderAll === 'function') renderAll();
+
+      if (invalidKey) {
+        showToast('❌ Ungültiger Bearbeiten-Key', 'error');
+      } else if (failed > 0) {
         startRetryQueue();
+        showToast(`⚠️ ${saved} gespeichert · ${failed} wird synchronisiert`, 'warning');
+      } else if (saved > 0) {
+        showToast(saved === jobs.length ? '💾 Alle Ergebnisse gespeichert' : `💾 ${saved} Ergebnisse gespeichert`, 'success');
       }
-      showToast(invalid ? '❌ Ungültiger Bearbeiten-Key' : '⚠️ Offline - wird synchronisiert', invalid ? 'error' : 'warning');
-    } finally { isSaving = false; }
+    } finally {
+      isSaving = false;
+    }
   };
 
   window.startRetryQueue = function () {
     if (retryInterval || !liveKey) return;
     retryInterval = setInterval(async () => {
-      if (pendingSaves.length === 0) { clearInterval(retryInterval); retryInterval = null; return; }
+      if (isSaving) return;
+      if (pendingSaves.length === 0) {
+        clearInterval(retryInterval);
+        retryInterval = null;
+        return;
+      }
+
       const save = pendingSaves[0];
-      try {
-        const latestLiveData = await saveScore(save);
-        applyLiveScores(latestLiveData);
-        if (typeof renderAll === 'function') renderAll();
+      if (!isJobCurrent(save)) {
         pendingSaves.shift();
+        return;
+      }
+
+      try {
+        isSaving = true;
+        const latestLiveData = await saveScore(save);
+        pendingSaves.shift();
+        markJobSaved(save);
+        applyLiveScores(latestLiveData);
+        if (dirtyMatches.size === 0 && typeof renderAll === 'function') renderAll();
         showToast('✅ Synchronisiert', 'success');
       } catch (e) {
         save.retries++;
@@ -145,11 +222,24 @@
           showToast('❌ Ungültiger Bearbeiten-Key', 'error');
         } else if (save.retries > 5) {
           pendingSaves.shift();
-          showToast('❌ Sync fehlgeschlagen - Backup gespeichert', 'error');
+          showToast('❌ Sync fehlgeschlagen - Eingabe bleibt ungespeichert', 'error');
         }
+      } finally {
+        isSaving = false;
+        updateFloatingButton();
       }
     }, 10000);
   };
+
+  if (typeof originalSafeRefresh === 'function') {
+    window.safeRefresh = async function (source) {
+      if (isSaving || dirtyMatches.size > 0) {
+        console.log(`[${source}] Blocked - unsaved/saving`);
+        return false;
+      }
+      return originalSafeRefresh(source);
+    };
+  }
 
   window.setupRealtime = function () {
     realtimeConnected = false;
