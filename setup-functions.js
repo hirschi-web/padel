@@ -1149,6 +1149,7 @@ async function saveFinal() {
         });
         if(error) throw error;
         document.getElementById('lastActionTime').textContent = `Gespeichert: ${new Date().toLocaleTimeString('de-DE')}`;
+        document.dispatchEvent(new CustomEvent('padel:tournament-saved', { detail: { id: name } }));
         alert(`✅ "${name}" gespeichert!`);
         init();
     } catch(e) {
