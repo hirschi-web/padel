@@ -19,7 +19,7 @@ window.init = function () {};
     if (!sel) throw new Error('tournamentSelect fehlt');
     while (sel.options.length > 1) sel.remove(1);
     (direct.data || []).filter(t => t.id !== 'LIVE_CONFIG').forEach(t => sel.add(new Option(t.id, t.id)));
-    await load('/padel/setup-functions.js?v=20260907-2');
+    await load('/padel/setup-functions.js?v=20261016-1');
     await window.init();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => boot().catch(console.error), { once: true });
