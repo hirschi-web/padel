@@ -1,0 +1,67 @@
+name: Import Padel Hirsch Sites live
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/import-padel-sites-live.yml'
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Download exact published Sites application
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/padel-sites/assets
+          SITE='https://padel-hirsch-live.regalrhino5.chatgpt.site'
+          for f in live-app.js live-app.css live-header.css privacy-footer.css live-announcer.js live-themes.json; do
+            curl -fsSL --retry 3 --max-time 25 "$SITE/$f" -o "/tmp/padel-sites/$f"
+          done
+          for f in live-logo-antler-padel-512.png live-logo-antler-padel.png live-logo-hirsch-ball-v1.png; do
+            curl -fsSL --retry 3 --max-time 30 "$SITE/assets/$f" -o "/tmp/padel-sites/assets/$f"
+          done
+          curl -fsSL --retry 3 --max-time 25 "$SITE/live/" -o /tmp/padel-sites/live.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root=Path('/tmp/padel-sites')
+          expected={
+            'live-app.js':'69438f64ebfeba4af6ca5cfbe26b62633366ef2c4173dd279d69722d0d34ae33',
+            'live-app.css':'3041a6c9793e477171325cc2a50dbb27007aab44db2fe817bf07750fe4c45bad',
+          }
+          for filename,digest in expected.items():
+            actual=hashlib.sha256((root/filename).read_bytes()).hexdigest()
+            if actual!=digest: raise SystemExit(f'Sites source differs from exported ZIP: {filename}; refusing to overwrite production')
+          html=(root/'live.html').read_text()
+          if 'live-logo-hirsch-ball-v1.png' not in html or 'live-app.js' not in html:
+            raise SystemExit('Unexpected Sites HTML; refusing to overwrite')
+          html=html.replace('<base href="/">','<base href="/padel/">')
+          html=html.replace('href="/" aria-label="Padel Hirsch(i) Startseite"','href="https://padel-hirsch.at" aria-label="Padel Hirsch(i) Startseite"')
+          html=html.replace('href="/datenschutz/"','href="https://padel-hirsch.at/datenschutz/"')
+          (root/'live.html').write_text(html)
+          app=root/'live-app.js'
+          js=app.read_text()
+          js=js.replace("new URL('/live', location.origin)", "new URL('/padel/live.html', location.origin)")
+          app.write_text(js)
+          PY
+      - name: Verify and install
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/padel-sites/live.html
+          test -s /tmp/padel-sites/assets/live-logo-hirsch-ball-v1.png
+          cp live.html live-pre-sites-20261102.html
+          cp /tmp/padel-sites/live.html live.html
+          cp /tmp/padel-sites/*.js /tmp/padel-sites/*.css /tmp/padel-sites/*.json .
+          mkdir -p assets
+          cp /tmp/padel-sites/assets/* assets/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add live.html live-pre-sites-20261102.html live-app.js live-app.css live-header.css privacy-footer.css live-announcer.js live-themes.json assets/
+          git commit -m 'Import new Padel Hirsch Sites design to GitHub live.html' || exit 0
+          git push
