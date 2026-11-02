@@ -1,0 +1,14 @@
+/* Header-only branding for /live/. Original application styles and scripts are unchanged. */
+.topbar.live-logo-header{padding-top:8px;padding-bottom:10px;gap:12px;align-items:center;flex-wrap:wrap}
+.live-logo-header .brand{display:flex;flex-direction:column;align-items:center;gap:0;flex:0 1 auto;min-width:0;text-align:center;font-size:16px;letter-spacing:.055em;line-height:1.2}
+.live-logo-header .brand-logo{width:104px;height:104px;max-width:100%;border-radius:0;overflow:visible;background:transparent}
+.live-logo-header .brand-logo img{position:static;display:block;width:100%;height:100%;max-width:100%;object-fit:contain}
+.live-logo-header .live-logo-caption{display:block;max-width:100%;overflow-wrap:anywhere}
+.live-logo-header .brand small{margin-top:3px;line-height:1.2}
+.live-logo-header .top-actions{flex:0 0 auto;max-width:100%;margin-left:auto;flex-wrap:wrap}
+@media(max-width:760px){
+ .topbar.live-logo-header{gap:8px;padding-top:6px;padding-bottom:8px}
+ .live-logo-header .brand{font-size:13px;letter-spacing:.02em}
+ .live-logo-header .brand-logo{width:84px;height:84px}
+ .live-logo-header .brand small{font-size:8px;margin-top:2px}
+}
