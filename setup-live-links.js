@@ -5,8 +5,8 @@
   let box, publicInput, adminInput, adminOpen, adminCopy, keyCopy, rotateBtn, status;
 
   function esc(v) { return String(v || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  const LIVE_APP_ORIGIN = 'https://padel-hirsch-live.regalrhino5.chatgpt.site';
-  function publicUrl(id) { return `${LIVE_APP_ORIGIN}/live/?id=${encodeURIComponent(id)}`; }
+  const LIVE_APP_ORIGIN = 'https://hirschi-web.github.io/padel';
+  function publicUrl(id) { return `${LIVE_APP_ORIGIN}/live.html?id=${encodeURIComponent(id)}`; }
   function legacyPublicUrl(id) { return `${location.origin}/padel/live.html?id=${encodeURIComponent(id)}`; }
   function adminUrl(id, key) { return `${publicUrl(id)}#key=${encodeURIComponent(key)}`; }
   async function copyText(text) {
