@@ -1,10 +1,9 @@
 name: Keep Supabase Alive
 
+# Legacy Supabase keep-alive disabled: Padel now uses Neon.
+# Manual dispatch retained for diagnostic use only.
 on:
-  schedule:
-    # Läuft jeden 2. Tag um 3 Uhr UTC
-    - cron: '0 3 */2 * *'
-  workflow_dispatch: # erlaubt manuelles Auslösen zum Testen
+  workflow_dispatch:
 
 jobs:
   ping-supabase:
