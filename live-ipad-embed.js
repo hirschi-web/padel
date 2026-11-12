@@ -11,17 +11,12 @@ function mount(){
  const uri=$('spotifyPlaylistSelect').value;
  localStorage.setItem('padelSpotifyPlaylist',uri);
  if(player){player.loadEntity(uri);note('Playlist geladen. Wiedergabe im Spotify-Player starten.');return}
- api.createController($('spotifyMount'),{uri,width:'100%',height:152},controller=>{
+ const host=$('spotifyMount');const grant=()=>{const frame=host.querySelector('iframe');if(!frame)return;const permissions=new Set((frame.getAttribute('allow')||'').split(';').map(x=>x.trim()).filter(Boolean));['autoplay','clipboard-write','encrypted-media','fullscreen','picture-in-picture'].forEach(x=>permissions.add(x));const val=[...permissions].join('; ');if(frame.getAttribute('allow')!==val)frame.setAttribute('allow',val);};const observer=new MutationObserver(grant);observer.observe(host,{childList:true,subtree:true});
+ api.createController(host,{uri,width:'100%',height:152},controller=>{
   player=controller;
   controller.addListener('ready',()=>{
    ready=true;
-   const frame=$('spotifyMount').querySelector('iframe');
-   if(frame){
-    const permissions=new Set((frame.getAttribute('allow')||'').split(';').map(x=>x.trim()).filter(Boolean));
-    ['autoplay','clipboard-write','encrypted-media','fullscreen','picture-in-picture'].forEach(x=>permissions.add(x));
-    frame.setAttribute('allow',[...permissions].join('; '));
-    frame.setAttribute('title','Spotify Playlist Player');
-   }
+   grant();
    note('Spotify-Player bereit. Falls nur 30 Sekunden: Spotify-Anmeldung und Browser-Medienfreigabe prüfen.');
   });
   controller.addListener('playback_update',e=>{if(e?.data?.isPaused===false)note('Spotify spielt.');});
