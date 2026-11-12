@@ -8,7 +8,8 @@ const allowed=()=>Boolean(new URLSearchParams(location.hash.slice(1)).get('key')
 const note=t=>{$('ipadAudioStatus').textContent=t};
 const uri=()=>$('spotifyPlaylistSelect').value;
 const deviceParam=path=> (path.includes('?')?'&':'?')+'device_id='+encodeURIComponent(device.id);
-const error=e=>{const msg=e?.message||String(e);note(msg.includes('404')?'Spotify-Gerät nicht erreichbar (404). Spotify-App öffnen, Musik starten und dann „Gerät prüfen“ tippen.':msg)};
+const error=e=>{const msg=e?.message||String(e);note(msg.includes('404')?'Spotify 404: Kein erreichbares aktives Gerät. Spotify-App öffnen, Wiedergabe starten und „Gerät prüfen“ tippen.':msg.includes('403')?'Spotify 403: Zugriff verweigert. Premium, App-Berechtigungen und Spotify-Developer-Einstellungen prüfen.':msg.includes('401')?'Spotify 401: Anmeldung abgelaufen. Spotify erneut verbinden.':msg)};
+function updatePlayButton(){const playing=!!playback?.is_playing;$('spotifyPlay').textContent=playing?'⏸ Pause':'▶ Play';$('spotifyPlay').setAttribute('aria-label',playing?'Wiedergabe pausieren':'Wiedergabe fortsetzen');}
 async function refresh(){
  if(!auth().connected()){$('spotifyConnectionState').textContent='Nicht verbunden';$('spotifyLogin').hidden=false;device=null;return}
  $('spotifyLogin').hidden=true;
@@ -20,17 +21,17 @@ async function refresh(){
   if(!device){device=all.find(d=>d.is_active&&!d.is_restricted)||null}
   playback=state||null;
   $('spotifyConnectionState').textContent=device?'Aktiv: '+device.name:'Verbunden · kein aktives Gerät';
-  $('spotifyPlay').textContent=state?.is_playing?'⏸ Pause':'▶ Play';
+  updatePlayButton();
   $('spotifyShuffle').textContent=state?.shuffle_state?'⇄ Shuffle an':'⇄ Shuffle';
   $('spotifyShuffle').setAttribute('aria-pressed',String(!!state?.shuffle_state));
-  if(!device)note('Bitte Spotify-App auf dem iPad öffnen, einen Song starten und danach hier „Gerät prüfen“ tippen.');
+  if(!device)note('Bitte Spotify-App auf dem iPad öffnen, einen Song starten und danach hier „Gerät prüfen“ tippen.');else note('Spotify-Gerät erreichbar.');
  }catch(e){error(e)}
 }
 async function command(method,path,body){
  if(busy)return;
  if(!device){note('Kein aktives Spotify-Gerät. Spotify-App starten und „Gerät prüfen“ tippen.');return}
  busy=true;
- try{await auth().api(method,path+deviceParam(path),body);await new Promise(r=>setTimeout(r,350));await refresh()}
+ try{await auth().api(method,path+deviceParam(path),body);if(path.startsWith('me/player/play'))playback={...(playback||{}),is_playing:true};else if(path.startsWith('me/player/pause'))playback={...(playback||{}),is_playing:false};updatePlayButton();await new Promise(r=>setTimeout(r,700));await refresh()}
  catch(e){error(e)}
  finally{busy=false}
 }
@@ -59,8 +60,6 @@ function init(){
  $('spotifyPrevious').addEventListener('click',()=>command('POST','me/player/previous'));
  $('spotifyNext').addEventListener('click',()=>command('POST','me/player/next'));
  $('spotifyShuffle').addEventListener('click',()=>command('PUT','me/player/shuffle?state='+(!playback?.shuffle_state)));
- // Smart Shuffle is not supported by the Spotify Web API. Do not provide a misleading working control.
- $('spotifySmartShuffle').disabled=true;
  const jingles=['Halbzeit ist!','Auf geht’s, Padel Hirsch!','Starker Punkt!','Match Point!'];
  jingles.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.addEventListener('click',()=>speech(t));$('jingleButtons').append(b)});
  window.addEventListener('hashchange',sync);
