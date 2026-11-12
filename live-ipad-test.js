@@ -4,7 +4,7 @@
 const $=id=>document.getElementById(id);
 let spotify=null, spotifyApi=null, lastPaused=false, panelOpen=false;
 const status=message=>{if($('ipadAudioStatus'))$('ipadAudioStatus').textContent=message};
-const isEdit=()=>typeof isEditing!=='undefined' && isEditing===true;
+// The private edit URL, not the unlocked editing state, controls visibility.\nconst isEdit=()=>Boolean(new URLSearchParams(location.hash.replace(/^#/, '')).get('key'));
 const isIpad=()=>/iPad/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function sync(){
  const allowed=isEdit()&&isIpad();
