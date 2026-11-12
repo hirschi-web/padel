@@ -13,17 +13,14 @@ function sync(){
  if(!allowed){$('ipadPanel').hidden=true;panelOpen=false;}
  else $('ipadPanel').hidden=!panelOpen;
 }
-function validSpotify(raw){
- try{const u=new URL(raw);if(u.protocol!=='https:'||u.hostname!=='open.spotify.com')return null;
- const m=u.pathname.match(/^\/(playlist|album|track)\/([A-Za-z0-9]+)\/?$/);return m?('spotify:'+m[1]+':'+m[2]):null;}catch{return null;}
-}
+function validSpotify(raw){return /^spotify:playlist:[A-Za-z0-9]+$/.test(raw)?raw:null;}
 function mount(){
  if(!spotifyApi)return status('Spotify wird geladen. Bitte nochmals tippen.');
- const uri=validSpotify($('spotifyPlaylistUrl').value.trim());
+ const uri=validSpotify($('spotifyPlaylistSelect').value);
  if(!uri)return status('Bitte einen gültigen Spotify-Playlist-, Album- oder Titel-Link eingeben.');
- localStorage.setItem('padelSpotifyPlaylist', $('spotifyPlaylistUrl').value.trim());
+ localStorage.setItem('padelSpotifyPlaylist', uri);
  if(spotify){spotify.loadEntity(uri);return status('Spotify-Inhalt geladen. Play im Player antippen.');}
- spotifyApi.createController($('spotifyMount'),{uri,width:'100%',height:352},controller=>{
+ spotifyApi.createController($('spotifyMount'),{uri,width:'100%',height:80},controller=>{
   spotify=controller;
   controller.addListener('playback_update',e=>{if(e?.data)lastPaused=!!e.data.isPaused});
   status('Spotify bereit. Zum Starten im Player Play antippen.');
@@ -53,14 +50,16 @@ function say(text){
 function init(){
  $('ipadSwitch').addEventListener('click',()=>{if(!isEdit())return;panelOpen=!panelOpen;sync()});
  $('ipadExit').addEventListener('click',()=>{panelOpen=false;sync()});
- $('spotifyLoad').addEventListener('click',mount);
+ $('spotifyPlay').addEventListener('click',()=>{if(!spotify)mount();else resume()});
+ $('spotifyPause').addEventListener('click',()=>{if(spotify?.pause)spotify.pause();else status('Pause bitte direkt im Spotify-Player tippen.')});
+ $('spotifyPlaylistSelect').addEventListener('change',mount);
  $('spotifyResume').addEventListener('click',resume);
- $('spotifyPlaylistUrl').value=localStorage.getItem('padelSpotifyPlaylist')||'';
+ const saved=localStorage.getItem('padelSpotifyPlaylist');if(saved&&[...$('spotifyPlaylistSelect').options].some(o=>o.value===saved))$('spotifyPlaylistSelect').value=saved;
  const jingles=['Go, go, go, go!','Nice Shot!','Halbzeit ist!','Auf geht’s, Padel Hirsch!','Starker Punkt!','Match Point!'];
  jingles.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.addEventListener('click',()=>say(t));$('jingleButtons').append(b)});
  const old=window.announceRound;
  if(typeof old==='function')window.announceRound=function(){old.apply(this,arguments);if(isEdit()&&panelOpen){const s=window.speechSynthesis;const check=()=>{if(s?.speaking||s?.pending){setTimeout(check,300);return;}attemptResume()};setTimeout(check,500)}};
- window.onSpotifyIframeApiReady=api=>{spotifyApi=api;if($('spotifyPlaylistUrl').value)mount()};
+ window.onSpotifyIframeApiReady=api=>{spotifyApi=api;mount()};
  const script=document.createElement('script');script.src='https://open.spotify.com/embed/iframe-api/v1';script.async=true;document.body.appendChild(script);
  setInterval(sync,800);sync();
 }
