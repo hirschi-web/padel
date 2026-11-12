@@ -56,6 +56,7 @@ function init(){
  $('ipadSwitch').addEventListener('click',()=>{if(!isEdit())return;panelOpen=!panelOpen;sync()});
  $('ipadExit').addEventListener('click',()=>{panelOpen=false;sync()});
  $('spotifyPlaylistSelect').addEventListener('change',mount);
+ $('spotifyShuffle').addEventListener('click',async()=>{if(!auth()?.connected()){status('Shuffle benötigt die Spotify-Anmeldung über OAuth.');return;}try{const next=!shuffle;await auth().api('PUT','me/player/shuffle?state='+next);shuffle=next;$('spotifyShuffle').setAttribute('aria-pressed',String(shuffle));$('spotifyShuffle').textContent=shuffle?'⇄ Shuffle an':'⇄ Shuffle';status(shuffle?'Zufallswiedergabe aktiviert.':'Zufallswiedergabe deaktiviert.')}catch(e){status(e.message)}});
 
  const saved=localStorage.getItem('padelSpotifyPlaylist');if(saved&&[...$('spotifyPlaylistSelect').options].some(o=>o.value===saved))$('spotifyPlaylistSelect').value=saved;
  const jingles=['Halbzeit ist!','Auf geht’s, Padel Hirsch!','Starker Punkt!','Match Point!'];
