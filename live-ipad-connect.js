@@ -7,7 +7,7 @@ let panelOpen=false,device=null,playback=null,busy=false;
 const allowed=()=>Boolean(new URLSearchParams(location.hash.slice(1)).get('key'))&&(/iPad/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1));
 const note=t=>{$('ipadAudioStatus').textContent=t};
 const uri=()=>$('spotifyPlaylistSelect').value;
-const deviceParam=()=>'?device_id='+encodeURIComponent(device.id);
+const deviceParam=path=> (path.includes('?')?'&':'?')+'device_id='+encodeURIComponent(device.id);
 const error=e=>{const msg=e?.message||String(e);note(msg.includes('404')?'Spotify-Gerät nicht erreichbar (404). Spotify-App öffnen, Musik starten und dann „Gerät prüfen“ tippen.':msg)};
 async function refresh(){
  if(!auth().connected()){$('spotifyConnectionState').textContent='Nicht verbunden';$('spotifyLogin').hidden=false;device=null;return}
@@ -30,7 +30,7 @@ async function command(method,path,body){
  if(busy)return;
  if(!device){note('Kein aktives Spotify-Gerät. Spotify-App starten und „Gerät prüfen“ tippen.');return}
  busy=true;
- try{await auth().api(method,path+deviceParam(),body);await new Promise(r=>setTimeout(r,350));await refresh()}
+ try{await auth().api(method,path+deviceParam(path),body);await new Promise(r=>setTimeout(r,350));await refresh()}
  catch(e){error(e)}
  finally{busy=false}
 }
@@ -58,7 +58,7 @@ function init(){
  $('spotifyPlay').addEventListener('click',()=>playback?.is_playing?command('PUT','me/player/pause'):command('PUT','me/player/play'));
  $('spotifyPrevious').addEventListener('click',()=>command('POST','me/player/previous'));
  $('spotifyNext').addEventListener('click',()=>command('POST','me/player/next'));
- $('spotifyShuffle').addEventListener('click',()=>command('PUT','me/player/shuffle?state='+(!playback?.shuffle_state)+'&device_id='+encodeURIComponent(device?.id||'')));
+ $('spotifyShuffle').addEventListener('click',()=>command('PUT','me/player/shuffle?state='+(!playback?.shuffle_state)));
  // Smart Shuffle is not supported by the Spotify Web API. Do not provide a misleading working control.
  $('spotifySmartShuffle').disabled=true;
  const jingles=['Halbzeit ist!','Auf geht’s, Padel Hirsch!','Starker Punkt!','Match Point!'];
