@@ -1,6 +1,8 @@
 // Round announcements: schedule first, scores only when schedule times are unavailable.
 (function () {
-    let activeUtterance = null;\n    let preStartAnnouncementCount = 0;\n    const openingClosings = ['Lasst es krachen!', 'Go, go, go, go, go!', 'Viel Spaß!'];
+    let activeUtterance = null;
+    let preStartAnnouncementCount = 0;
+    const openingClosings = ['Lasst es krachen!', 'Go, go, go, go, go!', 'Viel Spaß!'];
     function selectRound(rounds, minute) {
         if (!rounds.length) return null;
         const starts = rounds.map(r => {
@@ -30,7 +32,9 @@
             if (a.length !== 2 || b.length !== 2 || [...a, ...b].some(n => !n)) return 'Die Paarung steht noch nicht fest.';
             pairs.push(`${a.join(' und ')} gegen ${b.join(' und ')}`);
         }
-        const intro = beforeStart ? 'Erste Runde' : (choice.current ? 'Aktuelle Runde' : 'Nächste Runde');\n        const closing = beforeStart ? ' ' + openingClosings[preStartAnnouncementCount++ % openingClosings.length] : '';\n        return `${intro}: ${pairs.join('. ')}.${closing}`;
+        const intro = beforeStart ? 'Erste Runde' : (choice.current ? 'Aktuelle Runde' : 'Nächste Runde');
+        const closing = beforeStart ? ' ' + openingClosings[preStartAnnouncementCount++ % openingClosings.length] : '';
+        return `${intro}: ${pairs.join('. ')}.${closing}`;
     }
     window.padelAnnouncement = {selectRound, announcement};
     window.announceRound = function () {
@@ -44,7 +48,17 @@
         // Tournament times are Austrian local times, independent of device timezone.
         const parts = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Vienna',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date());
         const part = type => Number(parts.find(p => p.type === type).value);
-        const nowMinute = part('hour') * 60 + part('minute') + part('second') / 60;\n        const firstTime = String(tournamentData.s_new[0]?.time || '').match(/^(\\d{1,2}):(\\d{2})/);\n        const firstMinute = firstTime ? Number(firstTime[1]) * 60 + Number(firstTime[2]) : null;\n        const viennaDate = new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Vienna',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());\n        const id = String(typeof tournamentId !== 'undefined' ? tournamentId : new URLSearchParams(location.search).get('id') || '');\n        const dateMatch = id.match(/^(\\d{2})(\\d{2})(\\d{2})$/);\n        const eventDate = dateMatch ? '20' + dateMatch[3] + '-' + dateMatch[2] + '-' + dateMatch[1] : null;\n        const beforeStart = firstMinute !== null && (eventDate ? viennaDate < eventDate || (viennaDate === eventDate && nowMinute < firstMinute) : nowMinute < firstMinute);\n        const text = announcement(tournamentData, beforeStart ? -1 : nowMinute, beforeStart);
+        const nowMinute = part('hour') * 60 + part('minute') + part('second') / 60;
+        const firstTime = String(tournamentData.s_new[0]?.time || '').match(/^(\d{1,2}):(\d{2})/);
+        const firstMinute = firstTime ? Number(firstTime[1]) * 60 + Number(firstTime[2]) : null;
+        const dateParts = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Vienna',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+        const datePart = type => dateParts.find(p => p.type === type)?.value || '';
+        const viennaDate = datePart('year') + '-' + datePart('month') + '-' + datePart('day');
+        const id = String(typeof tournamentId !== 'undefined' ? tournamentId : new URLSearchParams(location.search).get('id') || '');
+        const dateMatch = id.match(/^(\d{2})(\d{2})(\d{2})$/);
+        const eventDate = dateMatch ? '20' + dateMatch[3] + '-' + dateMatch[2] + '-' + dateMatch[1] : null;
+        const beforeStart = firstMinute !== null && (eventDate ? viennaDate < eventDate || (viennaDate === eventDate && nowMinute < firstMinute) : nowMinute < firstMinute);
+        const text = announcement(tournamentData, beforeStart ? -1 : nowMinute, beforeStart);
         const u = new SpeechSynthesisUtterance(text);
         const voices = synth.getVoices().filter(v => /^de(?:-|_)/i.test(v.lang));
         const voice = voices.find(v => /anna|petra|helena|katja|marlene|vicki/i.test(v.name)) || voices[0];
