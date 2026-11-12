@@ -55,21 +55,14 @@ function say(text){
 function init(){
  $('ipadSwitch').addEventListener('click',()=>{if(!isEdit())return;panelOpen=!panelOpen;sync()});
  $('ipadExit').addEventListener('click',()=>{panelOpen=false;sync()});
- $('spotifyLogin').addEventListener('click',()=>auth().login());
- $('spotifyPlay').addEventListener('click',()=>auth()?.connected()?playPremium():(!spotify?mount():resume()));
- $('spotifyPrev').addEventListener('click',()=>spotifyAction('POST','me/player/previous'));
- $('spotifyNext').addEventListener('click',()=>spotifyAction('POST','me/player/next'));
- $('spotifyShuffle').addEventListener('click',()=>{shuffle=!shuffle;spotifyAction('PUT','me/player/shuffle?state='+shuffle)});
- $('spotifyRepeat').addEventListener('click',()=>{repeat=repeat==='off'?'context':repeat==='context'?'track':'off';spotifyAction('PUT','me/player/repeat?state='+repeat)});
- $('spotifyPause').addEventListener('click',()=>{if(auth()?.connected())spotifyAction('PUT','me/player/pause');else if(spotify?.pause)spotify.pause();else status('Pause bitte direkt im Spotify-Player tippen.')});
  $('spotifyPlaylistSelect').addEventListener('change',mount);
- $('spotifyResume').addEventListener('click',resume);
+
  const saved=localStorage.getItem('padelSpotifyPlaylist');if(saved&&[...$('spotifyPlaylistSelect').options].some(o=>o.value===saved))$('spotifyPlaylistSelect').value=saved;
  const jingles=['Halbzeit ist!','Auf geht’s, Padel Hirsch!','Starker Punkt!','Match Point!'];
  jingles.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.addEventListener('click',()=>say(t));$('jingleButtons').append(b)});
  const old=window.announceRound;
  if(typeof old==='function')window.announceRound=function(){old.apply(this,arguments);if(isEdit()&&panelOpen){const s=window.speechSynthesis;const check=()=>{if(s?.speaking||s?.pending){setTimeout(check,300);return;}attemptResume()};setTimeout(check,500)}};
- if(auth()?.connected()){$('spotifyLogin').textContent='Spotify verbunden';loadSdk()}
+
  window.onSpotifyIframeApiReady=api=>{spotifyApi=api;mount()};
  const script=document.createElement('script');script.src='https://open.spotify.com/embed/iframe-api/v1';script.async=true;document.body.appendChild(script);
  setInterval(sync,800);sync();
