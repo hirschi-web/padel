@@ -6,8 +6,9 @@ let spotify=null, spotifyApi=null, lastPaused=false, panelOpen=false, sdkPlayer=
 const auth=()=>window.padelSpotifyAuth;
 const spotifyAction=async(method,path,body)=>{try{await auth().api(method,path,body);status('Spotify-Steuerung ausgeführt.')}catch(e){status(e.message)}};
 function loadSdk(){if(!auth()?.connected()||sdkPlayer||document.getElementById('spotifySdkScript'))return;const sc=document.createElement('script');sc.id='spotifySdkScript';sc.src='https://sdk.scdn.co/spotify-player.js';document.body.appendChild(sc)}
-window.onSpotifyWebPlaybackSDKReady=async()=>{if(!auth()?.connected())return;sdkPlayer=new Spotify.Player({name:'Padel Hirsch iPad',getOAuthToken:async cb=>cb(await auth().token()),volume:0.7});sdkPlayer.addListener('ready',({device_id})=>{sdkDevice=device_id;status('Spotify verbunden. Play tippen, um die Wiedergabe zu starten.')});sdkPlayer.addListener('authentication_error',({message})=>status(message));sdkPlayer.addListener('initialization_error',({message})=>status(message));sdkPlayer.addListener('account_error',({message})=>status(message));sdkPlayer.addListener('playback_error',({message})=>status(message));await sdkPlayer.connect()};
+window.onSpotifyWebPlaybackSDKReady=async()=>{if(!auth()?.connected())return;sdkPlayer=new Spotify.Player({name:'Padel Hirsch iPad',getOAuthToken:async cb=>cb(await auth().token()),volume:0.7});sdkPlayer.addListener('ready',({device_id})=>{sdkDevice=device_id;updateSpotifyStatus();status('Spotify-Player bereit. Premium starten tippen.')});sdkPlayer.addListener('authentication_error',({message})=>status(message));sdkPlayer.addListener('initialization_error',({message})=>status(message));sdkPlayer.addListener('account_error',({message})=>status(message));sdkPlayer.addListener('playback_error',({message})=>status(message));await sdkPlayer.connect()};
 async function playPremium(){try{if(!sdkDevice)throw Error('Spotify-Player noch nicht bereit.');await sdkPlayer.activateElement();await auth().api('PUT','me/player',{device_ids:[sdkDevice],play:false});await auth().api('PUT','me/player/play?device_id='+encodeURIComponent(sdkDevice),{context_uri:$('spotifyPlaylistSelect').value});status('Spotify-Wiedergabe gestartet.')}catch(e){status(e.message)}}
+function updateSpotifyStatus(){const connected=!!auth()?.connected();const el=$('spotifyConnectionState');if(el)el.textContent=!connected?'Nicht verbunden':sdkDevice?'Player bereit':'Verbunden · Player wird geladen';if($('spotifyLogin'))$('spotifyLogin').hidden=connected;if($('spotifyPlay'))$('spotifyPlay').hidden=!connected;}
 const status=message=>{if($('ipadAudioStatus'))$('ipadAudioStatus').textContent=message};
 // The private edit URL, not the unlocked editing state, controls visibility.
 const isEdit=()=>Boolean(new URLSearchParams(location.hash.replace(/^#/, '')).get('key'));
@@ -56,6 +57,9 @@ function init(){
  $('ipadSwitch').addEventListener('click',()=>{if(!isEdit())return;panelOpen=!panelOpen;sync()});
  $('ipadExit').addEventListener('click',()=>{panelOpen=false;sync()});
  $('spotifyPlaylistSelect').addEventListener('change',mount);
+ $('spotifyLogin').addEventListener('click',()=>auth().login());
+ $('spotifyPlay').addEventListener('click',playPremium);
+ if(auth()?.connected())loadSdk();updateSpotifyStatus();
  $('spotifyShuffle').addEventListener('click',async()=>{if(!auth()?.connected()){status('Shuffle benötigt die Spotify-Anmeldung über OAuth.');return;}try{const next=!shuffle;await auth().api('PUT','me/player/shuffle?state='+next);shuffle=next;$('spotifyShuffle').setAttribute('aria-pressed',String(shuffle));$('spotifyShuffle').textContent=shuffle?'⇄ Shuffle an':'⇄ Shuffle';status(shuffle?'Zufallswiedergabe aktiviert.':'Zufallswiedergabe deaktiviert.')}catch(e){status(e.message)}});
 
  const saved=localStorage.getItem('padelSpotifyPlaylist');if(saved&&[...$('spotifyPlaylistSelect').options].some(o=>o.value===saved))$('spotifyPlaylistSelect').value=saved;
