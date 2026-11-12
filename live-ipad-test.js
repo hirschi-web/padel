@@ -2,7 +2,12 @@
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
-let spotify=null, spotifyApi=null, lastPaused=false, panelOpen=false;
+let spotify=null, spotifyApi=null, lastPaused=false, panelOpen=false, sdkPlayer=null, sdkDevice=null, shuffle=false, repeat='off';
+const auth=()=>window.padelSpotifyAuth;
+const spotifyAction=async(method,path,body)=>{try{await auth().api(method,path,body);status('Spotify-Steuerung ausgeführt.')}catch(e){status(e.message)}};
+function loadSdk(){if(!auth()?.connected()||sdkPlayer||document.getElementById('spotifySdkScript'))return;const sc=document.createElement('script');sc.id='spotifySdkScript';sc.src='https://sdk.scdn.co/spotify-player.js';document.body.appendChild(sc)}
+window.onSpotifyWebPlaybackSDKReady=async()=>{if(!auth()?.connected())return;sdkPlayer=new Spotify.Player({name:'Padel Hirsch iPad',getOAuthToken:async cb=>cb(await auth().token()),volume:0.7});sdkPlayer.addListener('ready',({device_id})=>{sdkDevice=device_id;status('Spotify verbunden. Play tippen, um die Wiedergabe zu starten.')});sdkPlayer.addListener('authentication_error',({message})=>status(message));sdkPlayer.addListener('initialization_error',({message})=>status(message));sdkPlayer.addListener('account_error',({message})=>status(message));sdkPlayer.addListener('playback_error',({message})=>status(message));await sdkPlayer.connect()};
+async function playPremium(){try{if(!sdkDevice)throw Error('Spotify-Player noch nicht bereit.');await sdkPlayer.activateElement();await auth().api('PUT','me/player',{device_ids:[sdkDevice],play:false});await auth().api('PUT','me/player/play?device_id='+encodeURIComponent(sdkDevice),{context_uri:$('spotifyPlaylistSelect').value});status('Spotify-Wiedergabe gestartet.')}catch(e){status(e.message)}}
 const status=message=>{if($('ipadAudioStatus'))$('ipadAudioStatus').textContent=message};
 // The private edit URL, not the unlocked editing state, controls visibility.
 const isEdit=()=>Boolean(new URLSearchParams(location.hash.replace(/^#/, '')).get('key'));
@@ -50,8 +55,13 @@ function say(text){
 function init(){
  $('ipadSwitch').addEventListener('click',()=>{if(!isEdit())return;panelOpen=!panelOpen;sync()});
  $('ipadExit').addEventListener('click',()=>{panelOpen=false;sync()});
- $('spotifyPlay').addEventListener('click',()=>{if(!spotify)mount();else resume()});
- $('spotifyPause').addEventListener('click',()=>{if(spotify?.pause)spotify.pause();else status('Pause bitte direkt im Spotify-Player tippen.')});
+ $('spotifyLogin').addEventListener('click',()=>auth().login());
+ $('spotifyPlay').addEventListener('click',()=>auth()?.connected()?playPremium():(!spotify?mount():resume()));
+ $('spotifyPrev').addEventListener('click',()=>spotifyAction('POST','me/player/previous'));
+ $('spotifyNext').addEventListener('click',()=>spotifyAction('POST','me/player/next'));
+ $('spotifyShuffle').addEventListener('click',()=>{shuffle=!shuffle;spotifyAction('PUT','me/player/shuffle?state='+shuffle)});
+ $('spotifyRepeat').addEventListener('click',()=>{repeat=repeat==='off'?'context':repeat==='context'?'track':'off';spotifyAction('PUT','me/player/repeat?state='+repeat)});
+ $('spotifyPause').addEventListener('click',()=>{if(auth()?.connected())spotifyAction('PUT','me/player/pause');else if(spotify?.pause)spotify.pause();else status('Pause bitte direkt im Spotify-Player tippen.')});
  $('spotifyPlaylistSelect').addEventListener('change',mount);
  $('spotifyResume').addEventListener('click',resume);
  const saved=localStorage.getItem('padelSpotifyPlaylist');if(saved&&[...$('spotifyPlaylistSelect').options].some(o=>o.value===saved))$('spotifyPlaylistSelect').value=saved;
@@ -59,6 +69,7 @@ function init(){
  jingles.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.addEventListener('click',()=>say(t));$('jingleButtons').append(b)});
  const old=window.announceRound;
  if(typeof old==='function')window.announceRound=function(){old.apply(this,arguments);if(isEdit()&&panelOpen){const s=window.speechSynthesis;const check=()=>{if(s?.speaking||s?.pending){setTimeout(check,300);return;}attemptResume()};setTimeout(check,500)}};
+ if(auth()?.connected()){$('spotifyLogin').textContent='Spotify verbunden';loadSdk()}
  window.onSpotifyIframeApiReady=api=>{spotifyApi=api;mount()};
  const script=document.createElement('script');script.src='https://open.spotify.com/embed/iframe-api/v1';script.async=true;document.body.appendChild(script);
  setInterval(sync,800);sync();
