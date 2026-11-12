@@ -561,6 +561,72 @@ function isRealPlayer(p, numPlayers) {
     return p !== null && p !== undefined && typeof p === 'number' && p < numPlayers;
 }
 
+// Pair-level check: a player must not face the same opposing duo twice.
+function analyzePairOpponents(schedule, numPlayers) {
+    const seen = new Map(), duplicates = [];
+    const partnerPairs = new Map();
+    schedule.filter(r => !r.isFinale && !r.isBalance).forEach((r, ri) => {
+        (r.matches || []).forEach(m => {
+            const sides = [m.team1, m.team2];
+            if(sides.some(t => !Array.isArray(t) || t.length !== 2 || t.some(p => !isRealPlayer(p, numPlayers)))) return;
+            sides.forEach(team => {
+                const key = [...team].sort((a,b)=>a-b).join(':');
+                const entry = partnerPairs.get(key) || { team: [...team], rounds: [] };
+                entry.rounds.push(r.id || ri+1);
+                partnerPairs.set(key, entry);
+            });
+            sides.forEach((team, side) => {
+                const opposing = sides[1-side];
+                const keyPair = [...opposing].sort((a,b)=>a-b).join(':');
+                team.forEach(p => {
+                    const key = p + '|' + keyPair;
+                    if(seen.has(key)) duplicates.push({ player:p, opponents:[...opposing], firstRound:seen.get(key), round:r.id || ri+1 });
+                    else seen.set(key, r.id || ri+1);
+                });
+            });
+        });
+    });
+    return { duplicates, repeatedPartners:[...partnerPairs.values()].filter(x=>x.rounds.length>1) };
+}
+
+function renderScheduleAnalysis() {
+    const area = document.getElementById('previewArea');
+    if(!area) return;
+    let panel = document.getElementById('scheduleAnalysisPanel');
+    if(!panel) {
+        panel = document.createElement('section');
+        panel.id = 'scheduleAnalysisPanel';
+        panel.style.cssText = 'margin:18px 0;padding:18px;border:1.5px solid #cbd5e1;border-radius:16px;background:#f8fafc;color:#0f172a;font-size:13px;line-height:1.65;';
+        const preview = document.getElementById('previewList');
+        if(preview) preview.insertAdjacentElement('afterend', panel);
+        else area.prepend(panel);
+    }
+    const rounds = currentSchedule.filter(r=>!r.isFinale && !r.isBalance);
+    const esc = x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const info = analyzePairOpponents(rounds, players.length);
+    const playCounts = players.map((_,p)=>rounds.filter(r=>r.matches.some(m=>m.team1.includes(p)||m.team2.includes(p))).length);
+    const pauseCounts = playCounts.map(n=>rounds.length-n);
+    const equal = playCounts.length && Math.max(...playCounts)===Math.min(...playCounts);
+    const streaks = [];
+    players.forEach((name,p)=>{
+        let current=0, maximum=0, start=0, bestStart=0;
+        rounds.forEach((r,i)=>{
+            const playing=r.matches.some(m=>m.team1.includes(p)||m.team2.includes(p));
+            if(playing){if(!current)start=i+1;current++;if(current>maximum){maximum=current;bestStart=start;}}
+            else current=0;
+        });
+        if(maximum>=3) streaks.push(esc(name)+' spielt '+maximum+'× hintereinander (Runden '+bestStart+'–'+(bestStart+maximum-1)+')');
+    });
+    const repeated = info.repeatedPartners.map(x=>esc(players[x.team[0]])+' + '+esc(players[x.team[1]])+' ('+x.rounds.length+'×, Runden '+x.rounds.join(', ')+')');
+    const dup = info.duplicates.map(x=>esc(players[x.player])+' gegen '+esc(players[x.opponents[0]])+' + '+esc(players[x.opponents[1]])+' (Runden '+x.firstRound+' und '+x.round+')');
+    panel.innerHTML = '<h3 style="font-weight:800;font-size:17px;margin:0 0 10px;">Spielplan-Analyse</h3>'+
+      '<p><strong>Spiele und Pausen:</strong> '+(equal?'Gleich verteilt: jeder '+playCounts[0]+' Spiele und '+pauseCounts[0]+' Pausen.':'Unterschiedliche Einsatzanzahl: '+players.map((n,i)=>esc(n)+': '+playCounts[i]+' Spiele / '+pauseCounts[i]+' Pausen').join('; '))+ '</p>'+
+      '<p><strong>Spielserien (ab 3 Spielen):</strong> '+(streaks.length?streaks.join('; '):'Keine.')+'</p>'+
+      '<p><strong>Wiederholte Partner:</strong> '+(repeated.length?repeated.join('; '):'Keine.')+'</p>'+
+      '<p><strong>Identische gegnerische Zweierteams:</strong> '+(dup.length?'Achtung – '+dup.join('; '):'Niemand spielt zweimal gegen dasselbe Zweierteam.')+'</p>'+
+      (dup.length?'<p style="color:#b45309;font-weight:700;">Hinweis: Keine vollständig wiederholungsfreie Variante gefunden. Bitte vor dem Speichern prüfen.</p>':'');
+}
+
 function calcPenalty(schedule, numPlayers) {
     const partner = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
     const opponent = Array.from({length: numPlayers}, () => new Array(numPlayers).fill(0));
@@ -601,7 +667,7 @@ function calcPenalty(schedule, numPlayers) {
         }
     }
 
-    return { penalty, plays, partner, opponent };
+    // A repeated opposing duo is a severe violation, not merely a repeated individual opponent.\n    penalty += analyzePairOpponents(schedule, numPlayers).duplicates.length * 100000;\n    return { penalty, plays, partner, opponent };
 }
 
 function getPlayFairness(schedule, numPlayers) {
@@ -940,7 +1006,7 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
             ${extra}
         </div>`;
     }).join('');
-    updateStats(isDummyMode, isFinalMode, isReadonly);
+    updateStats(isDummyMode, isFinalMode, isReadonly);\n    renderScheduleAnalysis();
 }
 
 // ============================================================
