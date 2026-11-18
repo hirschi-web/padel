@@ -1006,7 +1006,8 @@ function renderPreview(isDummyMode, isFinalMode, isReadonly) {
             ${extra}
         </div>`;
     }).join('');
-    updateStats(isDummyMode, isFinalMode, isReadonly);\n    renderScheduleAnalysis();
+    updateStats(isDummyMode, isFinalMode, isReadonly);
+    renderScheduleAnalysis();
 }
 
 // ============================================================
