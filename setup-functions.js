@@ -667,7 +667,9 @@ function calcPenalty(schedule, numPlayers) {
         }
     }
 
-    // A repeated opposing duo is a severe violation, not merely a repeated individual opponent.\n    penalty += analyzePairOpponents(schedule, numPlayers).duplicates.length * 100000;\n    return { penalty, plays, partner, opponent };
+    // A repeated opposing duo is a severe violation, not merely a repeated individual opponent.
+    penalty += analyzePairOpponents(schedule, numPlayers).duplicates.length * 100000;
+    return { penalty, plays, partner, opponent };
 }
 
 function getPlayFairness(schedule, numPlayers) {
@@ -839,97 +841,99 @@ async function runOptimization() {
     const txt = document.getElementById('mixBtnText');
     const spin = document.getElementById('mixSpinner');
     btn.disabled = true;
+    const originalLabel = txt.textContent;
     txt.textContent = 'Optimiere…';
     spin.classList.remove('hidden');
-    await new Promise(r => setTimeout(r, 30));
+    try {
+        await new Promise(r => setTimeout(r, 30));
 
-    let bestSchedule = null;
-    let lowestPenalty = Infinity;
-    const MAX_ATTEMPTS = 2000;
+        let bestSchedule = null;
+        let lowestPenalty = Infinity;
+        const MAX_ATTEMPTS = 2000;
 
-    for(let i = 0; i < MAX_ATTEMPTS; i++) {
-        const sched = generateVariant(inputs);
-        const fairness = getPlayFairness(sched, players.length);
+        for(let i = 0; i < MAX_ATTEMPTS; i++) {
+            if (i > 0 && i % 100 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+            const sched = generateVariant(inputs);
+            const fairness = getPlayFairness(sched, players.length);
 
-        // Einsatzanzahl ist eine harte Bedingung. Erst danach werden
-        // Partner/Gegner/Pausen über den bestehenden Penalty optimiert.
-        if(!fairness.valid) continue;
+            // Einsatzanzahl ist eine harte Bedingung. Erst danach werden
+            // Partner/Gegner/Pausen über den bestehenden Penalty optimiert.
+            if(!fairness.valid) continue;
 
-        const { penalty } = calcPenalty(sched, players.length);
-        if(penalty < lowestPenalty) {
-            lowestPenalty = penalty;
-            bestSchedule = sched;
+            const { penalty } = calcPenalty(sched, players.length);
+            if(penalty < lowestPenalty) {
+                lowestPenalty = penalty;
+                bestSchedule = sched;
+            }
         }
-    }
 
-    if(!bestSchedule) {
-        btn.disabled = false;
-        txt.textContent = 'Plan bestmöglich mischen';
-        spin.classList.add('hidden');
-        alert('Kein fairer Spielplan gefunden. Bitte Matchdauer, Plätze oder Gesamtdauer anpassen.');
-        return;
-    }
-
-    const lastTime = bestSchedule[bestSchedule.length - 1];
-    const [lH, lM] = lastTime.time.split(':').map(Number);
-    const nextMin = lH * 60 + lM + inputs.matchTime;
-    const nextTime = `${String(Math.floor(nextMin / 60) % 24).padStart(2, '0')}:${String(nextMin % 60).padStart(2, '0')}`;
-
-    if(isDummyMode) {
-        const { plays } = calcPenalty(bestSchedule, players.length);
-        const minPlays = Math.min(...plays);
-        const maxPlays = Math.max(...plays);
-
-        // Durch die harte Fairnessprüfung darf die Differenz hier nur 1 sein.
-        const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
-        const balanceCapacity = inputs.courts * 2;
-
-        if (maxPlays - minPlays !== 1 || underPlayed.length > balanceCapacity) {
-            btn.disabled = false;
-            txt.textContent = 'Plan bestmöglich mischen';
-            spin.classList.add('hidden');
-            alert('Interner Fairnessfehler: Ausgleich passt nicht in eine Runde. Bitte Setup neu berechnen.');
+        if(!bestSchedule) {
+            alert('Kein fairer Spielplan gefunden. Bitte Matchdauer, Plätze oder Gesamtdauer anpassen.');
             return;
         }
 
-        const balanceMatches = [];
-        let rem = [...underPlayed];
-        let courtNum = 1;
-        while(rem.length > 0 && courtNum <= inputs.courts) {
-            const p1 = rem.shift();
-            const p2 = rem.length > 0 ? rem.shift() : null;
-            balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: [null, null] });
+        const lastTime = bestSchedule[bestSchedule.length - 1];
+        const [lH, lM] = lastTime.time.split(':').map(Number);
+        const nextMin = lH * 60 + lM + inputs.matchTime;
+        const nextTime = `${String(Math.floor(nextMin / 60) % 24).padStart(2, '0')}:${String(nextMin % 60).padStart(2, '0')}`;
+
+        if(isDummyMode) {
+            const { plays } = calcPenalty(bestSchedule, players.length);
+            const minPlays = Math.min(...plays);
+            const maxPlays = Math.max(...plays);
+
+            // Durch die harte Fairnessprüfung darf die Differenz hier nur 1 sein.
+            const underPlayed = plays.map((p, i) => ({ i, p })).filter(x => x.p === minPlays).map(x => x.i);
+            const balanceCapacity = inputs.courts * 2;
+
+            if (maxPlays - minPlays !== 1 || underPlayed.length > balanceCapacity) {
+                alert('Interner Fairnessfehler: Ausgleich passt nicht in eine Runde. Bitte Setup neu berechnen.');
+                return;
+            }
+
+            const balanceMatches = [];
+            let rem = [...underPlayed];
+            let courtNum = 1;
+            while(rem.length > 0 && courtNum <= inputs.courts) {
+                const p1 = rem.shift();
+                const p2 = rem.length > 0 ? rem.shift() : null;
+                balanceMatches.push({ court: courtNum++, team1: [p1, p2], team2: [null, null] });
+            }
+
+            // Freie Courts bleiben als virtuelle Matches sichtbar, verändern aber nichts.
+            while(courtNum <= inputs.courts) {
+                balanceMatches.push({ court: courtNum++, team1: [null, null], team2: [null, null] });
+            }
+
+            const balancePause = plays.map((_, i) => i).filter(i => !underPlayed.includes(i));
+
+            bestSchedule.push({
+                id: bestSchedule.length + 1,
+                time: nextTime,
+                isBalance: true,
+                matches: balanceMatches,
+                pause: balancePause
+            });
+        } else if(isFinalMode) {
+            bestSchedule.push({
+                id: bestSchedule.length + 1,
+                time: nextTime,
+                isFinale: true,
+                matches: [{ court: 1, team1: ['PLATZ1', 'PLATZ4'], team2: ['PLATZ2', 'PLATZ3'] }],
+                pause: []
+            });
         }
 
-        // Freie Courts bleiben als virtuelle Matches sichtbar, verändern aber nichts.
-        while(courtNum <= inputs.courts) {
-            balanceMatches.push({ court: courtNum++, team1: [null, null], team2: [null, null] });
-        }
-
-        const balancePause = plays.map((_, i) => i).filter(i => !underPlayed.includes(i));
-
-        bestSchedule.push({
-            id: bestSchedule.length + 1,
-            time: nextTime,
-            isBalance: true,
-            matches: balanceMatches,
-            pause: balancePause
-        });
-    } else if(isFinalMode) {
-        bestSchedule.push({
-            id: bestSchedule.length + 1,
-            time: nextTime,
-            isFinale: true,
-            matches: [{ court: 1, team1: ['PLATZ1', 'PLATZ4'], team2: ['PLATZ2', 'PLATZ3'] }],
-            pause: []
-        });
+        currentSchedule = bestSchedule;
+        renderPreview(isDummyMode, isFinalMode, false);
+    } catch (error) {
+        console.error('Spielplan konnte nicht erstellt werden', error);
+        alert('Spielplan konnte nicht erstellt werden. ' + (error.message || String(error)));
+    } finally {
+        btn.disabled = false;
+        txt.textContent = originalLabel;
+        spin.classList.add('hidden');
     }
-
-    currentSchedule = bestSchedule;
-    btn.disabled = false;
-    txt.textContent = 'Plan bestmöglich mischen';
-    spin.classList.add('hidden');
-    renderPreview(isDummyMode, isFinalMode, false);
 }
 
 // ============================================================
