@@ -53,7 +53,7 @@
     const saved = state.scores[slot];
     if (!key || !enabled) return saved ? '<strong>'+saved.join(' : ')+'</strong>' : '';
     const values = drafts.get(slot)?.values || saved || ['',''];
-    const field = side => '<input aria-label="Match '+(slot+1)+', Team '+(side+1)+'" inputmode="numeric" type="text" maxlength="2" required pattern="[0-9]{1,2}" value="'+escape(values[side])+'">';
+    const field = side => '<input aria-label="Match '+(slot+1)+', Team '+(side+1)+'" inputmode="numeric" type="text" required pattern="[0-9]{1,2}" value="'+escape(values[side])+'">';
     return '<form data-slot="'+slot+'">'+field(0)+' : '+field(1)+' <button>Speichern</button><small class="draft-note">'+(drafts.has(slot)?'Ungespeichert':'')+'</small></form>';
   }
   function match(court,first,second,box) {
