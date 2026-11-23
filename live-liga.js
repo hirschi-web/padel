@@ -73,18 +73,19 @@
     const qual = event.rounds.map((r,i) => '<article><h3>'+escape(r.time)+' · Runde '+(i+1)+'</h3><div class="grid">'+r.matches.map((m,j) =>
       match('Platz '+Number(m.court),pair(m.team1),pair(m.team2),scoreBox(i*2+j,true))).join('')+'</div><p class="muted">Pause · '+r.pause.map(name).join(', ')+'</p></article>').join('');
     const preview = leagues.map(({teams,offset},group) => {
-      const stats = teams.map((team,i) => ({i,team,pts:0,games:0}));
+      const stats = teams.map((team,i) => ({i,team,wonGames:0,matches:0}));
       leagues[group].games.forEach(([a,b],r) => {
         const score = state.scores[12+2*r+group];
         if (!score) return;
         [a,b].forEach((t,j) => {
-          stats[t].games++; stats[t].pts += score[j]>score[1-j] ? 2 : Number(score[j]===score[1-j]);
+          stats[t].matches++;
+          stats[t].wonGames += score[j];
         });
       });
-      if (locked) stats.sort((a,b)=>b.pts-a.pts || event.teamLot.indexOf(3*group+a.i)-event.teamLot.indexOf(3*group+b.i));
+      if (locked) stats.sort((a,b)=>b.wonGames-a.wonGames || event.teamLot.indexOf(3*group+a.i)-event.teamLot.indexOf(3*group+b.i));
       return '<section class="card"><h3 class="'+(group?'silver':'gold')+'">'+(group?'Silver · Platz 3':'Gold · Platz 1')+'</h3>'+
-        table(locked ? ['Team','Sp.','Pkt.'] : ['Setzung','Team laut Zwischenstand'],stats.map(t=>locked ?
-          [pair(t.team),t.games,t.pts] : [(offset+t.i+1)+' + '+(offset+6-t.i),count?pair(t.team):'–']))+'</section>';
+        table(locked ? ['Team','Matches','Games'] : ['Setzung','Team laut Zwischenstand'],stats.map(t=>locked ?
+          [pair(t.team),t.matches,t.wonGames] : [(offset+t.i+1)+' + '+(offset+6-t.i),count?pair(t.team):'–']))+'</section>';
     }).join('');
     const finals = event.finalTimes.map((time,r) => '<article><h3>'+escape(time)+' · Runde '+(r+7)+'</h3><div class="grid">'+leagues.map(({teams,games,offset},g)=>{
       const [a,b]=games[r];
@@ -114,11 +115,11 @@
     }
     app.innerHTML=current+'<section id="qual"><h2>Americano · Vorrunde</h2><details '+(open?'open':'')+'><summary>'+count+' von 12 Ergebnissen gespeichert</summary>'+qual+'</details></section>'+
       '<section id="liga"><h2>'+(locked?'Gold &amp; Silver':'Gold &amp; Silver · Vorschau')+'</h2><p class="muted">'+
-      (locked?'Teams fixiert · '+Object.keys(state.qualification).length+' Quali-Ergebnisse bei Ligastart. Sieg 2, Remis 1 Punkt.':
-        'Vorläufige Teams und Spielreihenfolge. Bei Punktgleichheit entscheidet die feste Losreihenfolge.')+'</p><div class="grid">'+preview+'</div>'+
+      (locked?'Teams fixiert · '+Object.keys(state.qualification).length+' Quali-Ergebnisse bei Ligastart. Alle gewonnenen Games zählen. Bei Gleichstand entscheidet das Los.':
+        'Vorläufige Teams und Spielreihenfolge. Jedes gewonnene Game zählt. Bei Gleichstand entscheidet das Los.')+'</p><div class="grid">'+preview+'</div>'+
       (!locked && key?'<p class="muted">Offen: '+event.rounds.flatMap((round,r)=>round.matches.flatMap((m,c)=>state.scores[2*r+c]?[]:['R'+(r+1)+' · Platz '+m.court])).join(', ')+'</p><button id="override">Mit aktuellem Stand starten</button>':'')+finals+'</section>'+
       '<section id="ranking"><h2>Einzelwertung'+(locked?' bei Ligastart':'')+'</h2>'+
-      table(['Rang','Spieler','Sp.','Pkt.'],rows.map((row,i)=>[i+1,name(row.i),row.games,row.points]))+'</section>';
+      table(['Rang','Spieler','Matches','Games'],rows.map((row,i)=>[i+1,name(row.i),row.games,row.points]))+'</section>';
     document.title = event.title+' · Gold & Silver';
     document.getElementById('title').textContent = event.title+' · Gold & Silver';
   }
