@@ -210,6 +210,7 @@ function startPolling(){
 }
 
 async function manualRefresh(){
+    if (dirtyMatches.size || isSaving) { showToast('Bitte offene Eingaben zuerst speichern.', 'info'); return; }
     const icon=document.getElementById('refreshIcon');
     icon.classList.add('spin');
     await loadTournament();
@@ -380,6 +381,33 @@ function renderAll(){
     updateRanking();
 }
 
+function sortQualification(stats) {
+    const lot = tournamentData.league?.lot;
+    if (!lot) return stats.sort((a,b) => b.points-a.points || b.diff-a.diff);
+    return stats.sort((a,b) => b.points-a.points || b.wins-a.wins || lot.indexOf(a.ids[0])-lot.indexOf(b.ids[0]));
+}
+
+function renderGroupStandings() {
+    const league = tournamentData.league;
+    if (!league?.groups) return;
+    let panel = document.getElementById('leagueStandings');
+    if (!panel) {
+        panel = document.createElement('section');
+        panel.id = 'leagueStandings';
+        document.getElementById('ranking').append(panel);
+    }
+    const groups = tournamentData.leagueState?.groupStandings;
+    panel.innerHTML = league.groups.map((group, index) => {
+        const teams = groups?.[index]?.teams;
+        const matchesPerTeam = league.times.length * 2 / (teams?.length || 3);
+        const finished = teams?.every(team => team.matches === matchesPerTeam);
+        const heading = '<h3>' + escapeHTML(group.name) + ' · Platz ' + escapeHTML(group.court) + '</h3>';
+        if (!teams) return heading + '<p>Vorrundenränge ' + group.ranks.join('–') + ' · Teams nach der Vorrunde</p>';
+        const rows = teams.map((team,i) => '<tr><td>'+(i+1)+'</td><td>'+team.players.map(p=>escapeHTML(tournamentData.p[p])).join(' / ')+'</td><td>'+team.matches+'</td><td>'+team.games+'</td><td>'+team.wins+'</td></tr>').join('');
+        return heading + '<p>' + (finished ? 'Endstand' : 'Zwischenstand') + '</p><div class="table-wrap"><table><thead><tr><th>#</th><th>Team</th><th>Spiele</th><th>Games</th><th>Siege</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    }).join('');
+}
+
 function calculateQualificationRanking(){
     const isTeam=tournamentData.isTeam||tournamentData.type==='team';
     let stats=[];
@@ -399,7 +427,7 @@ function calculateQualificationRanking(){
             }
         })
     });
-    stats.sort((a,b)=>b.points-a.points||b.diff-a.diff);
+    sortQualification(stats);
     return stats;
 }
 
@@ -462,7 +490,7 @@ function updateRanking(){
         })
     });
     
-    stats.sort((a,b)=>b.points-a.points||b.diff-a.diff);
+    sortQualification(stats);
     const focus=document.getElementById('playerFocus').value;
     
     document.getElementById('rankingTable').innerHTML=stats.map((s,i)=>{
@@ -495,7 +523,7 @@ function updateBot(stats,totalMatches,playedMatches,focus){
     L.push(`<div style="width:100%;background:rgba(255,255,255,.1);border-radius:8px;height:6px;margin-bottom:16px"><div style="background:var(--bot-accent);height:6px;border-radius:8px;width:${progress}%;transition:width .5s"></div></div>`);
     
     if(allDone){
-        L.push(`<div style="font-size:18px;font-weight:800;color:var(--bot-accent);margin-bottom:8px">🏁 Turnier beendet!</div>`);
+        L.push(`<div style="font-size:18px;font-weight:800;color:var(--bot-accent);margin-bottom:8px">🏁 ${tournamentData.league ? 'Vorrunde beendet!' : 'Turnier beendet!'}</div>`);
         L.push(`<div style="font-size:14px;margin-bottom:12px">Platz <strong style="color:var(--bot-accent)">#${myRank}</strong> mit <strong>${me.points} Punkten</strong> (${me.wins}W/${me.draws}D/${me.losses}L)</div>`);
         if(myRank===1)L.push('<div style="font-size:16px">🏆 Glückwunsch zum Sieg!</div>');
         else L.push(`<div>Differenz zu Platz 1: ${stats[0].points-me.points} Pkt</div>`);
@@ -607,10 +635,11 @@ window.loadTournament = async function () {
 window.renderAll = function () {
     if (!tournamentData?.s_new || !tournamentData?.p) return;
     // A layout change (for example changing focus) must retain pending inputs.
+    const draftValues = new Map();
     for (const key of dirtyMatches) {
         const [r, m] = key.split('-').map(Number);
         const a = document.getElementById(`s-${r}-${m}-0`), b = document.getElementById(`s-${r}-${m}-1`);
-        if (a && b && tournamentData.s_new[r]?.matches[m]) tournamentData.s_new[r].matches[m].score = [a.value, b.value];
+        if (a && b) draftValues.set(key, [a.value, b.value]);
     }
     fillFinaleMatches();
     const focus = document.getElementById('playerFocus').value;
@@ -624,16 +653,27 @@ window.renderAll = function () {
     let played = 0, total = 0;
     document.getElementById('matchesArea').innerHTML = tournamentData.s_new.map((round, rIdx) => {
         const matches = round.matches.map((match, mIdx) => {
-            const hasScore = match.score && match.score[0] !== '' && match.score[0] !== null;
-            if (!round.isFinale && !round.isBalance) { total++; if (hasScore) played++; }
+            const values = draftValues.get(rIdx+'-'+mIdx) || match.score || [];
+            const hasScore = match.score?.length === 2 && match.score.every(v => v != null && v !== '');
+            const locked = tournamentData.league && !round.isFinale && tournamentData.leagueState?.hasGroupScores;
+            if (tournamentData.league || (!round.isFinale && !round.isBalance)) { total++; if (hasScore) played++; }
             const score1 = parseInt(match.score?.[0]) || 0, score2 = parseInt(match.score?.[1]) || 0;
             const focused = [...match.team1, ...match.team2].some(id => focusIds.includes(id));
-            const row = (team, side, winner) => `<div class="team-row ${winner ? 'winner' : ''}"><div class="team-names">${names(team)}</div><input id="s-${rIdx}-${mIdx}-${side}" class="score-box" placeholder="–" type="number" inputmode="numeric" min="0" max="99" value="${escapeHTML(match.score?.[side] ?? '')}" ${!isEditing ? 'disabled' : ''} aria-label="Runde ${escapeHTML(round.id)}, Court ${escapeHTML(match.court || mIdx+1)}, Team ${side+1}: Ergebnis" onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onScoreInput(${rIdx},${mIdx})"></div>`;
-            return `<article class="match-card ${focused ? 'card-focus' : ''} ${isEditing ? 'is-editing' : ''}"><div class="match-head"><span class="court-label"><i></i> COURT ${escapeHTML(match.court || mIdx+1)}</span><span class="match-status">${hasScore ? '✓ Ergebnis' : 'Offen'}</span></div><div class="match-body">${row(match.team1,0,hasScore && score1>score2)}${row(match.team2,1,hasScore && score2>score1)}</div></article>`;
+            const row = (team, side, winner) => `<div class="team-row ${winner ? 'winner' : ''}"><div class="team-names">${names(team)}</div><input id="s-${rIdx}-${mIdx}-${side}" class="score-box" placeholder="–" type="number" inputmode="numeric" min="0" max="99" value="${escapeHTML(values[side] ?? '')}" ${!isEditing || locked ? 'disabled' : ''} aria-label="Runde ${escapeHTML(round.id)}, Court ${escapeHTML(match.court || mIdx+1)}, Team ${side+1}: Ergebnis" onfocus="onInputFocus()" onblur="onInputBlur()" oninput="onScoreInput(${rIdx},${mIdx})"></div>`;
+            return `<article class="match-card ${focused ? 'card-focus' : ''} ${isEditing ? 'is-editing' : ''}"><div class="match-head"><span class="court-label"><i></i> ${match.division ? escapeHTML(match.division)+' · ' : ''}COURT ${escapeHTML(match.court || mIdx+1)}</span><span class="match-status">${hasScore ? '✓ Ergebnis' : 'Offen'}</span></div><div class="match-body">${row(match.team1,0,hasScore && score1>score2)}${row(match.team2,1,hasScore && score2>score1)}</div></article>`;
         }).join('');
         const pause = (round.pause || []).map(id => tournamentData.p[id]).filter(Boolean);
         return `<section class="round"><div class="round-heading"><div class="round-label"><span class="round-number">${escapeHTML(round.id)}</span><strong>${round.isFinale ? 'Finale' : round.isBalance ? 'Ausgleichsrunde' : 'Runde ' + escapeHTML(round.id)}</strong></div><span>${escapeHTML(round.time || '')}</span></div><div class="matches-grid">${matches}</div>${pause.length ? `<div class="pause-row"><b>PAUSE</b><strong>${pause.map(escapeHTML).join(', ')}</strong></div>` : ''}</section>`;
     }).join('');
+    const league = tournamentData.league;
+    if (league) {
+        const qualifiers = tournamentData.s_new.slice(0,league.qualificationRounds);
+        total = qualifiers.reduce((n,r)=>n+r.matches.length,0) + league.groups.length * league.times.length;
+        document.getElementById('ranking').querySelector('h2').textContent = 'Vorrundenranking';
+        const gamesHeader = document.getElementById('rankingNameLabel').parentElement.children[3];
+        gamesHeader.textContent = 'Games';
+        document.getElementById('tournamentProgress').setAttribute('aria-label','Gespielte Turniermatches');
+    }
     document.getElementById('progressValue').textContent = `${played} / ${total}`;
     const progress = total ? Math.round(100 * played / total) : 0;
     document.getElementById('progressBar').style.width = progress + '%';
@@ -644,7 +684,9 @@ window.renderAll = function () {
     document.getElementById('rankingNameLabel').textContent = isTeam ? 'Team' : 'Spieler:in';
     const courts = new Set(tournamentData.s_new.flatMap(r => r.matches.map(m => m.court))).size;
     document.getElementById('tournamentMeta').textContent = `${tournamentData.s_new.length} Runden · ${courts} Court${courts === 1 ? '' : 's'} · Jeder Punkt zählt.`;
+    if (league) document.getElementById('tournamentMeta').textContent = `${tournamentData.t.start} Americano · ${league.times[0]} Gruppenfinale · ${total} Matches`;
     updateRanking();
+    renderGroupStandings();
     updateSyncState();
 };
 
@@ -740,6 +782,12 @@ window.__padelLegacyInit = async function () {
 
   function applyLiveScores(liveData, preserveDirty = true) {
     const scores = liveData && typeof liveData === 'object' ? liveData.roundrobin_scores : null;
+    if (tournamentData?.league) {
+      tournamentData.leagueState = {
+        groupStandings: liveData?.groupStandings,
+        hasGroupScores: Object.keys(scores || {}).some(k=>Number(k.split('-')[0]) >= tournamentData.league.qualificationRounds)
+      };
+    }
     if (!scores || typeof tournamentData === 'undefined' || !tournamentData?.s_new) return;
     for (const [k, score] of Object.entries(scores)) {
       if (preserveDirty && typeof dirtyMatches !== 'undefined' && dirtyMatches?.has(k)) continue;
@@ -767,10 +815,12 @@ window.__padelLegacyInit = async function () {
     if (!el0 || !el1) return null;
     const v0 = el0.value.trim();
     const v1 = el1.value.trim();
+    if (el0.validity?.badInput || el1.validity?.badInput) return null;
     let s0 = null, s1 = null;
     if (v0 || v1) {
-      s0 = parseInt(v0, 10) || 0;
-      s1 = parseInt(v1, 10) || 0;
+      if (![v0,v1].every(value => /^\d{1,2}$/.test(value))) return null;
+      s0 = Number(v0);
+      s1 = Number(v1);
     }
     return { rIdx, mIdx, s0, s1 };
   }
@@ -787,7 +837,10 @@ window.__padelLegacyInit = async function () {
 
   function markJobSaved(job) {
     const key = jobKey(job);
-    if (isJobCurrent(job)) dirtyMatches.delete(key);
+    if (isJobCurrent(job)) {
+      dirtyMatches.delete(key);
+      tournamentData.s_new[job.rIdx].matches[job.mIdx].score = job.s0 === null ? ['', ''] : [String(job.s0),String(job.s1)];
+    }
     for (let i = pendingSaves.length - 1; i >= 0; i--) {
       if (jobKey(pendingSaves[i]) === key && sameScore(pendingSaves[i], job)) pendingSaves.splice(i, 1);
     }
@@ -877,9 +930,11 @@ window.__padelLegacyInit = async function () {
     for (const key of Array.from(dirtyMatches)) {
       const [rIdx, mIdx] = key.split('-').map(Number);
       const job = readJob(rIdx, mIdx);
-      if (!job) continue;
-      if (job.s0 == null && job.s1 == null) tournamentData.s_new[rIdx].matches[mIdx].score = ['', ''];
-      else tournamentData.s_new[rIdx].matches[mIdx].score = [String(job.s0), String(job.s1)];
+      if (!job) {
+        const match = tournamentData.s_new[rIdx].matches[mIdx];
+        showToast('Runde '+(rIdx+1)+', Platz '+match.court+' · Beide Games als ganze Zahlen von 0 bis 99 eingeben oder beide Felder leeren.', 'error');
+        return;
+      }
       jobs.push(job);
     }
     if (jobs.length === 0) return;
@@ -909,7 +964,10 @@ window.__padelLegacyInit = async function () {
       }
 
       updateFloatingButton();
-      if (dirtyMatches.size === 0 && typeof renderAll === 'function') renderAll();
+      if (dirtyMatches.size === 0 && saved) {
+        if (tournamentData.league) await loadTournament();
+        else renderAll();
+      }
 
       if (invalidKey) {
         showToast('❌ Ungültiger Bearbeiten-Key', 'error');
@@ -946,7 +1004,10 @@ window.__padelLegacyInit = async function () {
         pendingSaves.shift();
         markJobSaved(save);
         applyLiveScores(latestLiveData);
-        if (dirtyMatches.size === 0 && typeof renderAll === 'function') renderAll();
+        if (dirtyMatches.size === 0) {
+          if (tournamentData.league) await loadTournament();
+          else renderAll();
+        }
         showToast('✅ Synchronisiert', 'success');
       } catch (e) {
         save.retries++;
